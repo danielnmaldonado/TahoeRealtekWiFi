@@ -6,6 +6,22 @@ macOS development and adaptation by **MaLd0n**.
 
 Tahoe Wi-Fi USB is a community-driven project developing **experimental Realtek USB Wi-Fi support for Intel Macs running macOS Tahoe**, with a kernel extension and a menu-bar app. The goal is to document hardware compatibility, welcome testing on additional USB adapters and board revisions, and collaborate on expanding support. The project is under development; a successful build or a listed USB ID does not guarantee that a device works on actual hardware.
 
+## Downloads
+
+The macOS Intel (x86_64) kernel extension and menu-bar app are distributed as development pre-releases with SHA-256 checksums on [GitHub Releases](https://github.com/danielnmaldonado/TahoeRealtekWiFi/releases). Download the matching files and review the installation instructions and hardware testing limitations before use.
+
+## Support the project
+
+If you would like to support development and testing, the following funding links are available:
+
+- [PayPal](https://www.paypal.com/donate/?hosted_button_id=AA4QBFJQYW2N2)
+- [Ko-fi](https://ko-fi.com/olarila)
+- [Revolut](https://revolut.me/olarila)
+- [Remitly](https://remit.ly/pay/danielm2937)
+- [Mercado Pago](https://mpago.la/2wFPzHP)
+
+Funding options are also configured in [`.github/FUNDING.yml`](.github/FUNDING.yml). The repository's **Sponsorships** setting controls whether GitHub displays its Sponsor button.
+
 ## Tested USB Wi-Fi adapters and contributions
 
 **Tested models:** **TP-Link Archer T9UH** and **TP-Link TL-WN822N**.

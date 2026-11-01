@@ -123,8 +123,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
   publish-release:
-    name: Publish tagged development pre-release
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    name: Publish development pre-release
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -132,12 +132,12 @@ jobs:
       contents: write
 
     steps:
-      - name: Check out the tagged source
+      - name: Check out the release source
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Verify release tag matches the source versions
+      - name: Determine release tag from source versions
         shell: bash
         run: |
           set -euo pipefail
@@ -156,15 +156,16 @@ jobs:
           app_build = str(app['CFBundleVersion'])
           expected_tag = f'v{driver_version}-build{driver_build}-app{app_build}'
           actual_tag = os.environ['GITHUB_REF_NAME']
-          if actual_tag != expected_tag:
+          if os.environ['GITHUB_REF'].startswith('refs/tags/') and actual_tag != expected_tag:
               raise SystemExit(f'Release tag mismatch: expected {expected_tag}, got {actual_tag}')
 
           with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              print(f'RELEASE_TAG={expected_tag}', file=env)
               print(f'KEXT_VERSION={driver_version}', file=env)
               print(f'KEXT_BUILD={driver_build}', file=env)
               print(f'APP_VERSION={app_version}', file=env)
               print(f'APP_BUILD={app_build}', file=env)
-          print(f'Tag verified: {actual_tag} (kext {driver_version}/{driver_build}, app {app_version}/{app_build})')
+          print(f'Release tag selected: {expected_tag} (kext {driver_version}/{driver_build}, app {app_version}/{app_build})')
           PYTHON
 
       - name: Download the compiled kernel extension
@@ -199,9 +200,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="$GITHUB_REF_NAME"
+          tag="$RELEASE_TAG"
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "::error::Release '$tag' already exists; refusing to replace previously published assets."
+            echo "::notice::Release '$tag' already exists; keeping its existing assets unchanged."
+            exit 0
+          fi
+          if [[ "$GITHUB_REF" == 'refs/heads/main' ]] && \
+             gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
+            echo "::error::Tag '$tag' already exists without a Release. Refusing to publish this main-branch build under a potentially different commit."
             exit 1
           fi
           cat > release-notes.md <<EOF
@@ -222,7 +228,7 @@ jobs:
             release-assets/TahoeRealtekWiFi.kext.zip \
             release-assets/Tahoe-Wi-Fi-USB.app.zip \
             release-assets/SHA256SUMS.txt \
-            --verify-tag \
+            --target "$GITHUB_SHA" \
             --prerelease \
             --title "Tahoe Wi-Fi USB — Realtek USB Wi-Fi for macOS Tahoe ($tag)" \
             --notes-file release-notes.md
