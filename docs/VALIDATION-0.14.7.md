@@ -1,6 +1,6 @@
 # Validation — driver 0.14.7/build54 and app 0.3.4/build46
 
-macOS development and adaptation: MaLd0n. Status: development.
+macOS development and adaptation: DNMTechLabs. Status: development.
 
 ## Physical checkup of build53
 

@@ -1,6 +1,6 @@
 # Validação de desenvolvimento — 0.14.1/build48, app 0.3.2/build44
 
-Projeto e adaptação para macOS: MaLd0n. Estado: desenvolvimento.
+Projeto e adaptação para macOS: DNMTechLabs. Estado: desenvolvimento.
 Este relatório separa evidência de código da validação física de estação.
 
 ## Catálogo

@@ -1,6 +1,6 @@
 # DFS station mode — build55/app47
 
-macOS development and adaptation: MaLd0n.
+macOS development and adaptation: DNMTechLabs.
 
 ## Channels and chipset families
 

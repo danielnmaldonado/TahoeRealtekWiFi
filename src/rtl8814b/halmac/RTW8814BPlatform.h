@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * MaLd0n RTL8814B portable HALMAC boundary. The enclosing owner serializes all
+ * DNMTechLabs RTL8814B portable HALMAC boundary. The enclosing owner serializes all
  * calls; vendor mutex callbacks are therefore local serialization assertions.
  * USB only, little endian, exact B14 generation1. No Linux/router OS headers.
  */

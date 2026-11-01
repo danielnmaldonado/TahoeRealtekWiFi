@@ -1,6 +1,6 @@
 # RTL8814BU — source status
 
-macOS development and adaptation: MaLd0n. The station backend remains disabled.
+macOS development and adaptation: DNMTechLabs. The station backend remains disabled.
 
 ## Available components
 

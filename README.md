@@ -195,3 +195,14 @@ Check the version/build, selected adapter, WPA2 authorization, IP address, and t
 The source includes the app, helper, kext, net80211, cryptography, redistributable firmware, tests, generators, and license notices. See [source provenance](docs/SOURCES.md), the `*-Upstream.json` files, `firmware/*-provenance.json`, and licenses shipped beside each component. Embedded firmware blobs are unmodified binary images, **not** Realtek firmware source code.
 
 Generators verify pinned primary inputs before overwriting output files. The release includes `SOURCE-MANIFEST.sha256` for source-integrity verification.
+
+## Copyright and credits
+
+© 2026 DNMTechLabs  
+Contact: [dnmtechlabs@gmail.com](mailto:dnmtechlabs@gmail.com)
+
+Credits to Linux wireless and Realtek driver contributors, along with
+OpenBSD, FreeBSD, OpenIntelWireless/itlwm, Acidanthera/MacKernelSDK and other
+upstream authors, are documented in [CREDITS.md](CREDITS.md) and
+[docs/SOURCES.md](docs/SOURCES.md). Original component copyright and license
+notices remain in their respective files.

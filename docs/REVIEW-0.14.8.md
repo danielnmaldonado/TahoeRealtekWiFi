@@ -1,6 +1,6 @@
 # Build55/app47 review
 
-macOS development and adaptation: MaLd0n.
+macOS development and adaptation: DNMTechLabs.
 
 Two independent reviews closed the defects found in the DFS, power, and app code. The final review checked 27 frozen inputs and reproduced cases against production methods under ASan/UBSan. The complete reports and hashes accompanied the delivery in `REVIEWS/` and `VERIFICATION.json`.
 

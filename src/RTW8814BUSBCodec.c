@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only
  * Copyright(c)2016-2019 Realtek Corporation. All rights reserved.
- * MaLd0n bounded byte-access adaptation of the pinned B14 HALMAC descriptor,
+ * DNMTechLabs bounded byte-access adaptation of the pinned B14 HALMAC descriptor,
  * firmware header and OTP algorithms. Original definitions/notices are in
  * rtl8814b/halmac; immutable provenance: RTW8814BHAL-Upstream.json.
  */

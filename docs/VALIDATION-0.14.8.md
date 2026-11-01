@@ -1,6 +1,6 @@
 # Validation — driver 0.14.8/build55 and app 0.3.5/build47
 
-macOS development and adaptation: MaLd0n. Status: **development**.
+macOS development and adaptation: DNMTechLabs. Status: **development**.
 
 This delivery extends build54 with DFS HT20 for seven dual-band backends. It preserves build53/54 fixes for AU RX 32 KiB buffers, TX AMPDU, C2H rate tracking, TX queue ownership, and RX accounting/observability. The catalog remains at 270 IDs, with 263 confirmed numeric identities and 262 eligible for the 13 backends. RTL8814BU and seven unconfirmed/conflicting entries do not gain static station enablement.
 
