@@ -1,6 +1,10 @@
-# Tahoe Wi-Fi USB
+# Tahoe Wi-Fi USB — Realtek USB Wi-Fi for macOS Tahoe (Intel)
 
 macOS development and adaptation by **MaLd0n**.
+
+## About
+
+Tahoe Wi-Fi USB is a community-driven project developing **experimental Realtek USB Wi-Fi support for Intel Macs running macOS Tahoe**, with a kernel extension and a menu-bar app. The goal is to document hardware compatibility, welcome testing on additional USB adapters and board revisions, and collaborate on expanding support. The project is under development; a successful build or a listed USB ID does not guarantee that a device works on actual hardware.
 
 ## Tested USB Wi-Fi adapters and contributions
 
