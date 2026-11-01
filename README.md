@@ -17,7 +17,7 @@ To contribute, [open an issue](https://github.com/danielnmaldonado/TahoeRealtekW
 **Testing scope:** These two models were reported as tested by the project maintainer; their exact hardware revisions and full test results are not yet documented. Testing one unit does not establish compatibility with every revision, chipset, channel, or feature. This project remains under development.
 
 Source code for a kernel extension (kext) and menu-bar application targeting macOS Tahoe on Intel Macs.
-Driver 0.14.8/build55 and app 0.3.5/build47 are **under development**. Successful builds and software tests do not replace connection and traffic testing on each USB adapter and board revision.
+The driver and menu-bar app are **under development**. Successful builds and software tests do not replace connection and traffic testing on each USB adapter and board revision.
 
 The driver exposes an Ethernet interface (`enX`), following the model used by itlwm.
 The macOS-adapted net80211 stack handles association and WPA2-Personal/CCMP; the app selects a USB adapter, scans for networks, connects, and displays status. The control protocol does not depend on private AirPort classes.
@@ -58,7 +58,7 @@ In the current AU implementation, RTL8812AU accepts RFE 0–3 and RTL8821AU acce
 
 The 04bb:0959, 04bb:095a, and 0bda:2003 models follow their 5 GHz-only OEM configuration: they neither advertise nor permit transmission at 2.4 GHz.
 
-Profiles use channels 1–11 at 2.4 GHz and non-DFS channels 36/40/44/48 and 149/153/157/161/165 at 5 GHz, subject to backend and ROM limits. Build55 adds DFS HT20 on channels 52/56/60/64 and 100/104/108/112/116/120/124/128/132/136/140 for seven dual-band backends. ROM/RFE, factory country, and power restrictions may further narrow this set. The loaded driver advertises each channel group separately; the catalog alone does not authorize transmission. Channel 144 remains disabled.
+Profiles use channels 1–11 at 2.4 GHz and non-DFS channels 36/40/44/48 and 149/153/157/161/165 at 5 GHz, subject to backend and ROM limits. DFS HT20 is also implemented on channels 52/56/60/64 and 100/104/108/112/116/120/124/128/132/136/140 for seven dual-band backends. ROM/RFE, factory country, and power restrictions may further narrow this set. The loaded driver advertises each channel group separately; the catalog alone does not authorize transmission. Channel 144 remains disabled.
 
 DFS scanning is passive. A recent beacon matching the chosen BSSID/SSID/channel permits directed authentication; the driver enforces both local and AP-advertised power ceilings. CSA stops TX, takes down the link, and starts a new scan/WPA2 association. APs operating on wider channels use the implemented DFS20 path. Existing VHT40/80 support remains available on non-DFS channels in the corresponding AU backends. There is no AP mode, local CAC/radar detection, WPA3, or Wi-Fi 6/AX. See [DFS station support](docs/DFS-STATION.md).
 
@@ -70,17 +70,17 @@ PHY ceilings are not download/upload results. Actual throughput depends on the A
 
 RTL8814B now has ported, dedicated HALMAC/USB, OTP, and codec components. Its station path remains blocked until licensed NIC firmware and protocol, factory/regulatory profile, remaining tracking functions, and physical tests have been qualified. See [RTL8814BU status](docs/RTL8814BU-STATUS.md). A similar product name does not justify using another chipset's HAL.
 
-Of the catalog entries, 262 IDs are eligible for the 13 integrated backends. See the [complete adapter matrix](docs/USB-WIFI-ADAPTERS.csv) and [validation report](docs/VALIDATION-0.14.8.md). ID eligibility does not establish support for every commercial board revision using that ID. This source tree does **not** constitute a release qualification for all 270 records.
+Of the catalog entries, 262 IDs are eligible for the 13 integrated backends. See the [complete adapter matrix](docs/USB-WIFI-ADAPTERS.csv) and [validation documentation](docs/). ID eligibility does not establish support for every commercial board revision using that ID. This source tree does **not** constitute a release qualification for all 270 records.
 
-## Scan and receive fixes in this build
+## Scanning and USB receive handling
 
 Initial scans on dual-band backends finish the enabled passive channels before choosing an AP. The app displays all usable, observed bands when the same SSID appears at both 2.4 and 5 GHz; the driver selects the AP automatically.
 
-USB RX handles zero-byte transaction errors with bounded endpoint recovery. Build50 fixes premature shutdown when endpoint clearing itself fails transiently: it retries recovery with a finite delay and budget, drains old or partially rearmed reads, and only then rearms all four buffers. Synchronous RX submission failures take the same path. Diagnostics distinguish clearing, draining, and rearming. This recovery path is shared by all 13 station families; persistent failures and other errors still result in a safe stop. Build49 recovered from one physical occurrence but failed on the next. Build50 was observed stable on RTL8814AU, with WPA2 authorized and no USB recovery errors reported at the time of capture. This does not validate other boards or every channel. Build53 was loaded and examined during the October 31 checkup; build54 required another load to validate its fixes.
+USB RX handles zero-byte transaction errors with bounded endpoint recovery. When endpoint clearing fails transiently, the recovery logic retries with a finite delay and budget, drains old or partially rearmed reads, and only then rearms all four buffers. Synchronous RX submission failures take the same path. Diagnostics distinguish clearing, draining, and rearming. This recovery path is shared by all 13 station families; persistent failures and other errors still result in a safe stop. Recorded hardware recovery and WPA2 observations are preserved in the [changelog](CHANGELOG.md); they do not validate every board or channel.
 
 ## Explicit scans and measured signal
 
-App47 requests a real scan when **Refresh networks** is clicked, including while already connected. This may briefly trigger reassociation; background status polling remains read-only. Cached results must not be confused with a new radio scan.
+The app requests a real scan when **Refresh networks** is clicked, including while already connected. This may briefly trigger reassociation; background status polling remains read-only. Cached results must not be confused with a new radio scan.
 
 The menu, tooltip, and accessibility labels show measured RSSI in dBm as well as the filtered reading. Signal bars retain their thresholds: the observed −44 to −42 dBm readings correspond to three bars. Native screenshots were checked at all three levels; no icon permanently stuck at maximum was found. Stale or unavailable readings are indicated.
 
@@ -88,7 +88,7 @@ The RTL8814AU HT20 path includes the channel-153 NBI/CSI adjustment found in the
 
 ## Review of the other families
 
-Build52 corrects the RTL8192EU HT40/SGI/subchannel TX fields according to the primary Realtek setters while keeping RTS and retries separate. Frames using 20 MHz on an HT40 radio receive the correct subchannel. CU/8188EU retain their implemented modes and reject unported HT options.
+RTL8192EU HT40/SGI/subchannel TX fields follow the primary Realtek setters while keeping RTS and retries separate. Frames using 20 MHz on an HT40 radio receive the correct subchannel. CU/8188EU retain their implemented modes and reject unported HT options.
 
 RTL8812AU/RTL8821AU correct PHY-field positioning when a descriptor contains SHIFT, including signal measurements and firmware/coexistence consumers. The generic RX24 codec distinguishes the rtw88 layout from the legacy rtl8xxxu layout. RTL8192FU preserves the host 802.11 sequence for management, EAPOL, and data frames. AU/B-C coexistence preserves LNA requests while another MP query is pending, with bounded handling, stale-session rejection, and per-device state.
 
@@ -98,29 +98,29 @@ The review covered all 13 operational backends. A code review that finds no othe
 
 Double-click `WiFi-Diagnostics.command`. It uses standard macOS tools and does not require compiling the app or kext. The diagnostic directory and ZIP are written to `~/Library/Logs/Tahoe-WiFi-USB/Diagnostics/`; Terminal displays the resulting path.
 
-`RTW-SUMMARY.txt` identifies each controller by Registry ID, family, VID:PID, and interface, and compares two readings of USB/RX/TX counters. Original properties and numeric JSON appear under `drivers/RTW-before/after`. These are IORegistry-published values and can be stale if the app has not queried that adapter. A delta of zero means two published values were equal; it does not prove that no errors or traffic occurred during collection. Build54 provides a per-controller publication generation and monotonic timestamp. An odd generation indicates publication in progress; IORegistry reads are not atomic. Older versions do not expose these markers.
+`RTW-SUMMARY.txt` identifies each controller by Registry ID, family, VID:PID, and interface, and compares two readings of USB/RX/TX counters. Original properties and numeric JSON appear under `drivers/RTW-before/after`. These are IORegistry-published values and can be stale if the app has not queried that adapter. A delta of zero means two published values were equal; it does not prove that no errors or traffic occurred during collection. Diagnostics provide a per-controller publication generation and monotonic timestamp. An odd generation indicates publication in progress; IORegistry reads are not atomic. Older versions do not expose these markers.
 
 Read failures and timeouts appear in `STATUS.tsv` without preventing ZIP creation. For AU adapters, the old `RTWDiagCalib*` counters do not measure calibration time.
 
 The default collection does not require administrator rights, run a speed test, modify network/driver state, or read passwords or Keychain items. It applies the existing basic masking, including MAC addresses represented as data; review diagnostics before sharing. See help for `--output-dir`, `--minutes`, `--command-timeout`, and `--no-pause`.
 
-## RTL8814AU: build53 performance
+## RTL8814AU: receive, transmit, and measured performance
 
 AU RX now uses 32 KiB reads and buffers, consistent with the primary 20 KiB DMA threshold. The old 16 KiB path could truncate valid aggregates; other backends retain 16 KiB. New scalar diagnostics record the lengths of normal and failing reads without exporting packets.
 
 TX AMPDU includes per-peer byte limits, per-TID BA, and descriptor fields checked against pinned sources. Management, EAPOL, group, and fragmented frames remain outside aggregation. The effective rate reported by firmware drives thermal tracking, rather than being overwritten with the initial descriptor rate on every transmission.
 
-On the new direct path, build52 completed short transfers at about 8.7 Mbps down and 8.9 Mbps up with zero reported recovery errors, but introduced truncated/malformed RX frames. Those figures belong to build52. In the later checkup, build53 completed short transfers at 48.3–73.9 Mbps down and 42.0–55.2 Mbps up without newly reported USB errors or truncation. These are short WAN samples, not PHY ceilings.
+Recorded short WAN measurements on an earlier implementation were about 8.7 Mbps down and 8.9 Mbps up, with no reported recovery errors but with truncated/malformed RX frames. Subsequent recorded measurements ranged from 48.3–73.9 Mbps down and 42.0–55.2 Mbps up, without newly reported USB errors or truncation. These are historical samples, not PHY ceilings or a guarantee of performance on other hardware. See the [changelog](CHANGELOG.md) for the original build-specific records.
 
-## Build54 checkup fixes
+## TX queue handling and diagnostics
 
 A full TX queue now retains packet ownership and requests a pause/retry from the IOKit output queue. An asynchronous wake occurs when capacity and authorization are available; a missing queue or terminated connection still results in a safe drop. This avoids admission losses under queue pressure without raising queue limits.
 
 STATUS publishes HT/BA for backends that previously returned before legacy calibration, without executing AMRR or radio I/O. It also includes existing reorder/BA causes and per-controller publication markers. The fabricated fixed Ethernet speed of 54 Mbps was removed: without a complete, recent effective PHY rate, that value remains unknown.
 
-Internal RX accounting advanced when packets were delivered, whereas BSD reported zero in checkup53. Build54 checks the return status of delivery/flush operations and exposes the ingress boundary and native ifnet reading without duplicating counters. This does not prove the zero BSD count was fixed or retrospectively explain the seven observed input errors. Physical validation requires loading build54.
+In recorded tests, internal RX accounting advanced when packets were delivered while BSD reported zero. The delivery/flush return status is checked, and diagnostics expose the ingress boundary and native ifnet reading without duplicating counters. This does not prove that the zero BSD count was fixed or retrospectively explain the seven observed input errors. Physical validation with the driver loaded remains necessary.
 
-The [complete per-chipset and VID:PID support list](docs/USB-WIFI-SUPORTE.txt) describes the 262 eligible identities, restrictions, and revisions. It does not constitute physical certification of all boards. The catalog is unchanged from build53.
+The [complete per-chipset and VID:PID support list](docs/USB-WIFI-SUPORTE.txt) describes the 262 eligible identities, restrictions, and revisions. It does not constitute physical certification of all boards.
 
 ## Build instructions
 
@@ -148,16 +148,27 @@ bash ./app/package.command --no-build
 
 The installer places `Tahoe Wi-Fi USB.app` in `/Applications` and installs its helper. The kext is placed in the EFI separately. The app can save passwords to the macOS Keychain. No personal password is required to build the project.
 
-## Loading through Clover
+## Loading through Clover and Opencore
 
-Identify the EFI partition that actually boots the computer. Back up the previous kext outside the injection directory and copy the entire bundle:
+Identify the EFI partition that actually boots the computer. Back up the previous kext outside the injection directory and copy the entire bundle to the location for your bootloader.
+
+**Clover:**
 
 ```text
 Release/TahoeRealtekWiFi.kext
   → EFI/CLOVER/kexts/Other/TahoeRealtekWiFi.kext
 ```
 
-The copy will be used on the next boot through the correct EFI. The currently loaded driver remains in memory until then. The scripts do not restart the Mac or modify SIP, AMFI, or Clover configuration. See the [Clover instructions](docs/CLOVER.md).
+**OpenCore:**
+
+```text
+Release/TahoeRealtekWiFi.kext
+  → EFI/OC/Kexts/TahoeRealtekWiFi.kext
+```
+
+For OpenCore, enable a corresponding entry in `EFI/OC/config.plist` under `Kernel -> Add`, using `BundlePath: TahoeRealtekWiFi.kext`, `ExecutablePath: Contents/MacOS/TahoeRealtekWiFi`, and `PlistPath: Contents/Info.plist` for the built bundle. Preserve the existing kext load order and configuration. These instructions describe the bootloader setup; hardware operation must still be verified.
+
+The copy will be used on the next boot through the correct EFI. The currently loaded driver remains in memory until then. The scripts do not restart the Mac or modify SIP, AMFI, Clover, or OpenCore configuration. See the [Clover instructions](docs/CLOVER.md).
 
 ## Verifying the result
 
