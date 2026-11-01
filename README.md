@@ -2,6 +2,16 @@
 
 macOS development and adaptation by **MaLd0n**.
 
+## Tested USB Wi-Fi adapters and contributions
+
+**Tested models:** **TP-Link Archer T9UH** and **TP-Link TL-WN822N**.
+
+**Community collaboration is welcome.** This project invites contributors to test additional USB Wi-Fi adapters and hardware revisions, document real-world compatibility, report reproducible problems, and help add support for more devices and chipsets. Hardware tests, diagnostics, fixes, and pull requests are welcome.
+
+To contribute, [open an issue](https://github.com/danielnmaldonado/TahoeRealtekWiFi/issues) with the adapter model, hardware revision, USB VID:PID, chipset (if known), macOS version/build, observed behavior (detection, scanning, WPA2, DHCP, traffic, reconnection, and sleep/wake), and relevant diagnostic logs. Remove personal information before sharing logs.
+
+**Testing scope:** These two models were reported as tested by the project maintainer; their exact hardware revisions and full test results are not yet documented. Testing one unit does not establish compatibility with every revision, chipset, channel, or feature. This project remains under development.
+
 Source code for a kernel extension (kext) and menu-bar application targeting macOS Tahoe on Intel Macs.
 Driver 0.14.8/build55 and app 0.3.5/build47 are **under development**. Successful builds and software tests do not replace connection and traffic testing on each USB adapter and board revision.
 
