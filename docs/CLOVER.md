@@ -1,94 +1,55 @@
-# Compilar e carregar pela Clover
+# Building and loading with Clover
 
-Este projeto expõe o adaptador como interface Ethernet, com o net80211
-responsável pela associação e pelo WPA2. O app da barra de menus controla a
-interface USB selecionada. O carregamento da kext e o helper do app são etapas
-separadas.
+This project exposes the adapter as an Ethernet interface. net80211 handles association and WPA2, while the menu-bar app controls the selected USB interface. Loading the kext and installing the app helper are separate steps.
 
-## Compilação
+## Build
 
-Na raiz do source, execute:
+From the source root, run:
 
 ```sh
 ./build.command --kext
 ./app/build.command
 ```
 
-Os produtos ficam em `Release/`. O source inclui a kext, o app, o helper,
-os testes e os geradores. As assinaturas ad-hoc são aplicadas e verificadas
-pelos scripts de compilação.
+Products are written to `Release/`. The source includes the kext, app, helper, tests, and generators. Build scripts apply and verify ad-hoc signatures.
 
 ## EFI
 
-Monte a EFI que efetivamente inicia o computador pela Clover. Identifique a
-partição antes de copiar: o número `diskXs1` pode mudar entre reinícios.
-Guarde o backup da kext anterior fora de `EFI/CLOVER/kexts/Other`, para evitar
-a injeção simultânea de duas cópias com o mesmo identificador.
+Mount the EFI partition actually used to boot through Clover. Identify the partition before copying: the `diskXs1` identifier may change across reboots. Keep a backup of the previous kext outside `EFI/CLOVER/kexts/Other` to avoid simultaneously injecting two copies with the same bundle identifier.
 
-Copie o bundle inteiro `Release/TahoeRealtekWiFi.kext` para:
+Copy the entire `Release/TahoeRealtekWiFi.kext` bundle to:
 
 ```text
 EFI/CLOVER/kexts/Other/TahoeRealtekWiFi.kext
 ```
 
-A configuração da Clover precisa estar habilitada para injetar essa kext.
-O bundle novo será usado no próximo boot pela EFI correta. A cópia não troca
-o driver já carregado em memória. Os scripts de build não reiniciam o Mac,
-não alteram a configuração da Clover e não mudam SIP/AMFI.
+Clover must be configured to inject this kext. The new bundle will be used on the next boot from the correct EFI. Copying does not replace the driver already loaded in memory. Build scripts do not reboot the Mac, alter Clover configuration, or change SIP/AMFI.
 
-Neste computador, `kmutil load` foi recusado por aprovação, enquanto a Clover
-é o método de carregamento indicado pelo usuário. Abrir novamente os Ajustes
-de Segurança não substitui a injeção pela EFI.
+On the recorded test computer, `kmutil load` was denied pending approval; Clover is the loading method selected by the user. Reopening Security settings does not replace EFI injection.
 
 ## App
 
-O instalador do app coloca `Tahoe Wi-Fi USB.app` em `/Applications`.
-O pacote instala o app e seu helper; a kext é copiada separadamente para a EFI.
-A aprovação do helper, quando solicitada pelo macOS, fica em Itens de Início.
-Isso não é a aprovação de uma extensão de kernel.
+The app installer places `Tahoe Wi-Fi USB.app` in `/Applications` and installs its helper. The kext is copied separately to the EFI. If macOS requests helper approval, it appears under Login Items. This is not kernel-extension approval.
 
-Escolha o adaptador no menu, atualize as redes e digite a senha no app.
-A senha pode ser salva no Chaves do macOS. Nenhuma credencial pessoal é
-necessária para compilar o projeto.
+Select an adapter in the menu, refresh available networks, and enter the password in the app. The password can be saved to macOS Keychain. No personal credentials are needed to compile the project.
 
-## Conferência após o boot
+## Checks after boot
 
 ```sh
 kmutil showloaded --list-only
 ioreg -r -c RTWUSBController -l
 ```
 
-Confira versão, build, família e interface do adaptador selecionado.
-O registro da kext carregada e a existência de `enX` não demonstram, sozinhos,
-WPA2, DHCP ou tráfego. A validação precisa conferir autorização da porta,
-endereço IP, recepção/transmissão e o caminho de rede usado pelo teste.
-Com Ethernet cabeada também conectada, um teste de velocidade pode usar a
-interface cabeada.
+Check the version, build, family, and interface of the selected adapter. A loaded kext or the existence of `enX` alone does not prove WPA2, DHCP, or actual traffic. Validation must confirm controlled-port authorization, IP address, RX/TX, and the network interface used by the test. With wired Ethernet connected, a speed test might run through the wired interface.
 
-## Estado desta árvore
+## Status of this tree
 
-A build55 (driver 0.14.8) e o app47 (0.3.5) estão em desenvolvimento.
-Os 13 backends operacionais estão integrados, com 262 IDs elegíveis. Há
-263 identidades verificadas. O RTL8814B possui HAL/USB e PHY próprios, mas
-a estação aguarda firmware NIC/protocolo qualificados e validação física.
-Sete registros permanecem não confirmados ou conflitantes.
-A identificação numérica não comprova todas as revisões de placa.
+Build55 (driver 0.14.8) and app47 (0.3.5) are under development. The 13 operational backends are integrated, with 262 eligible USB IDs and 263 verified numeric identities. RTL8814B has its own HAL/USB and PHY components, but its station path still requires qualified NIC firmware/protocol and physical validation. Seven records remain unconfirmed or conflicting. Numeric identity does not prove support for every board revision.
 
-O RTL8814AU conectado passou testes físicos de rádio e recepção nas duas
-faixas não DFS de 5 GHz. Associação WPA2, DHCP e tráfego com a nova kext ainda
-precisam de validação após seu carregamento. As outras famílias exigem os
-adaptadores correspondentes para validar conexão, tráfego e coexistência.
-Consulte README, matriz e relatório de validação antes de divulgar compatibilidade.
+The connected RTL8814AU passed recorded physical radio/receive tests on the two non-DFS 5 GHz channel ranges. WPA2 association, DHCP, and traffic with the new kext still need validation after that kext has been loaded. Other families require their respective adapters to test connectivity, traffic, and coexistence. Consult the README, adapter matrix, and validation report before making compatibility claims.
 
-## DFS na build55
+## DFS in build55
 
-App e kext precisam ser recompilados: o app47 aceita os grupos DFS que a kext55
-realmente registra, sem liberar canais em um driver antigo. Os sete backends
-dual band incluem DFS HT20 em52–64/100–140, sujeitos a ROM/RFE, país e potência.
-Use Refresh networks para uma busca real; a banda vista em cache não comprova
-a banda da associação. Confira o canal atual nos detalhes. O canal 144 permanece
-fechado. Troca de canal pelo AP interrompe TX e refaz associação/WPA2.
+Both the app and the kext must be rebuilt. App47 accepts the DFS channel groups actually registered by kext55, without enabling channels on an older driver. Seven dual-band backends include DFS HT20 on 52–64/100–140, subject to ROM/RFE, country, and power limits. Use **Refresh networks** for a real scan; a band observed in cache does not establish the association band. Check the current channel in the details. Channel 144 remains disabled. AP channel changes stop TX and trigger reassociation/WPA2.
 
-A build55 ainda exige carregamento físico posterior pelo usuário. Os testes de
-software não demonstram o canal de5 GHz do roteador em automático nem validam
-todas as placas/revisões. Detalhes em DFS-STATION.md e VALIDATION-0.14.8.md.
+Build55 still requires a subsequent physical load on the user's machine. Software tests do not identify the router's automatic 5 GHz channel or validate all boards/revisions. See [DFS-STATION.md](DFS-STATION.md) and [VALIDATION-0.14.8.md](VALIDATION-0.14.8.md).
