@@ -1,0 +1,850 @@
+{
+  "schema_version": 2,
+  "release": {
+    "driver": "0.13.19",
+    "driver_build": 38,
+    "app": "0.2.13",
+    "app_build": 33,
+    "artifact_kind": "complete-source-only",
+    "application_language": "English",
+    "signing_policy": "mandatory ad-hoc; native codesign not executed on this host",
+    "target": "macOS Tahoe, Intel x86_64; native support requires physical validation"
+  },
+  "recorded_utc": "2026-10-23T13:15:31+00:00",
+  "input": {
+    "file": "TahoeRealtekWiFi-v0.13.18-APP-v0.2.13-MULTIFAMILY-EN-ADHOC-SOURCE.zip",
+    "sha256": "5c6079df2693554e8a34c82f27dfb7e50abaeb5074e9b56596e3aa267011ca16"
+  },
+  "catalog": {
+    "total_usb_profiles": 270,
+    "preserved_legacy_profiles": 250,
+    "new_source_evidenced_aliases": 20,
+    "eligible_with_station_backend": 122,
+    "legacy_eligible": 102,
+    "new_eligible": 20,
+    "pending_station_backend": 105,
+    "unverified_or_conflicting": 43,
+    "enabled_families": {
+      "rtl8192cu": 86,
+      "rtl8188eu": 13,
+      "rtl8814au": 14,
+      "rtl8192eu": 9
+    },
+    "hardware_certified_profiles": 0,
+    "note": "USB identity + implemented station backend is an eligibility claim only; radio firmware, silicon cuts, endpoints, WPA2 and connectivity must still pass on-device."
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+    "compiler": "GCC 14.2.0 (CMake), Clang 17 (static analyzer)",
+    "python": "Python 3.13.5 (/usr/bin/python3 used by CTest)",
+    "build_type": "Debug",
+    "sanitizer": "85/85 portable CTest groups with UBSan; ASan/LSan not run",
+    "native_macos_environment_available": false
+  },
+  "reproduce": {
+    "portable_suite": "cmake -S . -B out/host-ubsan -DCMAKE_BUILD_TYPE=Debug -DRTW_ENABLE_SANITIZERS=ON -DRTW_HOST_SANITIZERS=undefined -DRTW_ENABLE_LIBUSB=OFF -DPython3_EXECUTABLE=/usr/bin/python3 && cmake --build out/host-ubsan -j8 && ctest --test-dir out/host-ubsan --output-on-failure -j6 --timeout 110",
+    "static_analysis": "clang -std=c11 -Iinclude -Wall -Wextra -Wconversion -Wshadow -Werror -fsyntax-only src/LegacyFirmwareStage.c && clang --analyze -std=c11 -Iinclude -Wall -Wextra -Wconversion -Wshadow -o /dev/null src/LegacyFirmwareStage.c; libusb tool syntax-only checked with test API stubs outside the release",
+    "catalog_checks": [
+      "python3 scripts/generate-usb-profiles.py --check",
+      "python3 scripts/generate-usb-personalities.py --check",
+      "python3 scripts/usb_wifi_matrix.py --check"
+    ],
+    "native_build": "bash build.command --all",
+    "native_app_tests": "bash app/test.command",
+    "native_signing": "bash app/signing.sh --help (use documented build/package scripts to sign; native verification not executed here)",
+    "new_wire_format_test": "clang -std=c11 -fsanitize=undefined -Iinclude -c src/RTL8812AUDataPath.c -o /tmp/r12au-ubsan.o && clang++ -std=c++17 -fsanitize=undefined -Iinclude tests/rtl8812au_datapath_tests.cpp /tmp/r12au-ubsan.o -o /tmp/r12au-ubsan-tests && /tmp/r12au-ubsan-tests",
+    "new_join_tests": "./out/r12au/rtw-r12au-station-tests",
+    "new_capture_cli_tests": "python3 tests/rtl8812au_capture_cli_tests.py --decoder ./out/r12au/rtw-acusb-decode",
+    "new_passive_ubsan_tests": "cmake -S . -B out/r12au-ubsan -DCMAKE_BUILD_TYPE=Debug -DRTW_ENABLE_SANITIZERS=ON -DRTW_HOST_SANITIZERS=undefined -DRTW_ENABLE_LIBUSB=OFF -DPython3_EXECUTABLE=/usr/bin/python3 && cmake --build out/r12au-ubsan --target rtw-r12au-passive-tests rtw-monitor-tests rtw-r12au-station-tests rtw-r12au-datapath-tests -j4 && ctest --test-dir out/r12au-ubsan --output-on-failure -R 'rtw-r12au-passive-tests|rtw-monitor-tests|rtw-r12au-station-tests|rtw-r12au-datapath-tests'",
+    "rf_readback_test": "ctest --test-dir out/host-ubsan --output-on-failure -R 'rtw-(r12au-rf-readback|monitor)-tests'",
+    "hwdiag_header_syntax": "clang++ -std=c++17 -Wall -Wextra -Werror -Iinclude -I<temporary-test-only-libusb-declarations> -fsyntax-only tools/rtw-hwdiag.cpp; real libusb link unverified",
+    "rf_thermal_preflight_test": "ctest --test-dir out/host-ubsan --output-on-failure -R 'rtw-r12au-rf-calibration-tests'",
+    "security_policy_test": "ctest --test-dir out/host-ubsan --output-on-failure -R \"rtw-network-(security|scan-contract)-tests\"",
+    "strict_station_check": "clang -std=c11 -Iinclude -Wall -Wextra -Wconversion -Wshadow -Werror -pedantic -fsyntax-only src/RTL8812AUStation.c && clang++ -std=c++17 -Iinclude -Wall -Wextra -Wconversion -Wshadow -Werror -pedantic -fsyntax-only tests/network_security_tests.cpp",
+    "new_family_tests": "ctest --test-dir out/host-ubsan --output-on-failure -R 'rtw-(family-rx24|family-firmware-radio|backend-status-cli|family-backend|controller-family)-tests'"
+  },
+  "portable_suite": {
+    "passed": 85,
+    "failed": 0,
+    "native_tests_included": false,
+    "seconds_wall": 34.36,
+    "parallelism": 6,
+    "sanitizer": "UBSan -fsanitize=undefined on portable targets; ASan/LSan not run",
+    "tests": [
+      {
+        "name": "rtw-network-scan-contract-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-network-security-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-menu-adapter-support-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-menu-reconnect-policy-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-menu-instance-lock-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-timeout-lifecycle-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-menu-credential-policy-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-signal-sample-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-menu-signal-policy-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-menu-model-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-menu-work-epoch-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-menu-poll-policy-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-control-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-r12au-station-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-r12au-passive-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-r12au-rf-readback-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-r12au-rf-calibration-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-r12au-datapath-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-92e-datapath-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-92e-ht-descriptor-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-family-rx24-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-legacy-firmware-stage-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-family-firmware-radio-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-backend-status-cli-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-family-backend-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-usb-wifi-profiles-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-usb-wifi-firmware-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-legacy-hal-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-92e-hal-trace-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-r12au-capture-cli-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-signing-policy-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-app-pkg-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-menu-source-contract-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-deferred-cleanup-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-wpa-recovery-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-english-ui-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-signal-pipeline-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-controller-family-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-adapter-support-contract-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-usb-wifi-catalog-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-legacy-efuse-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-legacy-ra-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-92e-iq-calib-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-92e-iq-chain-trace-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-92e-iqk-protocol-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-92e-thermal-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-kext-personality-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-tahoe-validation-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-pack-diagnostics-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-92e-efuse-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-gen1-datapath-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-rtwn-ht-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-net80211-ht-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-net80211-ba-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-rtwn-ht-tx-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-net80211-input-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-fw-command-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-rate-control-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-wpa-diagnostics-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-rx-order-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-performance-diagnostics-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-net80211-crypto-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-net80211-taskq-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-8814au-boot-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-8814au-phy-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-8814au-datapath-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-8814au-station-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-8814au-backend-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-8814au-attach-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-net80211-runtime-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-net80211-pae-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-usb-wifi-extensions-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-usb-wifi-matrix-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-rx-preflight-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-kext-linkage-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-usb-probe-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-ethernet-bridge-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-driver-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-hal-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-hw-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-monitor-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-station-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-8192eu-tests",
+        "status": "passed"
+      },
+      {
+        "name": "rtw-8192eu-hardware-tests",
+        "status": "passed"
+      }
+    ],
+    "tests_total": 84,
+    "tests_passed": 84,
+    "tests_failed": 0
+  },
+  "static_analysis": {
+    "current_increment_translation_units": 1,
+    "current_increment_diagnostics_count": 0,
+    "native_macos_apis_analyzed": false,
+    "results": [
+      {
+        "file": "src/LegacyFirmwareStage.c",
+        "returncode": 0,
+        "diagnostics": ""
+      }
+    ],
+    "strict_compilation": [
+      {
+        "file": "src/LegacyFirmwareStage.c",
+        "passed": true,
+        "flags": "clang -std=c11 -Wall -Wextra -Wconversion -Wshadow -Werror -Iinclude -fsyntax-only"
+      },
+      {
+        "file": "tools/rtw-legacy-fwdiag.cpp",
+        "passed": true,
+        "flags": "clang++ -std=c++17 -Wall -Wextra -Wconversion -Wshadow -Werror -fsyntax-only -Iinclude -I<test-libusb-stub>",
+        "note": "Syntax only, not compiled/linked with system libusb"
+      }
+    ],
+    "real_libusb_build": "not available; optional device diagnostics were not linked against libusb"
+  },
+  "source_syntax_metadata": {
+    "bash_syntax": 13,
+    "plists": 4,
+    "xcode_schemes": 1,
+    "json_files": 13,
+    "failed": 0,
+    "xcode_project_plutil": "passed",
+    "usb_catalog_generator_checks": "270 catalog entries / 122 kext station personalities; preserved and covered by portable regression"
+  },
+  "source_integrity": {
+    "source_inventory_entries": 507,
+    "source_inventory_lines": 134206,
+    "changed_or_new_source_config_entries": 9,
+    "original_inventoried_source_or_config_missing": [],
+    "firmware_unchanged_against_input": true,
+    "licenses_unchanged_against_input": true,
+    "hardware_id_mappings_generated_from_single_catalog": true,
+    "original_usb_matching_inventory_hash_preserved": true,
+    "note": "Inventory covers 507 source/config items, not complete line-by-line execution coverage or physical radio certification. Changes compared with the 0.13.18 full source input."
+  },
+  "limitations": [
+    "RTL8192FU/RTL8723BU have only an opt-in experimental userspace firmware downloader. Real hardware startup and board-specific power-on were not validated; this is not automatic kext firmware loading.",
+    "RTL8710BU is firmware transfer-layout planning only because it requires a different SoC CPU reset/power path.",
+    "The new optional libusb diagnostic CLI was checked only for C++ syntax against temporary API declarations; no real libusb native build or USB adapter run was performed.",
+    "The firmware signature check only validates known wire-format headers and size; it cannot prove trusted firmware origin or cryptographic integrity.",
+    "No new IDs have been attached to the kext: 122 previously eligible USB station profiles in four chipset families; 148 additional catalog identities remain pending and no hardware profiles were certified.",
+    "Native Xcode builds, actual macOS ad-hoc codesigning, Gatekeeper/notarization, physical Wi-Fi connection, RF calibration, AP association, WPA2 key installation and kernel load were not tested.",
+    "Host UBSan tests do not measure/guarantee memory leaks, CPU efficiency, battery, radio performance, or stable physical USB behavior; ASan/LSan/macOS Instruments have not run."
+  ],
+  "wire_format_stage": {
+    "chip_families": [
+      "rtl8812au",
+      "rtl8821au"
+    ],
+    "offline_rx_decoder": true,
+    "restricted_tx_descriptor_serializer": true,
+    "real_usb_io_or_station_operation": false,
+    "verified_pending_ids": {
+      "rtl8812au": 34,
+      "rtl8821au": 22
+    },
+    "allocation_free": true,
+    "max_usb_transfer_bytes": 65536,
+    "max_rx_frames": 64,
+    "tx_descriptor_bytes": 40,
+    "rx_descriptor_bytes": 24,
+    "new_test_assertions": 149935,
+    "deterministic_fuzz_iterations": 50000,
+    "isolated_ubsan_unit_test": "passed",
+    "isolated_clang_static_analyzer": "passed",
+    "offline_cli_synthetic_captures": {
+      "rtl8812au": "passed",
+      "rtl8821au": "passed"
+    },
+    "separate_matrix_unittests": {
+      "passed": 4,
+      "failed": 0
+    },
+    "native_macOS_kext_build": "not_run",
+    "macOS_codesign": "not_run",
+    "hardware_connectivity": "not_run"
+  },
+  "offline_radio_join_stage": {
+    "new_files": [
+      "include/rtw/RTL8812AURadio.h",
+      "src/RTL8812AURadio.c",
+      "include/rtw/RTL8812AUStation.h",
+      "src/RTL8812AUStation.c",
+      "tests/rtl8812au_station_tests.cpp",
+      "tests/rtl8812au_capture_cli_tests.py"
+    ],
+    "hardware_usb_io": false,
+    "radio_tx_authorized": false,
+    "board_calibration": false,
+    "new_device_ids_enabled": 0,
+    "channel_plan": {
+      "band_2ghz": "channels 1-11, 20MHz only",
+      "band_5ghz": "standard 20/40/80 MHz channel groups; DFS marked",
+      "passive_only": true
+    },
+    "scan": {
+      "frame_types": [
+        "beacon",
+        "probe_response"
+      ],
+      "crc_fcs_optional": true,
+      "rates_validated": true,
+      "rsn_wpa2_psk_ccmp_only": true,
+      "pmf_required_rejected": true
+    },
+    "join": {
+      "open_system_authentication_frame": true,
+      "wpa2_rsn_association_ie": true,
+      "peer_status_aid_validation": true,
+      "max_association_frame_bytes": 128,
+      "open_port_authorized": false,
+      "wpa2_keys_installed": false
+    },
+    "regression": {
+      "new_host_checks": 100495,
+      "new_fuzz_iterations": 50000,
+      "capture_cli_cases": 11,
+      "static_clang_analyze": "passed",
+      "ubsan": "passed"
+    },
+    "macos_kext_build": "not_run",
+    "real_usb_station_operations": "not_run"
+  },
+  "passive_monitor_stage": {
+    "new_files": [
+      "include/rtw/RTL8812AUPassive.h",
+      "src/RTL8812AUPassive.c",
+      "tests/rtl8812au_passive_tests.cpp"
+    ],
+    "modified_files": [
+      "src/RXMonitor.c",
+      "include/rtw/RXMonitor.h",
+      "tools/rtw-hwdiag.cpp",
+      "tests/monitor_tests.cpp",
+      "CMakeLists.txt",
+      "TahoeRealtekWiFi.xcodeproj/project.pbxproj"
+    ],
+    "authorized_device_identity": "RTL8812AU 0bda:8812 B-cut / RFE3 only",
+    "usb_io_backend": "optional libusb tool; actual hardware not run",
+    "mode": "opt-in receive-only channel 6; no 802.11 TX, no association",
+    "rtl8812au_rx_descriptor_decode": true,
+    "two_pass_usb_aggregate_validation": true,
+    "drops": [
+      "CRC",
+      "ICV",
+      "C2H",
+      "invalid_FCS",
+      "malformed_80211",
+      "wrong_channel"
+    ],
+    "physical_channel_validation": "channel 6 from trusted explicit monitor config",
+    "post_program_register_readback": 6,
+    "readback_is_rf_calibration_proof": false,
+    "deterministic_random_payload_iterations": 20000,
+    "portable_ctest_groups_passed": 78,
+    "ubsan_focused_groups_passed": 4,
+    "clang_strict_syntax_check": true,
+    "clang_static_analysis": "2 new/modified C implementation files; no diagnostics",
+    "optional_hwdiag_libusb_syntax_check": "passed with temporary fake header declarations, not linked to libusb",
+    "native_macos_xcode_build": "not_run",
+    "physical_radio_capture": "not_run",
+    "new_usb_ids_enabled": 0
+  },
+  "rf_readback_stage": {
+    "new_files": [
+      "include/rtw/RFReadback.h",
+      "src/RFReadback.c",
+      "tests/rtl8812au_rf_readback_tests.cpp"
+    ],
+    "updated_files": [
+      "src/RXMonitor.c",
+      "include/rtw/RXMonitor.h",
+      "tools/rtw-hwdiag.cpp",
+      "CMakeLists.txt",
+      "TahoeRealtekWiFi.xcodeproj/project.pbxproj"
+    ],
+    "authorized_device_identity": "0bda:8812 RTL8812AU B-cut/TSMC/USB/RFE3; channel 6",
+    "rf_register": "RF[0x18] via Jaguar HSSI 0x8b0; path A/B PI or SI readback",
+    "mac_bb_preflight": "six read-only registers before any RF selector write",
+    "samples_per_chain": 2,
+    "path_a_channel6_required": true,
+    "path_b_mismatch_accepted_as_inconclusive": true,
+    "temporary_bb_registers": [
+      "0x838 CCA",
+      "0x8b0 HSSI"
+    ],
+    "restoration_verified": true,
+    "new_fail_closed_receive_shutdown": "clear MACRXEN/RXDMA/HCI_RXDMA in CR 0x100 after capture",
+    "usb_tests": "simulated; fault injection on reads, writes, restore, settling",
+    "full_ctest_groups_passed": 78,
+    "clang_analyzer_no_diagnostics": true,
+    "libusb_hardware_validation": "not performed",
+    "live_mac_os_station_support": false,
+    "additional_usb_ids_enabled": 0
+  },
+  "rf_thermal_preflight_stage": {
+    "new_files": [
+      "src/RFCalibration.c",
+      "include/rtw/RFCalibration.h",
+      "tests/rtl8812au_rf_calibration_tests.cpp"
+    ],
+    "modified_components": [
+      "src/Efuse.c",
+      "include/rtw/Efuse.h",
+      "tools/rtw-hwdiag.cpp",
+      "tests/hal_tests.cpp"
+    ],
+    "authorized_hardware_profile": "RTL8812AU 0bda:8812 B-cut/TSMC USB RFE3, passive lab channel 6 only",
+    "method": "path-A RF[0x42] HSSI/LSSI PI/SI readback; no conversion trigger",
+    "thermal_field": "RF[0x42] bits 15:10",
+    "factory_reference": "logical eFuse offset 0xBA",
+    "sample_count": 2,
+    "sample_consistency_max_code_delta": 2,
+    "iqk_investigation_drift_threshold_codes": 8,
+    "sampling_units": "raw thermal codes, not degrees Celsius",
+    "register_guard": "snapshot, restore and verification of CCA 0x838 and HSSI 0x8b0",
+    "risky_state_handling": "fails closed on profile, USB, delay or restore errors; no transmit authorization",
+    "new_test_assertions": 96,
+    "rf_readback_test_assertions": 119,
+    "hal_test_assertions": 504,
+    "adversarial_efuse_rx_cases": 12000,
+    "portable_ctest_passed": 78,
+    "portable_ctest_failed": 0,
+    "ubsan_all_portable_targets": true,
+    "strict_clang_new_module_passed": true,
+    "clang_analyzer_diagnostics": 0,
+    "native_libUSB_build": "not performed (not installed)",
+    "macos_codesign": "not performed",
+    "physical_usb_rf_test": "not performed",
+    "iqk_performed": false,
+    "new_usb_ids_enabled": 0
+  },
+  "station_security_hardening": {
+    "source": "kext/RTWUSBController.cpp and include/rtw/NetworkSecurity.h",
+    "advertised_policy": "RSN + PSK + pairwise CCMP + group CCMP + PMF not required",
+    "native_group_cipher_member": "ni_rsngroupcipher",
+    "unsupported_policy": "fail closed for WEP/TKIP group/PMF required/missing RSN or PSK",
+    "offline_assoc_source": "src/RTL8812AUStation.c",
+    "offline_assoc_guards": [
+      "ESS and privacy capability agreement",
+      "response AID range",
+      "bounded rate IE lengths",
+      "duplicate rate IE rejection",
+      "no unadvertised legacy rates"
+    ],
+    "rtw_network_security_boolean_combinations": 64,
+    "macos_native_kext_build": "not_run",
+    "real_wifi_join": "not_run",
+    "new_device_ids_enabled": 0,
+    "portable_regressions_passed": 80
+  },
+  "driver_0_13_16_review": {
+    "firmware": {
+      "behavior": "Reset and read back write-one-to-clear MCUFWDL checksum report before uploading firmware pages",
+      "regression_cases": [
+        "successful firmware boot",
+        "checksum timeout",
+        "stale checksum from earlier boot",
+        "unclearable checksum bit",
+        "USB transfer error cleanup"
+      ],
+      "usb_hardware_validated": false
+    },
+    "rf": {
+      "behavior": "Reject six-bit 0x3F saturation as factory temperature baseline in eFuse extraction and thermal preflight",
+      "iqk_performed": false,
+      "hardware_validated": false
+    },
+    "wpa2": {
+      "behavior": "Offline RSN suite-list parser allows WPA2-PSK/CCMP subset of mixed WPA2/WPA3 transition beacons with PMF optional",
+      "sae_supported": false,
+      "pmf_required_supported": false,
+      "real_station_backend_enabled": false
+    },
+    "clang_strict_modules_passed": 4,
+    "clang_analyzer_modules_passed": 4,
+    "ctest_groups_passed": 80,
+    "ctest_groups_failed": 0
+  },
+  "cross_family_backend_0_13_17": {
+    "scope": "14-family metadata and read-only USB transport preflight, not 14 station backends",
+    "family_definitions": 14,
+    "catalog_profiles": 270,
+    "identity_verified": 227,
+    "station_eligible": 122,
+    "needs_station_backend": 105,
+    "unverified_identity": 43,
+    "station_implementation_families": [
+      "rtl8192cu",
+      "rtl8188eu",
+      "rtl8192eu",
+      "rtl8814au"
+    ],
+    "offline_wire_rx_families": [
+      "rtl8192cu",
+      "rtl8188eu",
+      "rtl8192eu",
+      "rtl8814au",
+      "rtl8812au",
+      "rtl8821au"
+    ],
+    "usb_preflight_only_families": [
+      "rtl8192du",
+      "rtl8192fu",
+      "rtl8710bu",
+      "rtl8723bu",
+      "rtl8814bu",
+      "rtl8821cu",
+      "rtl8822bu",
+      "rtl8822cu"
+    ],
+    "portable_tests": "81/81 CTest groups passed with UBSan; 20,000 randomized USB and RX inputs",
+    "clang_strict": "src/FamilyBackend.c -Wall -Wextra -Wconversion -Wshadow -Werror passed",
+    "xcode_build": "not run; Linux environment",
+    "codesign_executed": "no",
+    "physical_hardware_tested": "no",
+    "ready_for_real_station_on_all_families": false
+  },
+  "all_family_rx_firmware_radio_0_13_18": {
+    "scope": "USB RX descriptor and aggregate validation, signature-only legacy firmware checks, passive-only radio channel geometry, and capability-report CLI",
+    "new_files": [
+      "include/rtw/FamilyRX24.h",
+      "include/rtw/FamilyRadioPolicy.h",
+      "src/FamilyRX24.c",
+      "src/FamilyRadioPolicy.c",
+      "tests/backend_status_cli_tests.py",
+      "tests/family_firmware_radio_tests.cpp",
+      "tests/family_rx24_tests.cpp"
+    ],
+    "portable_rx_families": [
+      "rtl8192fu",
+      "rtl8723bu",
+      "rtl8821cu",
+      "rtl8822bu",
+      "rtl8822cu"
+    ],
+    "offline_firmware_header_families": [
+      "rtl8192du",
+      "rtl8192fu",
+      "rtl8723bu",
+      "rtl8710bu"
+    ],
+    "passive_only_channel_preflight_families": [
+      "rtl8192du",
+      "rtl8192fu",
+      "rtl8723bu",
+      "rtl8821cu",
+      "rtl8822bu",
+      "rtl8822cu"
+    ],
+    "station_families_preserved": [
+      "rtl8192cu",
+      "rtl8188eu",
+      "rtl8192eu",
+      "rtl8814au"
+    ],
+    "station_profiles_preserved": 122,
+    "new_usb_ids_enabled": 0,
+    "new_station_backends_completed": 0,
+    "new_radio_tx_authorized": false,
+    "real_usb_io_performed": false,
+    "firmware_uploaded": false,
+    "phy_rf_calibration_completed": false,
+    "wpa2_assoc_performed": false,
+    "c_compile_strict_and_clang_analyzer": "4/4, 0 diagnostics",
+    "randomized_host_test_inputs": {
+      "usb_rx": 60000,
+      "firmware_and_radio": 35000,
+      "total": 95000
+    },
+    "host_ctest_ubsan": "84/84 passed (34.03 s)",
+    "macos_compilation_not_run": true,
+    "xcode_project_plutil": "passed",
+    "limitations": "Portable parsers are neither macOS drivers nor validated board support. Exact chip revisions/endpoints, calibration, firmware ownership and native WPA2 path still require device-specific work and physical tests."
+  },
+  "legacy_firmware_stage_0_13_19": {
+    "scope": "bounded 8051 firmware layout and opt-in experimental boot only; no automatic kext attach or live Wi-Fi station",
+    "firmware_planning_families": [
+      "rtl8192fu",
+      "rtl8723bu",
+      "rtl8710bu"
+    ],
+    "experimental_firmware_boot_families": [
+      "rtl8192fu",
+      "rtl8723bu"
+    ],
+    "planning_only_families": [
+      "rtl8710bu"
+    ],
+    "max_payload_bytes": 32768,
+    "page_bytes": 4096,
+    "max_usb_vendor_write_bytes": 254,
+    "requires_catalog_verified_device": true,
+    "requires_matching_firmware_header": true,
+    "requires_board_power_on_before_experiment": true,
+    "hardware_write_requires_explicit_confirmation": true,
+    "hardware_write_requires_exclusive_interface_claim": true,
+    "auto_attach_disabled": true,
+    "firmware_images_newly_included": 0,
+    "physical_usb_tested": false,
+    "usb_utility_libusb_native_built": false,
+    "usb_utility_clang_syntax_only": true,
+    "new_station_ids_enabled": 0,
+    "test_group": "rtw-legacy-firmware-stage-tests",
+    "full_portable_regression": "85/85 CTest groups passed using UBSan",
+    "issues_tested": [
+      "firmware/header mismatch",
+      "page boundaries",
+      "oversized image",
+      "short vendor write",
+      "stale checksum",
+      "checksum timeout",
+      "CPU ready timeout",
+      "cleanup on USB error",
+      "permissions",
+      "unverified USB identity"
+    ]
+  },
+  "historical_report": true,
+  "superseded_by": "native-validation-20261030.json"
+}

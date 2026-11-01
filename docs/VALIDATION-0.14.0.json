@@ -1,0 +1,50 @@
+{
+  "version": "0.14.0",
+  "kext_build": 47,
+  "app_version": "0.3.0",
+  "app_build": 42,
+  "release_stage": "development",
+  "inventory": {
+    "total": 270,
+    "primary_verified": 231,
+    "station_eligible": 230,
+    "unverified_or_conflicting": 39,
+    "verified_pending_hal": 1,
+    "integrated_station_families": 13
+  },
+  "software": {
+    "ctest_release": {
+      "passed": 143,
+      "total": 143,
+      "seconds": 50.2
+    },
+    "ctest_host_asan_ubsan": {
+      "passed": 143,
+      "total": 143,
+      "seconds": 59.93
+    },
+    "app_native_executables_passed": 14,
+    "native_kext_link_and_strict_ad_hoc_signature": true,
+    "independent_au_bc_review": "no_remaining_reproducible_software_findings"
+  },
+  "hardware": {
+    "rtl8814au_upper_5ghz_rx": {
+      "channels": [
+        149,
+        153,
+        157,
+        161,
+        165
+      ],
+      "mpdus_beacons": 40,
+      "malformed_crc_icv_errors": 0
+    },
+    "build47_load_wpa2_ip_throughput_validated": false,
+    "all_boards_certified": false
+  },
+  "release_blockers": [
+    "RTL8814BU requires its own operating HAL/firmware/PHY",
+    "39 identities need primary evidence or conflict resolution",
+    "Physical load, association, reconnect, sleep/removal, traffic and Bluetooth validation per board/revision"
+  ]
+}

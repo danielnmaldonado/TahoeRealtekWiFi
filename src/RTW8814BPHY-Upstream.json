@@ -1,0 +1,741 @@
+{
+  "repository": "tobyw121/Openwrt_RTL",
+  "commit": "85ef7eb7ccbd4336cd6e628a743ddc211333901c",
+  "license": "GPL-2.0-only",
+  "sources": {
+    "phydm/halrf/halrf.c": "592b73940cda4067675da0362ed48ecd0d5ea27041186d458593486921d0d9c5",
+    "phydm/rtl8814b/phydm_hal_api8814b.c": "3a407a1556e0c4565d294dae3687bfc70a855a052fea03553836edc501ffcde8",
+    "phydm/rtl8814b/phydm_regconfig8814b.c": "e47c8b950e77f819cdb36e398f5d3d3a0d08e881aa623553ff324bfae3943031",
+    "phydm/rtl8814b/halhwimg8814b_bb.c": "68a7a2d63c7df3a6367e78e5454ef02761def9983bfe8a894326ab6044fa564d",
+    "phydm/halrf/rtl8814b/halhwimg8814b_rf.c": "368957b4aa9ebd4856acb7de6a7c06ab442f5d6fa430c7f1267d67444f696bcd",
+    "phydm/halrf/rtl8814b/halrf_8814b.c": "703863f45e0c092fd3fab3902caccaad5a5478941f17f4f2e988fa638bc8e628",
+    "phydm/halrf/rtl8814b/halrf_iqk_8814b.c": "3caa65a38765bdc2582abb8c554bd963c5e6ea448be088aa6124ef442e9bea98",
+    "phydm/halrf/rtl8814b/halrf_dpk_8814b.c": "749e1ac52f9ee58131452b3d459725c8bca287bf629ae0449d04fa9950904651",
+    "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c": "3cf17025a1d39db1b53c7a8f67c2143a2199b329419ad564ce22cc8d005449b6",
+    "phydm/halrf/rtl8814b/halrf_rfk_init_8814b.c": "9f60c970e76bc586aff369696bd6c348c2525b381c0e192e300fb205e5d649ed",
+    "cmn_info_file/rtw_sta_info.h": "7c28e474db2f11aaebc8792c757b80de0e703d4aad87aad06d118bd99aae4cf4",
+    "WlanHAL/HalMac88XX/halmac_reg_8814b.h": "c8decece6e87a1e0f64e32f8c91fe98209b5712b44181481c2d05ed0706d5558",
+    "WlanHAL/HalHeader/HalComReg.h": "da660a98401efcbd13487daf6a47fd87560855e818659f641f71cb0dc3ae2c76",
+    "phydm/phydm_interface.h": "b59246819f3499c9a2e4e5209aaca3851ba388cd7cd5f666eddfc77a8c389cab",
+    "phydm/phydm_types.h": "412150e558d9dcd7cff2cad612f0ff828f9a06f83bb203c8a882d3bb3f2efcf2",
+    "phydm/phydm_regtable.h": "0b26252eae187efdd6fe774bcacac46b4907c03ca79330deab3ef1090cefc61c",
+    "phydm/halrf/halrf_psd.h": "b1e026ce19c4181cff725bd2b6b8f8d63224cbae1e7fefc815eeecaf901f910d",
+    "phydm/phydm_pre_define.h": "60d6c559c577f4b9fc99b10b8850d59638cf256a2cc24aeb630efc19c668d006",
+    "phydm/phydm_regdefine11ac.h": "83edbf246560a3cc01a389534f429e7cd65ab809d4d5f4b879228b6f4c7574c2",
+    "phydm/phydm_regdefine11n.h": "20466b0d326244a9eae5adb16b55353fed1865268e4788c4c5a370599925688e",
+    "phydm/phydm_api.h": "a7c8b8410b62388c3a3b89702fb7f8cef494498bf4359126ad7a941cab8ad911",
+    "phydm/phydm_dig.h": "a9fcf667542c0d42b74cbd1eb0a9f3678817d31c5c61bda71b436e5604bf4c8b",
+    "phydm/phydm.h": "29381105efa073d4a2a5ba85ef82425355cd61a8bac1fde9857cc76f713963a6",
+    "phydm/halrf/halrf.h": "c096de753b8fd83c2ac18eceeb8bf5774032a85e84727275f7bd357667a78068",
+    "phydm/halrf/halrf_iqk.h": "492c7515ce8a2f00bad64f92bbd97f72c956ef71872728bfa3a9bfddb60b4cfb",
+    "phydm/halrf/halrf_dpk.h": "f716a39e4704bfd2752a20248f19dfdfaab986d6e5f62c76a7aa43d6577c5095",
+    "phydm/halrf/halrf_powertracking_ap.h": "96370c7ed0aa69bdd48cca3fff8ec82fd1159a30c6595ced740c4d4a969af66a",
+    "phydm/halrf/halrf_powertracking_ce.h": "bc0370845cdaa39ca40f0a316c99b0f8f0355ffda055abf887508a00bdedf572",
+    "phydm/rtl8814b/phydm_hal_api8814b.h": "3dbeffaa210901865aa2407450ccc0b72fb0f86d2aebc4ac8b30fb5d390a0ce1",
+    "phydm/halrf/rtl8814b/halrf_8814b.h": "6d585324cc9cad770131103b7aabfac1dc449affa7cec28c390d8b5668bc97c7",
+    "phydm/halrf/rtl8814b/halrf_iqk_8814b.h": "ca4e5868579638d099eeb97abcd21055282523d9ae02dcf1c53c3f03a750be98",
+    "phydm/halrf/rtl8814b/halrf_dpk_8814b.h": "e7e8c9846ca1d139a0e5347660ad6a12e0da5b463c0172c1375d8c35b5386604",
+    "phydm/halrf/rtl8814b/halrf_txgapk_8814b.h": "c42668ddecaa892754752002db66a405e064907fe773fbbe22a3323defb5a9fd",
+    "phydm/halrf/rtl8814b/halrf_rfk_init_8814b.h": "43869be0ae35c495d63bd019c48157312ffe418409c609c8aff96072d161840e"
+  },
+  "roots": [
+    "config_phydm_read_rf_reg_8814b",
+    "config_phydm_read_syn_reg_8814b",
+    "config_phydm_write_rf_reg_8814b",
+    "config_phydm_write_rf_syn_8814b",
+    "config_phydm_parameter_init_8814b",
+    "config_phydm_switch_channel_8814b",
+    "config_phydm_switch_bw_8814b",
+    "config_phydm_trx_mode_8814b",
+    "phydm_rfe_8814b_init",
+    "phydm_set_txagc_by_table_8814b",
+    "phy_iq_calibrate_8814b",
+    "do_dpk_8814b",
+    "dpk_track_8814b",
+    "phy_txgap_calibrate_8814b",
+    "phy_lc_calibrate_8814b",
+    "halrf_dac_cal_8814b",
+    "halrf_tssi_get_efuse_8814b",
+    "halrf_get_efuse_thermal_pwrtype_8814b",
+    "odm_read_and_config_mp_8814b_cal_init",
+    "odm_read_and_config_mp_8814b_agc_tab",
+    "odm_read_and_config_mp_8814b_phy_reg",
+    "odm_read_and_config_mp_8814b_radioa",
+    "odm_read_and_config_mp_8814b_radiob",
+    "odm_read_and_config_mp_8814b_radioc",
+    "odm_read_and_config_mp_8814b_radiod",
+    "odm_read_and_config_mp_8814b_radiosyn0",
+    "odm_read_and_config_mp_8814b_radiosyn1"
+  ],
+  "functions": {
+    "_do_dpk_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "55a1842abeae20eb61c2f0605f2505f6cb7bab491c6773e70ddc59b326fb6657"
+    },
+    "_dpk_bp_macbb_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "9c6fe0265e2e26c437da13bceab3357510fdda79439a33dca00915d7aff9bc41"
+    },
+    "_dpk_bp_rf_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "72ee2d79dd5f19b187c593233a99ae88d5781168729736c67b09ca001afb84f1"
+    },
+    "_dpk_by_path_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "c3e42c6fbae4ed2d1b6b072f973f58058682ec57eb4bbd64033c7658a10efc8b"
+    },
+    "_dpk_check_fail_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "cee67b060aae0d2a48dcb9e2e6c2b4a0b49077068be35ca5869754710d9b72f7"
+    },
+    "_dpk_check_nctl_done_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "9cce8fef2d6def46b8114095d3075916ae5782dac614df24dfde41fca7bc2fed"
+    },
+    "_dpk_con_tx_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "2e5a1aadc7b275a428e2eeef863b5b191596eb074cb3e001cc79a6915f56c705"
+    },
+    "_dpk_gainloss_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "ca8866dde438f26e7e0c1ce1c3eae5599771b75f0285336a32d14cf0d762d41c"
+    },
+    "_dpk_init_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "e42cea177a44dcf88d1e7b530c58faf26d67d18fa294c23fe50a3ab78c4a6f71"
+    },
+    "_dpk_lut_sram_read_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "fee10655fed27e1de8d432c63745e8b1cf6abdd4571cd5abc6f0c4b6313ad11c"
+    },
+    "_dpk_lut_sram_write_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "44e082acf89c1e61ffde76cc14ab9f61069c1632e268a99bb3a771d25056a6ec"
+    },
+    "_dpk_mac_bb_setting_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "02ffbb0886c90a825c2a673480bc6f8f23e3a341a37c6c23b21abed18fe056b0"
+    },
+    "_dpk_manual_txagc_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "875b9e53c05cf0aab4539d267c79fa588c9a3cfaf0fd12b960e088f594dfe50e"
+    },
+    "_dpk_on_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "608a9dbde0045b9f834ce4ca6151c5ee42264159352e84ca0ff191a7ecf5c563"
+    },
+    "_dpk_one_shot_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "d63c80417a1f4eea021ce6920715ec55240ec6253981cff7b43001bbd9382fca"
+    },
+    "_dpk_pas_agc_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "d4ab8cde26fe892bc23bdff505355972395edaafb9af27509fd4b173b77fab99"
+    },
+    "_dpk_pas_dpk_read_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "2f4864b084722117b1d4b531d33c4d09de34d0751c0878593754ad4cbcdd0b51"
+    },
+    "_dpk_pas_get_iq_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "8190431bfe5694a54228f608568f8f48a829e1ff2c04a3561bc49984a15ff427"
+    },
+    "_dpk_pas_gl_read_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "1b7ef0e4cd99b153e2c9429435fec589a6c7e678d955c1d3a498cabe37eac46f"
+    },
+    "_dpk_pas_iq_check_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "8e948d3605a2dddd55fade9ab5aff0091d55ca87bff4f005db91c0222f43bbc9"
+    },
+    "_dpk_pas_rxbbagc_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "f1670a0af86a864f0c96ff4a2d00ff892df0ec597efa78239c30c62ead0ae935"
+    },
+    "_dpk_reload_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "892a19bae96a879977e6c08f8940cf261a63515ab7be31c337fd4c3361f6ec0c"
+    },
+    "_dpk_reload_macbb_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "93581029edc490c72d91de941e156e246f449a891e2b3503b489feefca9560a6"
+    },
+    "_dpk_reload_rf_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "92aca8c9d9fab73aab77fa12956eb1feebff8237790176a5687ff2129ae6c822"
+    },
+    "_dpk_rfe_setting_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "8c91d57c829578239fd332978f04afb0214256a59c316061fb5c8f295d2e3774"
+    },
+    "_dpk_rfsetting_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "eef8919702228c3578ba13905b88075cbe30193c3514e4b000c02b019c7e634b"
+    },
+    "_dpk_set_afe_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "325aaa8fb9ec87cdecb8bcc011b5df951f3ff1c2f5577898fe698d438d35732f"
+    },
+    "_dpk_thermal_read_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "b19a4145f8071f994cf7e29f826c3b337bd973aa8a7c9a5ac033d23fc3cdf8ec"
+    },
+    "_iq_calibrate_8814b_init": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "9a7d616e29f584eae2958f768a17eb8edcd773f34cb4a181ed81ac45c65a36b5"
+    },
+    "_iqk_backup_iqk_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "26026b628a40c1d935f096ded84a1cb6f930fa70988f5cb7a9517249dfae5846"
+    },
+    "_iqk_backup_iqk_8814b_subfunction": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "f49a3132fb30c81360942e4735a2584152da5fa8fe405a19d8e7f946650df27c"
+    },
+    "_iqk_bp_macbb_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "07457d192a59ed7b079128c46814164c1b55dfa8ab1ffa9bc60aa810641d452c"
+    },
+    "_iqk_bp_rf_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "3d9149fbf6e712fbec10d24ed2f8633b33494507898698a44e04646247257b13"
+    },
+    "_iqk_cal_path_off_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "945a0451720908984d283e6051f225fd4e528e7efb0b7e66ad1df6c05023e779"
+    },
+    "_iqk_check_cal_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "399f3b4fba0e1916b34fa5321d732dcf9c03f1658d281933eef4df8f818d7198"
+    },
+    "_iqk_clean_cfir_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "d3996d2f0bbc4c2166098e9e2cbb124b505460dd6e59a43aa1ea910a9ce321cf"
+    },
+    "_iqk_fail_count_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "89477aa12aa45f7c9b1527343bb261d696a75aa8ad0646a03b1942e24e29b9b3"
+    },
+    "_iqk_fill_iqk_report_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "e781d9f5ccc6900184f4c03e94fcaa677a1855bbea9e7f2908ab426be8f98c68"
+    },
+    "_iqk_iqk_by_path_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "4a780db5f66b6929c459a7c2c8be36a6141542fc2f4d30cd8beef8066bc6c928"
+    },
+    "_iqk_lok_setting_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "219a2afb6e280b73cc22d4f19b9e2798008954948a8a1c0be4e74ccdabf87f52"
+    },
+    "_iqk_lok_tune_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "349d065169fabf022c0407604573ad1cb7b42f24be9cc55f69f8abc7f72efc83"
+    },
+    "_iqk_nbtxk_oneshot_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "9e348088fcab61fc3e350eb3126f503dced984a3c2eee1275611bfa3eef35004"
+    },
+    "_iqk_one_shot_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "662cff29690d0a3bec2a5f667f4c7ddb44d8e01bfcde68e3688059a3804bb941"
+    },
+    "_iqk_reload_macbb_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "ba162d54ff5c0ea1518255dfceda2e803c686be90fb445429b8ab62bf0c4c806"
+    },
+    "_iqk_reload_rf_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "94cfaed88881c0ebcb7ac7461401f5f81d5b6c5846b6f5e3da96476dbc0e40e1"
+    },
+    "_iqk_rx_iqk_by_path_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "c3a70a07aaa1daed2a760470aaad3104005db9d89b173e1611aca57c634186c2"
+    },
+    "_iqk_rxiqk": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "0b874f54f1adf5ad9948c1b70b8e0da8883fca5223cc2614506efaec13dfd2c9"
+    },
+    "_iqk_rxk2_setting_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "465ddf27318634ab55d6dd15eb609e2547661f8f58bd1bc8c5b7cb9ededa6818"
+    },
+    "_iqk_rxk_gsearch_fail_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "12253d0e5544150ec3dc8a5f0ee5a868d9f07737d8fa356b765604c17e0fa03b"
+    },
+    "_iqk_set_afe_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "222d51d8bebbb7fedc638232470fa853001103fbccebb1842bc3d2e5526523cc"
+    },
+    "_iqk_set_macbb_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "00cfce433aa3dcda4411df74e9129cf4f10150fbf699b594bf0899b33a443124"
+    },
+    "_iqk_set_rfe_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "6e763b9ddb3cdb1e168f25d589f69a2642f4635cbdbc26747caaf5b095fcda65"
+    },
+    "_iqk_start_iqk_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "54b883a638cfbaabad60273f44573c761eefa67bb651b1b261773fdc804c5ea1"
+    },
+    "_iqk_summy_report_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "0a7fc69db2a6b4b2fdf5fa50cea43a9be374fd37a2ff121d58accecf5fb4c307"
+    },
+    "_iqk_txcfir_rate_en_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "50e49f2057e160372386c36c55385ab8df6c3617b41cf08199d8d9a60ed6183a"
+    },
+    "_iqk_txk_setting_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "ca91546d0fc480341b051bbe311a4094b89c2baba6494b6b92bbd57af6b60388"
+    },
+    "_lok_check": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "f6c89fc555bf990d2b9bf630d9efdc5150cc51da9cca4095a23b1727c68fbefb"
+    },
+    "_lok_one_shot_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "65112f306e183e941c8c1143c80b988088781bb06741b181ad8e23e2ec7ee40b"
+    },
+    "_phy_iq_calibrate_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "ad2ae6c4841db9742eb38e363e575011a5c9e43abbd0787ee476787cec739164"
+    },
+    "_phy_rtc_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "62d82ca29760d876e7e1fa9a341ff1f5623e616b6ed07909acaf8b05f9382208"
+    },
+    "_phy_txgapk_calibrate_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c",
+      "sha256": "678297680a321dd015f2b3423f45a8f20f20e0767db7a6b6d6628c7d24254807"
+    },
+    "_txgapk_afe_setting_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c",
+      "sha256": "870ac165ec9146bcbf8bfbd50271a215e8fc299f92d918dc310ff28b487173ab"
+    },
+    "_txgapk_bp_rf_gain_table_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c",
+      "sha256": "52591eca19a5ae775540705410d0e5af114e4f7035b9cc5ae4fcdd11760e34ac"
+    },
+    "_txgapk_one_shot_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c",
+      "sha256": "d988a20d675bce44c5c36dbffc535a8a5b7eed57706c6740884d70866b39563b"
+    },
+    "_txgapk_phy_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c",
+      "sha256": "82eabc714679834c49a80f390174c01ee97dcd788ecf16d3d0bb45b3534442e8"
+    },
+    "_txgapk_phy_restore_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c",
+      "sha256": "b94ebb5ce6fee33bfce68dd865b6ae4a48f696ad58170b5487c306979da5bcd5"
+    },
+    "_txgapk_reload_rf_gain_table_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c",
+      "sha256": "453e89e3281c72c90b4ba7fdfc81c501c9a08fe37a1c9550643774dfb8627b50"
+    },
+    "_txgapk_rf_restore_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c",
+      "sha256": "1470dd3a6545d74090be72a94592d5763b7c5648736add6f7435c605fec49f54"
+    },
+    "_txgapk_rf_setting_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c",
+      "sha256": "84088e14a49dcf12141b2ad6e2f1bc0a01306f722f15b0856bf472858f5f0c3e"
+    },
+    "check_positive_halhwimg8814b_bb": {
+      "file": "phydm/rtl8814b/halhwimg8814b_bb.c",
+      "sha256": "85d64e03e784c430be7e389c0240973bd155806955d6f0b95ffa6ec8a2837548"
+    },
+    "check_positive_halhwimg8814b_rf": {
+      "file": "phydm/halrf/rtl8814b/halhwimg8814b_rf.c",
+      "sha256": "994a2425eeff865ba25a06743d1654a5caefac6299723dfc29791b3b5b63d264"
+    },
+    "config_phydm_cca_dyn_pw_th": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "bb0357d39bfc1796c0b8e4fbbdc6a092f0a257e099d640ea4337cb5e7d834e85"
+    },
+    "config_phydm_parameter_init_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "c0bae42295e0f92d8133a3d1b8eddba1e9254898003fd40400e258a170d81c15"
+    },
+    "config_phydm_path_adda_setting_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "d1cbd48eeacffc64cf078f42b0fa55a2969e313bf5e996e68600a054f40a86bc"
+    },
+    "config_phydm_read_rf_reg_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "1a9ab57878c27de107e7d1058c8abe39c5ae2ab3472c69ee58a9b41b5c639ba6"
+    },
+    "config_phydm_read_syn_reg_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "0d00bcd1a24e6e53428f398a5ebea4412044f1c4248665c8202d462dee5e0319"
+    },
+    "config_phydm_switch_band_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "f021435a632a4a1d588675a0d8e8970f9741431a315cf671875763c5e6bc1824"
+    },
+    "config_phydm_switch_bw_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "9a0c8531ef8dc56d654fe7f94a7e8b97360944ab7ec7e1b3cbb80c12992840e9"
+    },
+    "config_phydm_switch_channel_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "368227c19c61cfc68c8475ea089c0f8230113b8ce7d81a4c755015118c54bb99"
+    },
+    "config_phydm_trx_mode_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "6256bd6381bd876aaae7bcd5fde3774e679a3bfdbc5878f966635b932d187418"
+    },
+    "config_phydm_write_rf_reg_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "43f4853a4dcf1468b5f1a35439933aed8a0ab356e13a80a6da4fe95a346c13af"
+    },
+    "config_phydm_write_rf_syn_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "5ff37adde110c549cb228d5a8c9e71710fc83a934635491a9d072d9dca1802e1"
+    },
+    "config_phydm_write_txagc_diff_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "15c289220cc807c595309041adc99f426dc13584fe02f087cfe645d3a000bd19"
+    },
+    "config_phydm_write_txagc_ref_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "3693cc7a3d81818fa7eb5ac4d3b02f7046a9827e2f5cdaa0257d7bfa5d90170a"
+    },
+    "do_dpk_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "da49fc64eaa4ba10bd82747c9a8ad8c09e300ec15f5ba346d7a34bbdac6cf574"
+    },
+    "dpk_by_group_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "2043aa9fc1cf3bbaa67e6ac9f1258129954bcecdcd1c31c9005201e5a20ca358"
+    },
+    "dpk_channel_transfer_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "fd6e5f1dbb6d27bda1be18055405a6d22215dd8c62ba309e0821fa17841df060"
+    },
+    "dpk_get_dpkbychannel_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "f805958bc22668f24e7e7939cd20c09e09fa334cfd166f93ceff95aa69363e99"
+    },
+    "dpk_result_summary_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "741e5d972fe027c2cf57461b7204545719bcb9855b7dbf14ca066dcf6ec57ac3"
+    },
+    "dpk_thermal_read_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "4513ea2dbbe3d99d9801728cf7a9fee4c55ada0330d241c761bfaf8c27f12ddf"
+    },
+    "dpk_track_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_dpk_8814b.c",
+      "sha256": "4d739b3a65420ad8d85ab1dc552801b9ef5074b02a16d7950af2d60809b28d67"
+    },
+    "halrf_b_sort": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "c38c086fa667e79bf61072cc927fd2389408d4d391628f7ee420e9a907ce529c"
+    },
+    "halrf_bp": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "8525a72e8f393cc30f04d5032080d47198fb3e298b785e249b470f66bf48e44e"
+    },
+    "halrf_bprf": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "e0d20c2cc85e4e107d65a264e3508f1f4f31b410345ce37da0b4e56a18d797bb"
+    },
+    "halrf_bubble": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "80a5692f49d1d7b90167c9ef12fb1733f7f5656cfb8174aded02bb97e43b0978"
+    },
+    "halrf_compare": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "fba4ad06eff133168e189306dcfcd904f37207856306dd2f268400a3b43b730f"
+    },
+    "halrf_dac_cal_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "9bb19cc4d55eb4c0def72d9c8de2cc868c69f742c93a1fca403afb6131179cd9"
+    },
+    "halrf_dack1_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "703fb02caa2c93db25d73b3ac97c8e800b1112554cc63ab6216e03aba1973acd"
+    },
+    "halrf_dack2_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "1ea9bbb466f98af7dbab939678c2692dbffaed4cfd917e508dcaa5f915521a1b"
+    },
+    "halrf_dack_reload_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "28e06b3cc2061f2bf5e75b00f35d5fc3fba5a28b3f5c427feac91e458ed7ab2a"
+    },
+    "halrf_dack_setbb_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "a69bf1acfa1af0a0b663923d3fa12779622308bf8c85fa35314b5d3e43878d9c"
+    },
+    "halrf_get_efuse_thermal_pwrtype_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "b348317d6512329487f66b75ba6290faa5b810d87867130bafd8b820a9f1cd77"
+    },
+    "halrf_get_fw_version": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "fd791d806729f063095d593683af4b8c0c1c1f995f05608f82b06279909a0126"
+    },
+    "halrf_iqk_dbg": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "bd9e5fe665c1024104da436f262c7346b1c14fc90eff4cc5289976a1441437e9"
+    },
+    "halrf_iqk_hwtx_check": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "74c9e102071e5983ff58c11425396506a08c369da9bca7bf6e6b94b3d70b68c8"
+    },
+    "halrf_minmax_compare": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "cb9095fc52f7c8f0d73e907c379499dcac1b102d20a818ee8feddb139097dff4"
+    },
+    "halrf_mode": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "4901a6adade23eeae79c870644bacddcfb98aadba4c6afd65ece6479edb67f2c"
+    },
+    "halrf_pathsel1_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "c3b7ede330ff93c35d97d282004a31a53066ef9224295796511078ee08ebf0cb"
+    },
+    "halrf_pathsel2_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "bc4418652dd68cfcb32b54884c35be339c324f448446464b18e309d221d8f745"
+    },
+    "halrf_psd_log2base": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "e03bfe1fb7d7fe97edf475d4402bf768da071beac09e90302a52038195ab99ea"
+    },
+    "halrf_reload_bp": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "44fd8266e02967899878405efffde803b9a7d9acace262da2f03419f9586185b"
+    },
+    "halrf_reload_bprf": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "4bed8caaaafee3f00ce3a7845fda195be0e0ad334dd2966ec0ba968fde4be8c3"
+    },
+    "halrf_swap": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "b09ab597f9b58a79ad59d9aef8e18ca2548231e13f1ee29449aa9b20bd91b16e"
+    },
+    "halrf_tssi_get_efuse_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "76ecbb4da32ca2e4aedfe16ac3adccd8f1bfb6ba495098d191557ac0183f51c7"
+    },
+    "odm_config_bb_agc_8814b": {
+      "file": "phydm/rtl8814b/phydm_regconfig8814b.c",
+      "sha256": "50b469f209630bbe09141e6f7c6cd3f5b39298a3276e7d12fc1f1a19d6ab957d"
+    },
+    "odm_config_bb_phy_8814b": {
+      "file": "phydm/rtl8814b/phydm_regconfig8814b.c",
+      "sha256": "77bc766a4e5887face9c43ea663c9227d242fc445be2f07430537b78bc691fb6"
+    },
+    "odm_config_rf_radio_a_8814b": {
+      "file": "phydm/rtl8814b/phydm_regconfig8814b.c",
+      "sha256": "4870c751735a40e2201780872e822a10507924c2fa9da1ac0c30372d90fed6fc"
+    },
+    "odm_config_rf_radio_b_8814b": {
+      "file": "phydm/rtl8814b/phydm_regconfig8814b.c",
+      "sha256": "e3ed273d4b6c947d198550d1c934b845ad379dfc6cbdc4127dc69a581ceacd2d"
+    },
+    "odm_config_rf_radio_c_8814b": {
+      "file": "phydm/rtl8814b/phydm_regconfig8814b.c",
+      "sha256": "a9b7757af4f3df9d72404d96f886ba2f0ac8cd4ac2dc4001c3147ac9955da4c0"
+    },
+    "odm_config_rf_radio_d_8814b": {
+      "file": "phydm/rtl8814b/phydm_regconfig8814b.c",
+      "sha256": "88c01c931ec8cc70edda2ea5048a353ae3259d65b7e673ab70aa197f64315ca6"
+    },
+    "odm_config_rf_radio_syn0_8814b": {
+      "file": "phydm/rtl8814b/phydm_regconfig8814b.c",
+      "sha256": "c3992588afe4fbbc53b674d33f078381f91a1f898c3528e6130e58110649761b"
+    },
+    "odm_config_rf_radio_syn1_8814b": {
+      "file": "phydm/rtl8814b/phydm_regconfig8814b.c",
+      "sha256": "5983cae3da1af1e4353686a04cfcb4e64c52aecbb75500e15beba60bcf35ca74"
+    },
+    "odm_config_rf_reg_8814b": {
+      "file": "phydm/rtl8814b/phydm_regconfig8814b.c",
+      "sha256": "5916809f354bd6e87a59c6e47e366f79a280191a7287c4952a6811030ad41a1a"
+    },
+    "odm_config_syn_reg_8814b": {
+      "file": "phydm/rtl8814b/phydm_regconfig8814b.c",
+      "sha256": "62dcb87aeb613a69a99fa7a8a900411121d769f451d8fb61303dcee189fa7c53"
+    },
+    "odm_read_and_config_mp_8814b_agc_tab": {
+      "file": "phydm/rtl8814b/halhwimg8814b_bb.c",
+      "sha256": "3c7efd97b0a2ca23556edc26a49e6b094a09171c22b09abede34cf9de516bdc3"
+    },
+    "odm_read_and_config_mp_8814b_cal_init": {
+      "file": "phydm/halrf/rtl8814b/halrf_rfk_init_8814b.c",
+      "sha256": "0ae465f4aaae07abc9f7a9e28e06d22ddace957e5c47bc0eecdd62b0e7045312"
+    },
+    "odm_read_and_config_mp_8814b_phy_reg": {
+      "file": "phydm/rtl8814b/halhwimg8814b_bb.c",
+      "sha256": "9b3f297984c27ceec69cd4fcfe9bf6120a72e49c06ad2dc6fabc55110536151b"
+    },
+    "odm_read_and_config_mp_8814b_radioa": {
+      "file": "phydm/halrf/rtl8814b/halhwimg8814b_rf.c",
+      "sha256": "607030b614ca675e672ae405b093759abb04225b4ae2f37d0be3d39f21f5be84"
+    },
+    "odm_read_and_config_mp_8814b_radiob": {
+      "file": "phydm/halrf/rtl8814b/halhwimg8814b_rf.c",
+      "sha256": "b57558fc5b10fde803191254d5ab33474582043cea3ad82fc0d35ee09bcdc3be"
+    },
+    "odm_read_and_config_mp_8814b_radioc": {
+      "file": "phydm/halrf/rtl8814b/halhwimg8814b_rf.c",
+      "sha256": "4a57560ff33060364a137c96ec33a57049ea699365d20316a0e7839c66fdec0d"
+    },
+    "odm_read_and_config_mp_8814b_radiod": {
+      "file": "phydm/halrf/rtl8814b/halhwimg8814b_rf.c",
+      "sha256": "c63a7c17f706e699098f28c7ecde41c99e62b3d9b22d16a37733e1c45923246f"
+    },
+    "odm_read_and_config_mp_8814b_radiosyn0": {
+      "file": "phydm/halrf/rtl8814b/halhwimg8814b_rf.c",
+      "sha256": "8d57a36b79e18128db186fa9a9a6f1d8c010ff2e9dac84b4e91d193051e35aef"
+    },
+    "odm_read_and_config_mp_8814b_radiosyn1": {
+      "file": "phydm/halrf/rtl8814b/halhwimg8814b_rf.c",
+      "sha256": "0d56033e932e6bcbb0327a001a8e115af9d45dbe5a1e80506bba93f430eeaea4"
+    },
+    "phy_get_iqk_cfir_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "c434758da6756814d906e2be7750186d28fd04a515096463ae9051bc9b8ddc56"
+    },
+    "phy_iq_calibrate_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_iqk_8814b.c",
+      "sha256": "65d071aa99a58b4b5c338458dc14b0ade181a4216cb60855c0b034958de3beb7"
+    },
+    "phy_lc_calibrate_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_8814b.c",
+      "sha256": "9c21a903837aa4e846aefdff701471794d0f068f281b83823dc6c7ed115b9b0c"
+    },
+    "phy_txgap_calibrate_8814b": {
+      "file": "phydm/halrf/rtl8814b/halrf_txgapk_8814b.c",
+      "sha256": "c3a631d0e74dd937d2ff45befb39fab172319a13eea8ee679e864ec0b58a1b14"
+    },
+    "phydm_agc_tab_sel_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "bdefb695e76b4aedb5aa8e85b6bcc28a24b3816e439571ad73c420c671be4119"
+    },
+    "phydm_bb_reset_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "17015c4041e3ac6d1675ba0fc74fc72d4636aae0ba178649d1993fb148c370c9"
+    },
+    "phydm_ccapar_by_rfe_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "033342a45d491e39296961612ffa43f584142a75872ee37cffd490efb32e24c0"
+    },
+    "phydm_cck_tx_shaping_filter_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "95c9254c00755fb002d3a04fd06570006fbdbdec54016d7a020f7323f6f30b43"
+    },
+    "phydm_check_bit_mask_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "88c0a0e69353b3e6440d488595b1dbb77ec96ddf3034003faf52224c767cf28d"
+    },
+    "phydm_config_cck_rx_path_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "a49254264e2ca0f3069c7aff6e204cc91e923232b612d35a4f84566ebb592ea2"
+    },
+    "phydm_config_cck_tx_path_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "b4485855bc54db775d72478a235eb3155ef5624a3dd0f2b77486f28f948761fc"
+    },
+    "phydm_config_ofdm_rx_path_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "811890229d2d2f7c76c0a71f2359eaf252f2f591c2a516ab7456395058ffa3c9"
+    },
+    "phydm_config_ofdm_tx_path_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "05fa80de1c581746bf1f74b082b0b3c7a5b7581dfca35704bdc8f3fa4468532e"
+    },
+    "phydm_config_set_rfc_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "4b3d2397fd6ec2ff6dd65231fa5c6b1c5aa5d9047f71d799bf4a87b60b50aa9b"
+    },
+    "phydm_dis_cck_trx_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "962fafb878fb75e5f33253f3d9901b3536eddac2dbcd81468099ba4bfd84182b"
+    },
+    "phydm_dyn_dpd_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "c0bafbfeb8ea0951683fc97540329f0b2b097a3164db2122b0c29fcbf60d0d08"
+    },
+    "phydm_dynamic_spur_det_eliminate_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "e087a532f3b13eaa4524dca5668d6fa86ca9ffa84405568ee9c411a1b7340138"
+    },
+    "phydm_get_iqk_cfir": {
+      "file": "phydm/halrf/halrf.c",
+      "sha256": "9ade46ce63cc077510b948df3180aab78ac6cb9e9ef4e079951744063e2170ab"
+    },
+    "phydm_igi_toggle_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "0b7ce78ecb25efeaa3126785626ff95fec5dfe3550d50d45905c02a46cbd4fa5"
+    },
+    "phydm_rfe_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "b671ba3195de68032e20f064a99abe4951f6380c379731a369b79080e9bf2fc2"
+    },
+    "phydm_rfe_8814b_efem": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "19442f0c2a7e88c9036ec9791fc418a65990fa83b5e85358199c28f8c0db3a8f"
+    },
+    "phydm_rfe_8814b_ifem": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "6eba2578c46cf3c74c98b92bc64054b9d2589a6008ed50d829eee42b61c7c895"
+    },
+    "phydm_rfe_8814b_init": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "e7dec9041117fbaf3dfa47c0a60a124b9dcc80f7ea6abf00b939d6e88b304c9e"
+    },
+    "phydm_rfe_type_6": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "fae655765dff6fc98dd818d335ebea875759e10977c9b7f675bc70702e51d004"
+    },
+    "phydm_sco_trk_fc_setting_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "ee7525a1eb1b366f48f1030bc85104e322c3627e68957bcf3bdf78215f903c1f"
+    },
+    "phydm_set_txagc_by_table_8814b": {
+      "file": "phydm/rtl8814b/phydm_hal_api8814b.c",
+      "sha256": "aa4e157cd38060d7c70032b4e6bced9b9dfd6d4fdba19360bb02acffdde789f1"
+    }
+  },
+  "table_arrays": [
+    "array_mp_8814b_agc_tab",
+    "array_mp_8814b_cal_init",
+    "array_mp_8814b_phy_reg",
+    "array_mp_8814b_radioa",
+    "array_mp_8814b_radiob",
+    "array_mp_8814b_radioc",
+    "array_mp_8814b_radiod",
+    "array_mp_8814b_radiosyn0",
+    "array_mp_8814b_radiosyn1"
+  ],
+  "adaptations": [
+    "Select non-offloaded CE host branches. The unreachable literal if(0) IQK firmware branch is removed; AP firmware H2Cs are not assumed compatible with ABI11 USB NIC firmware.",
+    "Omit diagnostic logging, namespace the two image condition resolvers, and make read-only primary table arrays const. Preserve all original algorithm and copied-header copyright/license notices.",
+    "Move the primary channel/width/RF56 globals, IQK firstrun, DPK do_clear and DACK diagnostic counter into the serialized per-device context.",
+    "Increase only TXGAPK rf3f[11] to rf3f[12], because the primary gain snapshot writes indices1 through11. Fault-model UBSan reproduced the original stack overrun.",
+    "On DPK failure, clear only the selected 2G or5G result group. The primary unconditionally writes both arrays, overflowing the3-entry2G row for5G and underflowing the5G row for2G. Actual algorithm fault injection reproduced this with UBSan.",
+    "For per-channel DPK thermal compensation, compare pathsB/C/D against their own calibration temperature, matching the adjacent per-path absolute-delta calculation instead of the primary copied pathA sign reference.",
+    "Latch DACK ready-poll timeout and nonconverging final ADC/DAC residuals. Reject incomplete or unstable common halrf_mode sample windows and zero/sentinel TXGAPK PSD instead of reporting RFK success.",
+    "Initialize DACK output arrays and v1/v2 so a failed measurement cannot feed indeterminate scalar values into subsequent source cleanup.",
+    "After a measurement error permit only named original saved-register/disable cleanup functions under a separate8192-operation budget. HAL retained ownership/live-firmware checks still guard every access. Abort the public RFK pipeline after failed DACK or TXGAPK before later algorithms could create fresh zero-valued backups.",
+    "Reset public RFK path masks at each calibration attempt; a previous success cannot mask a failed recalibration. Preserve explicit primary external-PA DPK and per-band TXGAPK skips without inventing successful path bits.",
+    "Decode signed factory TSSI25groups/path, thermalD0..D3 and power-track-typeC8 from the primary CE logical map. RFE/front-end/global thermal provenance and the actual regulatory/channel power plan remain explicit verified caller inputs; no AU ROM layout is substituted.",
+    "Expose20MHz non-DFS geometry1..11,36/40/44/48,149/153/157/161/165 only; validate masks, channel/power inputs, aligned nonoverlapping storage and bounded work/delays before hardware changes."
+  ],
+  "limits": [
+    "No B14 station profile, catalog capability, association/WPA2 or traffic enablement is added by this component.",
+    "The provided power plan is representability checked, not derived from a qualified USB factory/regulatory profile.",
+    "TSSI factory decoding is implemented; TSSI DE programming/DCK and the generic thermal swing/TSSI runtime are not ported. Runtime track currently executes the primary DPK tracking routine only.",
+    "RFE/front-end/crystal metadata production from the actual USB OTP is not proven here; crystal_cap is validated metadata, not a programmed CFO tracking implementation.",
+    "DSP/register completion in tests is modeled; no physical RFK, RF output, USB station or throughput validation is claimed."
+  ],
+  "physical_validation": false
+}

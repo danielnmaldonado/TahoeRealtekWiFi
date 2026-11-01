@@ -1,0 +1,9 @@
+0x2357:0x0108  location=0x14400000  802.11n NIC | RTL8192EU (2357:0108, verify cut/bonding by read-only probe)
+USB 2357:0108 (RTL8192EU reference identity)
+  SYS_CFG:   0x0c441135
+  HPON_FSM:  0xeaeaeaea
+  SYS_CFG2:  0x00000007
+  MCU_FW_DL: 0x00000301
+  Silicon cut: 1, foundry code: 1
+  Bonding: 8192EU (2 TX inferred)
+  Probe uses only USB vendor READ; not a Wi-Fi connection.

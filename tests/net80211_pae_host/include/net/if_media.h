@@ -1,0 +1,1 @@
+/* No implementation is needed by the PAE host closure. */

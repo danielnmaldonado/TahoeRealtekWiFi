@@ -1,0 +1,27 @@
+{
+  "repository": "torvalds/linux",
+  "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+  "commit_date": "2026-10-20T07:03:21Z",
+  "files": [
+    {
+      "path": "drivers/net/wireless/realtek/rtl8xxxu/8192e.c",
+      "sha256": "dc0fc229a072f0bd125e0edf171caa7122eb62c5df4ce288e34974aeea674c04",
+      "url": "https://github.com/torvalds/linux/blob/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtl8xxxu/8192e.c"
+    },
+    {
+      "path": "drivers/net/wireless/realtek/rtl8xxxu/core.c",
+      "sha256": "eab41606f9e0a304012f082ff95979222d3e63780d649ed1d923938b7e97b1b1",
+      "url": "https://github.com/torvalds/linux/blob/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtl8xxxu/core.c"
+    },
+    {
+      "path": "drivers/net/wireless/realtek/rtl8xxxu/regs.h",
+      "sha256": "5d400b8adeae0f0f86ad3e7f5e2ea046c7e302cbc9a6b654c32909b753b21c11",
+      "url": "https://github.com/torvalds/linux/blob/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtl8xxxu/regs.h"
+    },
+    {
+      "path": "drivers/net/wireless/realtek/rtl8xxxu/rtl8xxxu.h",
+      "sha256": "1979e54d2b5002a903c794751e31094aa414c32281459d109a1afd65178ef7f4",
+      "url": "https://github.com/torvalds/linux/blob/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtl8xxxu/rtl8xxxu.h"
+    }
+  ]
+}

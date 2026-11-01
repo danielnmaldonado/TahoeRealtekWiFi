@@ -1,0 +1,171 @@
+{
+  "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+  "license": "GPL-2.0-only",
+  "functions": [
+    "_rtl92c_phy_get_rightchnlplace",
+    "_rtl92d_ccxpower_index_check",
+    "_rtl92d_get_pwr_diff_limit",
+    "_rtl92d_get_txpower_index",
+    "_rtl92d_get_txpower_writeval_by_regulatory",
+    "_rtl92d_is_legal_5g_channel",
+    "_rtl92d_phy_get_abs",
+    "_rtl92d_phy_get_power_base",
+    "_rtl92d_phy_rf_serial_read",
+    "_rtl92d_phy_rf_serial_write",
+    "_rtl92d_read_txpower_info",
+    "_rtl92d_readpowervalue_fromprom",
+    "_rtl92d_write_ofdm_power_reg",
+    "_rtl92du_phy_bb_config",
+    "_rtl92du_phy_config_bb",
+    "_rtl92du_phy_config_bb_pg",
+    "_rtl92du_phy_iq_calibrate",
+    "_rtl92du_phy_iq_calibrate_5g_normal",
+    "_rtl92du_phy_lc_calibrate_sw",
+    "_rtl92du_phy_patha_fill_iqk_matrix",
+    "_rtl92du_phy_patha_fill_iqk_matrix_5g_normal",
+    "_rtl92du_phy_patha_iqk",
+    "_rtl92du_phy_patha_iqk_5g_normal",
+    "_rtl92du_phy_patha_standby",
+    "_rtl92du_phy_pathb_fill_iqk_matrix",
+    "_rtl92du_phy_pathb_fill_iqk_matrix_5g_normal",
+    "_rtl92du_phy_pathb_iqk",
+    "_rtl92du_phy_pathb_iqk_5g_normal",
+    "_rtl92du_phy_pimode_switch",
+    "_rtl92du_phy_reload_adda_registers",
+    "_rtl92du_phy_reload_imr_setting",
+    "_rtl92du_phy_reload_lck_setting",
+    "_rtl92du_phy_reload_mac_registers",
+    "_rtl92du_phy_set_rfsleep",
+    "_rtl92du_phy_simularity_compare",
+    "_rtl92du_phy_stop_trx_before_changeband",
+    "_rtl92du_phy_switch_rf_setting",
+    "rtl92d_bandtype_2_4G",
+    "rtl92d_bandtype_5G",
+    "rtl92d_dm_check_txpower_tracking_thermal_meter",
+    "rtl92d_dm_initialize_txpower_tracking",
+    "rtl92d_dm_rxgain_tracking_thermalmeter",
+    "rtl92d_dm_txpower_tracking_callback_thermalmeter",
+    "rtl92d_get_chnlgroup_fromarray",
+    "rtl92d_get_rightchnlplace_for_iqk",
+    "rtl92d_phy_calc_curvindex",
+    "rtl92d_phy_enable_rf_env",
+    "rtl92d_phy_get_chnlgroup_bypg",
+    "rtl92d_phy_get_hw_reg_originalvalue",
+    "rtl92d_phy_init_bb_rf_register_definition",
+    "rtl92d_phy_mac_setting_calibration",
+    "rtl92d_phy_path_adda_on",
+    "rtl92d_phy_query_rf_reg",
+    "rtl92d_phy_reset_iqk_result",
+    "rtl92d_phy_restore_rf_env",
+    "rtl92d_phy_rf6052_set_bandwidth",
+    "rtl92d_phy_rf6052_set_cck_txpower",
+    "rtl92d_phy_rf6052_set_ofdm_txpower",
+    "rtl92d_phy_save_adda_registers",
+    "rtl92d_phy_save_mac_registers",
+    "rtl92d_phy_set_rf_reg",
+    "rtl92d_phy_set_txpower_level",
+    "rtl92d_store_pwrindex_diffrate_offset",
+    "rtl92du_phy_bb_config",
+    "rtl92du_phy_config_rf_with_headerfile",
+    "rtl92du_phy_enable_anotherphy",
+    "rtl92du_phy_init_pa_bias",
+    "rtl92du_phy_iq_calibrate",
+    "rtl92du_phy_lc_calibrate",
+    "rtl92du_phy_mac_config",
+    "rtl92du_phy_powerdown_anotherphy",
+    "rtl92du_phy_query_bb_reg",
+    "rtl92du_phy_reload_iqk_setting",
+    "rtl92du_phy_rf6052_config",
+    "rtl92du_phy_rf_config",
+    "rtl92du_phy_set_bb_reg",
+    "rtl92du_phy_set_bb_reg_1byte",
+    "rtl92du_phy_set_bw_mode",
+    "rtl92du_phy_sw_chnl",
+    "rtl92du_phy_switch_wirelessband",
+    "rtl92du_update_bbrf_configuration"
+  ],
+  "sources": [
+    {
+      "path": "rtl8192du/phy.c",
+      "sha256": "7a5bce53fd324ff5c23193344784f922cecf056280f8f14c88ed3008077490ce",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192du/phy.c"
+    },
+    {
+      "path": "rtl8192du/rf.c",
+      "sha256": "1f70f500d11fa5c11fd96fe59c5bd1fe838b820022163783867e7cc73635e61b",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192du/rf.c"
+    },
+    {
+      "path": "rtl8192d/phy_common.c",
+      "sha256": "d4a0b3b01ee18ef6e24799c55631d186c2f932592fb25a8a95afa7888b915929",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/phy_common.c"
+    },
+    {
+      "path": "rtl8192d/rf_common.c",
+      "sha256": "7f06155f019bd00fd37003af96f2af792659af01c08180756f989029e8f1c1a8",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/rf_common.c"
+    },
+    {
+      "path": "rtl8192d/hw_common.c",
+      "sha256": "40953120e1befa0db433e986e2c6cb76b2d7a0a716085fb1757d0f6ee55b4856",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/hw_common.c"
+    },
+    {
+      "path": "rtl8192d/dm_common.c",
+      "sha256": "89a9422dab11c7c35fd5c23efb6f37403acb0b80537b294cafcbd94cdee4c4df",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/dm_common.c"
+    },
+    {
+      "path": "rtl8192d/reg.h",
+      "sha256": "7154fb402302e11464af92852a73c35842bf82d5e557f32827a3c10498c091a1",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/reg.h"
+    },
+    {
+      "path": "rtl8192d/def.h",
+      "sha256": "491ceec28179947093a2dee9d6cc662019fef64c2fcef707358b1adb6bee60d2",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/def.h"
+    },
+    {
+      "path": "rtl8192du/table.c",
+      "sha256": "a102c5aef5a8f754a8cc59662a50e943e6dcd7917d7ac2f60189d391c43257fe",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192du/table.c"
+    },
+    {
+      "path": "rtl8192du/table.h",
+      "sha256": "f15c4fe315c507b9370eb112556aeede87f1d1c13bc211bc8e631a526a3c3c97",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192du/table.h"
+    },
+    {
+      "path": "rtl8192d/phy_common.h",
+      "sha256": "db9db12d9399e7fc1cad78a44a2e96848caa1213e6f0bc7e0aa1033c74320873",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/phy_common.h"
+    },
+    {
+      "path": "rtl8192d/dm_common.h",
+      "sha256": "4b2faec208a4b2a665eb0a97ee2f1f87295ab4bd3d9a741d4cc4212440283061",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/dm_common.h"
+    },
+    {
+      "path": "wifi.h",
+      "sha256": "e7aa5187eee1b1e6329e507014e5e4a730870d48218dac8f0b4b5ba031438513",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/wifi.h"
+    },
+    {
+      "path": "core.c",
+      "sha256": "6d8b88812ac80491a04bb5cc11c62d3bea409ca4bdf3435c02e833fce7ec6320",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/core.c"
+    }
+  ],
+  "power_reduction_reference": {
+    "repository": "lwfinger/rtl8192du",
+    "commit": "b65f87820526cd8835c5cac19fd7e659c84e8215",
+    "path": "hal/rtl8192d_phycfg.c",
+    "sha256": "3705c4b82869f4681f2b1f79c1fe98559d5074f7ef428a044e825b2170d5b00b",
+    "functions": [
+      "phy_DbmToTxPwrIdx",
+      "phy_TxPwrIdxToDbm"
+    ],
+    "use": "Relative2indices/dB plus5GHz WIRELESS_MODE_A/default offset0 in phy_DbmToTxPwrIdx/phy_TxPwrIdxToDbm. Vendor cautions absolute mapping can differ by NIC; physical EIRP validation remains required.",
+    "url": "https://github.com/lwfinger/rtl8192du/blob/b65f87820526cd8835c5cac19fd7e659c84e8215/hal/rtl8192d_phycfg.c"
+  }
+}

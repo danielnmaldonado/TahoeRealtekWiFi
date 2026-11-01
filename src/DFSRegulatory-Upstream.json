@@ -1,0 +1,24 @@
+{
+  "upstream": "wireless-regdb",
+  "repository": "https://git.kernel.org/pub/scm/linux/kernel/git/wens/wireless-regdb.git",
+  "commit": "40095bd16e53d5c5682fd6e7e3dbbbfaf0fe5410",
+  "license": "ISC",
+  "files": [
+    {
+      "path": "db.txt",
+      "sha256": "d0cbad77ec607cde10ba8ae6157a29ae24e66388f97b813b648333d953356eda",
+      "git_blob_sha1": "43dc0b3211a5b87bb38834f9fb2a018c26e1a5bc"
+    },
+    {
+      "path": "dbparse.py",
+      "sha256": "fbde44a4fba7c7edb5e5f2ab00b6a80715338330dff4030c86cfd04bf561d3ba",
+      "git_blob_sha1": "086b9a3e54751fbe38edbd83ffb465d9e02dda75"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "678b0df753c86198fc496d1f1033429bbd57f101472132ee7eaaf9f5e0a7fae1",
+      "git_blob_sha1": "652a6dd672ac4506767721dc910df0449c08e088"
+    }
+  ],
+  "scope": "DFS HT20 factory-country frequency and maximum EIRP metadata; not an independent transmit authority"
+}

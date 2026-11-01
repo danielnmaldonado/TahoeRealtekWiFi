@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-30T12:20:45.828826+00:00",
+  "release": {
+    "driver": "0.13.20",
+    "driver_build": 45,
+    "app": "0.2.14",
+    "app_build": 40,
+    "artifact_kind": "complete-source",
+    "signing_policy": "mandatory ad-hoc; native build and verification completed"
+  },
+  "input": {
+    "file": "TahoeRealtekWiFi-SOURCE-COMPLETO-BUILD44-APP39.zip",
+    "sha256": "f563749f15e9373ba8a9ba22e68072889ff53335b2f841be4206c111de4e43f8",
+    "manifest_files_verified": 549
+  },
+  "host": {
+    "system": "Darwin",
+    "kernel": "25.6.0",
+    "arch": "x86_64"
+  },
+  "tests": {
+    "ctest": {
+      "passed": 99,
+      "failed": 0
+    },
+    "native_app_suites": 14,
+    "native_app_sanitizers": [
+      "ASan",
+      "UBSan"
+    ],
+    "native_probe_sanitizers": [
+      "ASan",
+      "UBSan"
+    ],
+    "independent_review": "no actionable issues in reviewed changes"
+  },
+  "artifacts": {
+    "kext_binary_sha256": "912ff4d1b0a5c15e8388b6dd4999dd6a6b6e64b73b48c8edc251e84f55f8868e",
+    "kext_uuid": "10BC7C21-E654-368A-9B02-1E004E6850FB",
+    "kext_signature_verified": true,
+    "app_helper_signature_verified": true
+  },
+  "runtime": {
+    "loaded": false,
+    "attached_controller_count": 0,
+    "load44": "failed: private KPI thread_call_allocate_with_priority unresolved",
+    "load45": "linking passed; macOS refused: extension not approved to load",
+    "next_loading_method": "Clover EFI at next boot",
+    "security_settings_changed": false,
+    "efi_staging": "pending",
+    "installed_app_changed": false
+  },
+  "hardware": {
+    "usb_interfaces_matched": 2,
+    "rtl8192eu": "2357:0108; four native IOKit register reads succeeded",
+    "rtl8814au": {
+      "usb": "2357:0106",
+      "firmware_mac_phy_calibration": "passed via production HAL utility",
+      "passive_rx_mpdu": 83,
+      "passive_rx_beacons": 69,
+      "malformed": 0,
+      "crc_icv_flags": 0,
+      "stop_return": 0,
+      "powered_after_stop": false
+    }
+  },
+  "limits": [
+    "WPA2/DHCP/IP traffic not tested in build45",
+    "two-controller physical coexistence in loaded kext not tested",
+    "no new station/5GHz or full-chipset support claim"
+  ],
+  "evidence_directory": "native-evidence-20261030"
+}

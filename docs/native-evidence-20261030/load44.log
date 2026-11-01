@@ -1,0 +1,5 @@
+Error occurred while building a collection:
+    1: One or more binaries has an error which prevented linking.  See other errors.
+    2: Could not use 'org.research.TahoeRealtekWiFi' because: Failed to bind '_thread_call_allocate_with_priority' in 'org.research.TahoeRealtekWiFi' (at offset 0x1ca80 in __TEXT, __text) as could not find a kext which exports this symbol
+org.research.TahoeRealtekWiFi specific:
+    1: Failed to bind '_thread_call_allocate_with_priority' in 'org.research.TahoeRealtekWiFi' (at offset 0x1ca80 in __TEXT, __text) as could not find a kext which exports this symbol

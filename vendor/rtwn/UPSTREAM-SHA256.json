@@ -1,0 +1,57 @@
+{
+  "repository": "openbsd/src",
+  "commit": "3ff365285878f448ba65325e29c8d1e185af3e6d",
+  "commit_date": "2026-10-20T12:47:57Z",
+  "files": [
+    {
+      "path": "share/man/man4/urtwn.4",
+      "sha256": "ec56ab9b20d2f7613250850b6ce1edc1347b654edd04bedbb8161fa66c5312d2",
+      "url": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/share/man/man4/urtwn.4"
+    },
+    {
+      "path": "sys/dev/ic/r92creg.h",
+      "sha256": "5021270f869a0bbef91af1b805fc2a0e50dcbbd051f69b050fb73bfb8536a180",
+      "url": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/ic/r92creg.h"
+    },
+    {
+      "path": "sys/dev/ic/rtwn.c",
+      "sha256": "ad9ad229a8217d51167802640e11c5bc56fb40ded9229006141239bd5fe9b5ae",
+      "url": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/ic/rtwn.c"
+    },
+    {
+      "path": "sys/dev/ic/rtwnvar.h",
+      "sha256": "81d8c3a401b1c265aeeed4ec7b7cf6c40a8bd08c0852f0185c2bb220b247669f",
+      "url": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/ic/rtwnvar.h"
+    },
+    {
+      "path": "sys/dev/microcode/urtwn/Makefile",
+      "sha256": "e8fa4a3e779348813115d09475b171e9cd48a4fb066baae76b0bfdd2d4a1d6a6",
+      "url": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/microcode/urtwn/Makefile"
+    },
+    {
+      "path": "sys/dev/microcode/urtwn/build.c",
+      "sha256": "83ad72f30cd3bb47b43b58d1c9065e1964b30f2089f2b691e2448a418b1318f1",
+      "url": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/microcode/urtwn/build.c"
+    },
+    {
+      "path": "sys/dev/microcode/urtwn/microcode.h",
+      "sha256": "cfb809a802f0ee9275e73a2c6eeaa7bfbb253792f8c3e98c98c7c287bd33eabe",
+      "url": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/microcode/urtwn/microcode.h"
+    },
+    {
+      "path": "sys/dev/microcode/urtwn/urtwn-license",
+      "sha256": "8e7f7f3dfa859154cf58f9de1f9628a91923b619c3b8f5128a7fcaee7ede9ddb",
+      "url": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/microcode/urtwn/urtwn-license"
+    },
+    {
+      "path": "sys/dev/usb/if_urtwn.c",
+      "sha256": "99a378ba8f7783c7d58f8214a9a27994df64116544a15fe5da8e0d811fb9c8f4",
+      "url": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/if_urtwn.c"
+    },
+    {
+      "path": "sys/dev/usb/usbdevs",
+      "sha256": "4019a9aef627f5ac76e5945c876ba8418e969bdef7f0625c261bc3bfc4e730f8",
+      "url": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs"
+    }
+  ]
+}

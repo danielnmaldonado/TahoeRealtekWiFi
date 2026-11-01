@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<style>body{font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#222;padding:12px}h1{font-size:23px}h2{font-size:17px}code{font-family:Menlo,monospace}strong{font-weight:600}</style>
+</head><body><h1>Application installation</h1>
+<p>The destination is /Applications on the running system. Copies in Downloads,
+Desktop, Release or ~/Applications are not updated by this installer.</p>
+<h2>Passwords and preferences</h2>
+<p>Saved Wi-Fi passwords in Keychain and application preferences are preserved.
+The app never saves the administrator password used by Installer.</p>
+<p>An ad-hoc signed rebuild may require Keychain access approval again. This does
+not mean that the network password was deleted.</p>
+<h2>Service and login startup</h2>
+<p>After copying, the app opens as the logged-in user, not as root. Initial setup
+requests service and login-item registration. A previous explicit choice to
+disable these features is preserved.</p>
+<p>macOS may still require approval in <strong>System Settings → General →
+Login Items &amp; Extensions</strong>. This package does not bypass approval.</p>
+<p>When upgrading a registered service, sign in to the account that registered it
+and quit the app before installing. A new 0.2.8 installation without a graphical
+session can be completed by opening the app after login. When packaging an older
+0.2.5 binary, install with a graphical session or enable the service and login
+startup from the app menu afterward.</p>
+<h2>Adapters and kernel extension</h2>
+<p><strong>USB adapters and support…</strong> distinguishes catalog entries,
+descriptor matches and a bound driver. <strong>Adapter catalog…</strong> shows
+all 250 profiles and their actual enablement status. Not every profile has an
+implemented driver. This package installs only the app; it does not update the
+kernel extension.</p>
+<h2>Signal diagnostics</h2>
+<p><strong>Signal diagnostics…</strong> compares raw and filtered readings with
+connection and error counters. A zero reading means unavailable, not minimum
+signal. The bounded in-memory report contains no network names, addresses or
+passwords. Install the matching driver source build to apply the PHY-sample fixes.</p>
+<h2>Signing</h2>
+<p>A package built without Developer ID certificates is local, unsigned and not
+notarized. A .pkg does not remove signing or security requirements.</p></body></html>

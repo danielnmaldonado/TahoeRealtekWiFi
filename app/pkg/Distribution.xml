@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Tahoe Wi-Fi USB</title>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <readme file="readme.html" mime-type="text/html"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+    <options customize="never" require-scripts="true" hostArchitectures="x86_64"/>
+    <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="26.0"/>
+        </allowed-os-versions>
+    </volume-check>
+    <choices-outline>
+        <line choice="application"/>
+    </choices-outline>
+    <choice id="application" visible="false" title="Tahoe Wi-Fi USB">
+        <pkg-ref id="org.research.TahoeUSBWiFi.pkg"/>
+    </choice>
+    <pkg-ref id="org.research.TahoeUSBWiFi.pkg" onConclusion="None">TahoeWiFi-component.pkg</pkg-ref>
+</installer-gui-script>

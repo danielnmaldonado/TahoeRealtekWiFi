@@ -1,0 +1,382 @@
+PLACAS E SUPORTE — TAHOE WI-FI USB 0.14.8 / BUILD55
+Auditoria local do catálogo em 31/10/2026. Aplicativo da entrega: 0.3.5/build47.
+
+O QUE SIGNIFICA SUPORTE NESTA LISTA
+São 13 backends de estação integrados e 262 identidades USB elegíveis no código.
+A placa precisa satisfazer VID:PID, configuração, interface, bcdDevice e classe/subclasse/protocolo exigidos, além das verificações de silício, ROM, RF, endpoints e potência na inicialização.
+O nome comercial sozinho não identifica uma revisão. Um modelo vendido com outro chipset/VID:PID/revisão não ganha suporte por ter o mesmo nome.
+Esta é uma lista de elegibilidade do source; não é uma homologação física de 262 placas. O campo hardware_validation do CSV é not_performed em todos os registros.
+A evidência física histórica documentada neste PC é limitada a RTL8192EU 2357:0108 e RTL8814AU 2357:0106. A build53 foi observada carregada no checkup; a build55 precisa de carregamento separado; esta auditoria não acessou rádio nem realizou tráfego.
+
+CONTAGEM CONFERIDA
+270 VID:PID distintos no inventário: 250 registros legados preservados + 20 extensões com origem.
+263 têm correspondência numérica primária: 262 elegíveis + RTL8814BU 0bda:b814 sem estação.
+7 têm identidade não confirmada ou conflitante; entre eles 13b1:0043 tem somente descoberta controlada.
+A kext publica 263 personalidades: 262 de estação + 1 de descoberta (13b1:0043). Isso não corresponde a 263 placas estaticamente habilitadas.
+
+FAMÍLIAS COM CAMINHO DE ESTAÇÃO
+Backend | IDs elegíveis | Bandas | Modo implementado
+RTL8192CU | 88 | 2,4 GHz | 11b/g; 20 MHz
+RTL8188EU | 18 | 2,4 GHz | 11b/g; 20 MHz; I-cut não suportado
+RTL8192EU | 10 | 2,4 GHz | HT20/40; até 2 fluxos
+RTL8192DU | 5 | 2,4 e 5 GHz | HT20; SMSP até 2 fluxos; DMDP 1 fluxo por MAC
+RTL8192FU | 4 | 2,4 GHz | HT20/40; até 2 fluxos
+RTL8710BU | 2 | 2,4 GHz | HT20/40; 1 fluxo; SMIC/UMC
+RTL8723BU | 3 | 2,4 GHz | HT20; 1 fluxo; coexistência Bluetooth
+RTL8812AU | 36 | 2,4 e 5 GHz | HT20/40 e VHT20/40/80; até 2 fluxos; RFE 0–3; placas com Bluetooth ativo bloqueadas
+RTL8814AU | 17 | 2,4 e 5 GHz | HT20; até 2 fluxos ativos; RFE 0/1
+RTL8821AU | 35 | 2,4 e 5 GHz* | HT20/40 e VHT20/40/80; 1 fluxo; RFE 0
+RTL8821CU | 12 | 2,4 e 5 GHz | HT20; 1 fluxo
+RTL8822BU | 30 | 2,4 e 5 GHz | HT20; até 2 fluxos
+RTL8822CU | 2 | 2,4 e 5 GHz | HT20; até 2 fluxos
+
+* RTL8821AU: os IDs 04bb:0959, 04bb:095a e 0bda:2003 são exclusivamente 5 GHz; não aceitam transmissão em 2,4 GHz.
+Canais gerais do projeto: 1–11 em 2,4 GHz; não DFS 36/40/44/48 e 149/153/157/161/165 em 5 GHz. DFS HT20: 52/56/60/64 e 100/104/108/112/116/120/124/128/132/136/140 nos sete backends dual band. Canal144 fechado. ROM/RFE, país de fábrica e potência podem reduzir o conjunto; grupos só são anunciados quando registrados. HT40/VHT80 dos AU vale nos canais não DFS; DFS opera em20MHz.
+Conexão é controlada pelo driver e app, exposta como Ethernet enX. WPA2-Personal/CCMP e DFS de estação estão implementados; WPA3, AX, modoAP e funções/modos ausentes não são anunciados.
+HT/VHT e número de fluxos são limites implementados, não resultados de download/upload ou promessa de negociação com qualquer AP.
+
+EXEMPLOS COM NOME DE MODELO/REVISÃO IDENTIFICADOS EM FONTE NUMÉRICA PRIMÁRIA
+Estes exemplos continuam sujeitos às restrições USB e de inicialização da lista completa. O nome e a revisão abaixo seguem o símbolo primário OpenBSD, sem extrapolar para outras revisões.
+- Belkin F9L1004 v1 | 050d:1004 | RTL8192CU
+  Fonte: BELKIN_F9L1004V1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1252
+- NETGEAR WNA1000M | 0846:9041 | RTL8192CU
+  Fonte: NETGEAR_WNA1000M — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L3393
+- D-Link DWA-125 D1 | 2001:330f | RTL8188EU
+  Fonte: DLINK_DWA125D1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1662
+- D-Link DWA-123 D1 | 2001:3310 | RTL8188EU
+  Fonte: DLINK_DWA123D1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1663
+- D-Link DWA-131 E1 | 2001:3319 | RTL8192EU
+  Fonte: DLINK_DWA131E1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1665
+- D-Link DWA-121 B1 | 2001:331b | RTL8188EU
+  Fonte: DLINK_DWA121B1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1666
+- Edimax EW-7811Un | 7392:7811 | RTL8192CU
+  Fonte: EDIMAX_EW7811UN — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1779
+- Edimax EW-7811Un v2 | 7392:b811 | RTL8188EU
+  Fonte: EDIMAX_EW7811UNV2 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1782
+
+Atenção ao rótulo legado 7392:b811: o catálogo preserva Edimax_EW-7811GLN_B811_8188EU, enquanto a identificação primária registrada é EDIMAX_EW7811UNV2. A decisão é pelo ID e pelas restrições; o rótulo de marketing não foi usado para ampliar o suporte.
+
+LISTA COMPLETA DOS 262 IDs ELEGÍVEIS
+Cada linha preserva o rótulo literal do catálogo para consulta. Esse rótulo pode conter nomes comerciais, siglas ou claims legados; não é confirmação independente de todas as revisões desse produto.
+Formato: VID:PID | rótulo literal | restrições USB adicionais.
+Todas as linhas exigem bConfigurationValue=1. Interface=0 é a interface padrão nesta lista; interface=2 é indicada explicitamente. Ausência de bcd significa que o perfil não impõe filtro de bcdDevice, não que qualquer revisão de placa esteja homologada.
+Classe/subclasse/protocolo exigidos são apresentados como class/sub/proto em hexadecimal; campos não apresentados não participam do matching daquele perfil.
+
+RTL8192CU — 88 IDs — 2,4 GHz — 11b/g; 20 MHz
+04bb:094c | IO_DATA_92CU | interface=0, bcd=0x0200
+04bb:0950 | I-O DATA RTL8192CU | interface=0, class=0xff
+04f2:aff7 | RTL8188CUS_solo_AFF7 | interface=0, bcd=0x0200
+04f2:aff8 | RTL8188CUS_Combo_AFF8 | interface=0, bcd=0x0200
+04f2:aff9 | RTL8188CUS_solo_AFF9 | interface=0, bcd=0x0200
+04f2:affa | RTL8188CUS_solo_AFFA | interface=0, bcd=0x0200
+04f2:affb | RTL8188CUS_Combo_AFFB | interface=0, bcd=0x0200
+04f2:affc | RTL8188CUS_Combo_AFFC | interface=0, bcd=0x0200
+050d:1004 | Belkin_1004_92CU | interface=0, bcd=0x0200
+050d:1102 | Belkin_1102_92CU | interface=0, bcd=0x0200
+050d:11f2 | Belkin ISY RTL8188CU | interface=0, class=0xff
+050d:2102 | Belkin_2102_92CU | interface=0, bcd=0x0200
+050d:2103 | Belkin_2103_92CU | interface=0, bcd=0x0200
+056e:4009 | ELECOM_WDC300SU2S_92CU | interface=0, bcd=0x0200
+0586:341f | ZyXEL_92CU | interface=0, bcd=0x0200
+06f8:e033 | Hercules_HWUp150_92CU | interface=0, bcd=0x0200
+06f8:e035 | Hercules_HWUm300_92CU | interface=0, bcd=0x0200
+0789:016d | Logitec_92CU | interface=0, bcd=0x0200
+07aa:0056 | Corega_92CU | interface=0, bcd=0x0200
+07b8:8178 | AboCom_8178_92CU | interface=0, bcd=0x0200
+07b8:8189 | AboCom_8189_92CU | interface=0, bcd=0x0200
+0846:9021 | Netgear_WNA3100M_92CU | interface=0, bcd=0x0200
+0846:9041 | Netgear_WNA1000M_92CU | interface=0, bcd=0x0200
+0846:9042 | On Networks N150MA RTL8188CUS | interface=0, class=0xff
+0846:9043 | NETGEAR WNA1000Mv2 RTL8188CU | interface=0, class=0xff
+0846:f001 | Netgear_N300MA_92CU | interface=0, bcd=0x0200
+0b05:17ab | ASUS_USB-N13_92CU | interface=0, bcd=0x0200
+0b05:17ba | ASUS_USB-N10_92CU | interface=0, bcd=0x0200
+0b05:17c0 | ASUS_USB-N10E_92CU | interface=0, bcd=0x0200
+0bda:018a | RTL8188CTV | interface=0, bcd=0x0200
+0bda:0a8a | RTL8188CTV_0A8A | interface=0, bcd=0x0200
+0bda:17c0 | Realtek USB-N10E reference RTL8188CU | interface=0, class=0xff
+0bda:1e1e | RTL8188CUS_1E1E | interface=0, bcd=0x0200
+0bda:2e2e | RTL8188CUS_2E2E | interface=0, bcd=0x0200
+0bda:317f | RTL8188RU_Netcore | interface=0, bcd=0x0200
+0bda:5088 | RTL8188CUS_5088 | interface=0, bcd=0x0200
+0bda:8170 | Realtek RTL8188CE-VAU | interface=0, class=0xff
+0bda:8176 | RTL8188CU | interface=0, bcd=0x0200
+0bda:8177 | RTL8192CU_8177 | interface=0, bcd=0x0200
+0bda:8178 | RTL8192CU_8178 | interface=0, bcd=0x0200
+0bda:817a | RTL8188CUS_Solo | interface=0, bcd=0x0200
+0bda:817b | RTL8188CUS_Combo | interface=0, bcd=0x0200
+0bda:817c | Realtek RTL8192CE-VAU | interface=0, class=0xff
+0bda:817d | Realtek RTL8188RU high-power | interface=0, class=0xff
+0bda:817e | Realtek RTL8188CE-VAU b/g | interface=0, class=0xff
+0bda:817f | RTL8188RU | interface=0, bcd=0x0200
+0bda:8186 | Realtek RTL8192CE-VAU Intel-Xavi | interface=0, class=0xff
+0bda:818a | RTL8188CUS_VL | interface=0, bcd=0x0200
+0bda:8191 | Realtek RTL8192CU reference | interface=0, class=0xff
+0bda:819a | Realtek RTL8188CU 819a | interface=0, class=0xff
+0bda:8754 | Realtek RTL8188CU BC4 combo | interface=0, class=0xff
+0df6:0052 | Sitecom_WL365_92CU | interface=0, bcd=0x0200
+0df6:005c | Sitecom_WLA1001v1_92CU | interface=0, bcd=0x0200
+0df6:0061 | Sitecom_WLA4001_92CU | interface=0, bcd=0x0200
+0df6:0070 | Sitecom_WLA2102_92CU | interface=0, bcd=0x0200
+0df6:0077 | Sitecom_WLA2100_92CU | interface=0, bcd=0x0200
+0e66:0019 | Hawking_HWDN3_92CU | interface=0, bcd=0x0200
+0e66:0020 | Hawking_HWUN4_92CU | interface=0, bcd=0x0200
+0eb0:9071 | Etop RTL8188CU | interface=0, class=0xff
+103c:1629 | HP_92CU | interface=0, bcd=0x0200
+1058:0631 | Western Digital Alpha RTL8192CU | interface=0, class=0xff
+13d3:3357 | AzureWave_92CU | interface=0, bcd=0x0200
+13d3:3358 | AzureWave RTL8188CE-VAU | interface=0, class=0xff
+13d3:3359 | AzureWave RTL8188CE-VAU b/g | interface=0, class=0xff
+2001:3307 | DLink_DWA132_92CU | interface=0, bcd=0x0200
+2001:3308 | DLink_DWA121_92CU | interface=0, bcd=0x0200
+2001:3309 | DLink_DWA135_92CU | interface=0, bcd=0x0200
+2001:330a | DLink_DWA133_92CU | interface=0, bcd=0x0200
+2001:330b | DLink_DWA123_92CU | interface=0, bcd=0x0200
+2001:330d | DLink_DWA131B1_92CU | interface=0, bcd=0x0200
+2019:1201 | PCI_BT-Micro3H2X_92CU | interface=0, bcd=0x0200
+2019:4902 | PCI_GW_USLight_92CU | interface=0, bcd=0x0200
+2019:ab2a | PCI_GW_USNano2_92CU | interface=0, bcd=0x0200
+2019:ab2b | PCI_GW_USEco300_92CU | interface=0, bcd=0x0200
+2019:ab2e | PCI_SW_WF02-AD15_92CU | interface=0, bcd=0x0200
+2019:ed17 | PCI_GW_USValue_EZ_92CU | interface=0, bcd=0x0200
+20f4:624d | Trendnet_624D_92CU | interface=0, bcd=0x0200
+20f4:648b | Trendnet_648B_92CU | interface=0, bcd=0x0200
+20f4:648c | Trendnet_648BBM_88CU | interface=0, bcd=0x0200
+2357:0100 | TP-Link TL-WN8200ND RTL8192CU | interface=0, class=0xff
+4855:0090 | Feixun_90_92CU | interface=0, bcd=0x0200
+4855:0091 | Feixun_91_92CU | interface=0, bcd=0x0200
+4856:0091 | NetweeN_91_92CU | interface=0, bcd=0x0200
+7392:7811 | Edimax_7811_92CU | interface=0, bcd=0x0200
+7392:7822 | Edimax_7822_92CU | interface=0, bcd=0x0200
+9846:9041 | NETGEAR Cameo RTL8188CU | interface=0, class=0xff
+cdab:8010 | Compare-8010_92CU | interface=0, bcd=0x0200
+cdab:8011 | Compare-8011_92CU | interface=0, bcd=0x0200
+
+RTL8188EU — 18 IDs — 2,4 GHz — 11b/g; 20 MHz; I-cut não suportado
+056e:4008 | ELECOM_WDC150SU2M_4008_8188EU | interface=0
+07b8:8179 | AboCom_8179_88EU | interface=0
+0b05:18f0 | ASUS_USB-N10_18F0_8188EUS | interface=0
+0bda:0179 | RTL8188EU_0179_ETV | interface=0
+0bda:8179 | RTL8188EU_8179 | interface=0
+0bda:a179 | RTL8188EUAU | interface=0
+0df6:0076 | Sitecom_WLA1100_88EU | interface=0
+2001:330f | DLink_DWA125_88EU | interface=0
+2001:3310 | DLink_DWA123_88EU | interface=0
+2001:3311 | DLink_GO_USB_N150_88EU | interface=0
+2001:331b | DLink_331B_88EU | interface=0
+2357:010c | TPLink_010C_88EUS | interface=0
+2357:0111 | TPLink_0111_88EUS | interface=0
+2357:0127 | TPLink_0127_88EU | interface=0
+2357:012a | TPLink_012A_88EU | interface=0
+2357:012f | TPLink_012F_88EU | interface=0
+2357:0132 | TPLink_0132_88EU | interface=0
+7392:b811 | Edimax_EW-7811GLN_B811_8188EU | interface=0
+
+RTL8192EU — 10 IDs — 2,4 GHz — HT20/40; até 2 fluxos
+07b8:818b | AboCom_818B_92EU | interface=0
+0bda:818b | RTL8192EU_818B | interface=0
+0bda:818c | RTL8192EU_818C_BT | interface=2
+2001:3312 | DLink_DWA131C1_3312_92EU | interface=0
+2001:3319 | DLink_DWA131E_3319_92EU | interface=0
+2019:ab33 | PCI_GW-300S_AB33_92EU | interface=0
+2357:0107 | TPLink_821v5_92EU | interface=0
+2357:0108 | TPLink_822v4_92EU | interface=0
+2357:0109 | TPLink_823v2_92EU | interface=0
+2357:0126 | TPLink_0126_92EU | interface=0
+
+RTL8192DU — 5 IDs — 2,4 e 5 GHz — HT20; SMSP até 2 fluxos; DMDP 1 fluxo por MAC
+050d:1105 | Belkin_92DUVS_1105 | interface=0, bcd=0x0000
+050d:110a | Belkin_92DUVS_110A | interface=0, bcd=0x0000
+050d:120a | Belkin_92DUVS_120A | interface=0, bcd=0x0000
+0bda:8194 | RTL8192DU_VS | interface=0, bcd=0x0000
+20f4:664b | Trendnet_92DUVS | interface=0, bcd=0x0000
+
+RTL8192FU — 4 IDs — 2,4 GHz — HT20/40; até 2 fluxos
+0b05:18f1 | ASUS_USB-N13_18F1_8192FU | interface=0
+0bda:318b | Edimax_EW-7822GTN_318B_8192FU | interface=0
+0bda:f192 | RTL8192FU | interface=0
+7392:b722 | Edimax_EW-7722UTn_B722_8192FU | interface=0
+
+RTL8710BU — 2 IDs — 2,4 GHz — HT20/40; 1 fluxo; SMIC/UMC
+0bda:2005 | ZION_2005_8188GU8710B | interface=0
+0bda:b711 | RTL8188GU_RTL8710BU | interface=0
+
+RTL8723BU — 3 IDs — 2,4 GHz — HT20; 1 fluxo; coexistência Bluetooth
+0bda:b720 | RTL8723BU_B720_BT | interface=2
+20f4:108a | TrendNet_TBW108UB_108A_8723BU_BT | interface=2
+7392:a611 | Edimax_EW-7611ULB_A611_8723BU_BT | interface=2
+
+RTL8812AU — 36 IDs — 2,4 e 5 GHz — HT20/40 e VHT20/40/80; até 2 fluxos; RFE 0–3; placas com Bluetooth ativo bloqueadas
+0409:0408 | NEC_PA-WL900U_8812AU | interface=0
+0411:025d | Buffallo_WIU3866D_025D_12AU | interface=0
+04bb:0952 | IODATA_WN-AC867U_0952_12AU | interface=0
+050d:1106 | Belkin_F9L1106v2_8812AU | interface=0
+050d:1109 | Belkin_F9L1106v2_1109_12AU | interface=0
+0586:3426 | ZyXEL_AC_3426_12AU | interface=0
+0789:016e | Logitec_LAN-W866ACU3_016E_12AU | interface=0
+07b8:8812 | AboCom_AC_8812_12AU | interface=0
+0846:9051 | Netgear_A6200v2_8812AU | interface=0
+08c4:0115 | Proxim_USB-9100_0115_12AU | interface=0
+0b05:17d2 | ASUS_USB-AC56_17D2_12AU | interface=0
+0bda:8812 | RTL8812AU_8812 | interface=0
+0bda:881a | RTL8812AU-VS_881A | interface=0
+0bda:881b | RTL8812AU-VL_881B | interface=0
+0bda:881c | RTL8812AU-VN_881C | interface=0
+0bda:a812 | DRAGON_A812_12AU | interface=0
+0df6:0074 | Sitecom_WLA7100_0074_12AU | interface=0
+0e66:0022 | Hawking_0022_12AU | interface=0
+1058:0632 | Western_AC_0632_12AU | interface=0
+13b1:003f | Linksys_WUSB6300_003F_12AU | interface=0
+148f:9097 | Loopcomm_ACA1_9097_12AU | interface=0
+1740:0100 | EnGenius_AC_0100_12AU | interface=0
+2001:330e | DLink_DWA183_330E_12AU | interface=0
+2001:3313 | DLink_DWA182B1_3313_12AU | interface=0
+2001:3315 | DLink_DWA182C1_3315_12AU | interface=0
+2001:3316 | DLink_DWA180A1_3316_12AU | interface=0
+2019:ab30 | PCI_GW-900D_AB30_12AU | interface=0
+20f4:805b | TrendNet_TEW805UB_805B_12AU | interface=0
+2357:0101 | TPLink_T4U_0101_12AU | interface=0
+2357:0103 | TPLink_T4UH_8812AU | interface=0
+2357:010d | TPLink_8812AU_1 | interface=0
+2357:010e | TPLink_8812AU_2 | interface=0
+2357:010f | TPLink_8812AU_3 | interface=0
+2357:0122 | TPLink_8812AU_0122 | interface=0
+2604:0012 | Tenda_8812AU | interface=0
+7392:a822 | Edimax_EW-7822UAC_A822_12AU | interface=0
+
+RTL8814AU — 17 IDs — 2,4 e 5 GHz — HT20; até 2 fluxos ativos; RFE 0/1
+056e:400b | ELECOM_WDC1300DU3_400B_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+056e:400d | ELECOM_WDC1300SU3_400D_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+0846:9054 | Netgear_A7000_9054_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+0b05:1817 | ASUS_USB-AC68ALL_1817_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+0b05:1852 | ASUS_USB-AC68FCC_1852_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+0b05:1853 | ASUS_USB-AC68CE_1853_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+0bda:8813 | RTL8814AU_8813 | interface=0, class=0xff, sub=0xff, proto=0xff
+0df6:007b | Sitecom_WLA8100_007B_8814AU | interface=0
+0e66:0026 | Hawking_HW17ACU_0026_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+2001:331a | DLink_DWA192_331A_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+2001:3320 | DLink_DWA193_3320_8814AU | interface=0
+20f4:809a | TrendNet_TEW809UB_809A_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+20f4:809b | TRENDnet RTL8814AU 809b | interface=0, class=0xff, sub=0xff, proto=0xff
+2357:0106 | TPLink_T9UH_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+2c2b:0002 | NETSCOUT_0002_8814AU | interface=0
+7392:a833 | Edimax_AC1750_A833_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+7392:a834 | Edimax_AC1750_A834_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
+
+RTL8821AU — 35 IDs — 2,4 e 5 GHz* — HT20/40 e VHT20/40/80; 1 fluxo; RFE 0
+0411:0242 | Buffallo_WIU2433DM_0242_11AU | interface=0
+0411:029b | Buffallo_WIU2433DHP_029B_11AU | interface=0
+0411:029d | Buffallo_WLPU2433DHP_029D_11AU | interface=0
+04bb:0953 | IODATA_WNAC433UA_0953_11AU_1 | interface=0
+04bb:0959 | IODATA_AC433UM_0959_11AU | interface=0, somente 5 GHz
+04bb:095a | IODATA_WHG-AC433UM_095A_11AU | interface=0, somente 5 GHz
+056e:4007 | ELECOM_WDC433DU2_4007_11AU | interface=0
+056e:400e | ELECOM_WDC433SU2M2_400E_11AU | interface=0
+056e:400f | ELECOM_WDB433SU2M_400F_11AU | interface=0
+056e:4010 | ELECOM_WDC433DU2H2_4010_11AU | interface=0
+07b8:0811 | AboCom_0811_8811AU | interface=0
+0846:9052 | Netgear_A6100_9052_11AU | interface=0
+0bda:0170 | Flyteck_0170_8821AU | interface=2
+0bda:0811 | RTL8811AU_0811 | interface=0
+0bda:0823 | RTL8821AU_0823_BT | interface=2
+0bda:2003 | RTL8811AU_2003 | interface=0, somente 5 GHz
+0bda:a811 | ELECOM_8811AU | interface=0
+0df6:007a | Sitecom_WLA2104_007A_11AU | interface=0
+0e66:0023 | Hawking_HD65U_0023_11AU | interface=0
+0e66:0024 | Hawking_HW7ACU_0024_11AU | interface=0
+1668:8108 | Actiontec_DualBand_8108_11AU | interface=0
+1eda:2520 | AirTies_Air2520_2520_11AU | interface=0
+1eda:2525 | AirTies_Air2525_2525_11AU | interface=0
+2001:3314 | DLink_DWA171_3314_11AU | interface=0
+2001:3318 | DLink_DWA172_3318_11AU | interface=0
+2019:ab32 | PCI_GW-450S_AB32_11AU | interface=0
+20f4:804b | TrendNet_TEW804B_804B_11AU | interface=0
+2357:011e | TPLink_011E_8811AU | interface=0
+2357:011f | TPLink_011F_8811AU | interface=0
+2357:0120 | TPLink_0120_8811AU | interface=0
+2357:0121 | TPLink_0121_8811AU | interface=0
+7392:a811 | Edimax_EW-7811UAC_A811_11AU | interface=0
+7392:a812 | Edimax_AC600_A812_11AU | interface=0
+7392:a813 | Edimax_GLP_A813_11AU | interface=0
+7392:b611 | Edimax_EW-7611UCB_B611_8821AU_BT | interface=2
+
+RTL8821CU — 12 IDs — 2,4 e 5 GHz — HT20; 1 fluxo
+0b05:18e9 | ASUS_USB-AC51_18E9_8811CU | interface=0
+0bda:2006 | ZION_2006_8811CU | interface=0
+0bda:c811 | RTL8811CU_C811 | interface=0
+0bda:c820 | RTL8821CU_C820_Combo | interface=2
+0bda:c82b | RTL8811CU_C82B | interface=0
+2001:331d | DLink_DWA171C_331D_8811CU | interface=0
+2357:0112 | TPLink_0112_8811CU | interface=0
+2357:0113 | TPLink_0113_8811CU | interface=0
+2357:0114 | TPLink_0114_8811CU | interface=0
+2357:0128 | TPLink_0128_8811CU | interface=0
+2357:0129 | TPLink_0129_8811CU | interface=0
+2357:012c | TPLink_012C_8811CU | interface=0
+
+RTL8822BU — 30 IDs — 2,4 e 5 GHz — HT20; até 2 fluxos
+04ca:8602 | LITEON_WN8602L_8602_8812BU | interface=0
+056e:4011 | ELECOM_WDB867DU3S_4011_8812BU | interface=0
+0846:9055 | Netgear_A6150_9055_8812BU | interface=0
+0b05:1841 | ASUS_USB-AC55_1841_8812BU | interface=0
+0b05:184c | ASUS_USB-AC53_184C_8812BU | interface=0
+0b05:1870 | ASUS_1870_8812BU | interface=0
+0b05:1874 | ASUS_USB-AC55B1_1874_8812BU | interface=0
+0bda:2102 | CCNC_2102_8811CU | interface=0, class=0xff, sub=0xff, proto=0xff
+0bda:b812 | RTL8812BU_B812 | interface=0
+0bda:b81a | RTL8812BU-2 | interface=0
+0bda:b82c | RTL8822BU_B82C_Combo | interface=2
+0e66:0025 | Hawking_HW12ACU_0025_8812BU | interface=0
+13b1:0045 | Linksys_WUSB6300v2_0045_8822BU | interface=0
+2001:331c | DLink_331C_12BU | interface=0
+2001:331e | DLink_DWA181_331E_12BU | interface=0
+2001:331f | DLink_DWA181_331F_12BU | interface=0
+2001:3322 | DLink_DWA181_3322_12BU | interface=0
+20f4:805a | TrendNet_TEW805UB_805A_8812BU | interface=0
+20f4:808a | TrendNet_TEW808UBM_808A_8812BU | interface=0
+2357:0115 | TPLink_0115_8812BU | interface=0
+2357:0116 | TPLink_0116_8812BU | interface=0
+2357:0117 | TPLink_0117_8812BU | interface=0
+2357:012d | TPLink_012D_8812BU | interface=0
+2357:012e | TPLink_012E_8812BU | interface=0
+2357:0138 | TPLink_0138_8812BU | interface=0
+7392:b822 | Edimax_EW7822UNC_U2_B822_8812BU | interface=0
+7392:c822 | Edimax_EW7822UTC_U3_C822_8812BU | interface=0
+7392:d822 | Edimax_EXPERT_U2_D822_8812BU | interface=0
+7392:e822 | Edimax_EXPERT_U3_E822_8812BU | interface=0
+7392:f822 | Edimax_EXPERT_U3_F822_8812BU | interface=0
+
+RTL8822CU — 2 IDs — 2,4 e 5 GHz — HT20; até 2 fluxos
+0bda:c812 | RTL8812CU_C812 | interface=0
+0bda:c82c | RTL8822CU_C82C_Combo | interface=2
+
+REGISTROS QUE NÃO ENTRAM NOS 262 IDs ELEGÍVEIS
+13b1:0043 | Linksys_WUSB6400M_0043_8812BU | Conflito primário RTL8822BU/CU. Somente descoberta controlada: configuração 1, interface 0 e descritor ff/ff/ff; leitura positiva de SYS_CFG2 distingue B (0x0a) de C (0x13), com nova prova antes de potência/firmware. Não autoriza seleção estática pelo nome.
+0bda:b814 | RTL8814BU | ID primário confirmado; estação desabilitada. Faltam firmware USB NIC/protocolo qualificados, perfil de fábrica/regulatório e tracking/integração física pendentes. HAL/USB/PHY portados não significam conexão operacional.
+Demais IDs não habilitados por ausência de prova unívoca:
+038b:0100 | TPLink_92CU | somente claim legado; sem correspondência numérica primária confirmada
+058c:ff20 | Infocus_INA-LCKEY_FF20_12AU | somente claim legado; sem correspondência numérica primária confirmada
+0bda:8011 | RTL8188CTV_8011 | somente claim legado; sem correspondência numérica primária confirmada
+0bda:8192 | RTL8192CU | conflito em tabelas primárias
+0e0b:9071 | Amigo_92CU | somente claim legado; sem correspondência numérica primária confirmada
+1668:8105 | Actiontec_SingleBand_8105_11AU | somente claim legado; sem correspondência numérica primária confirmada
+
+VERIFICAÇÃO DE CONSISTÊNCIA E PROVENIÊNCIA
+O catálogo numérico e os gates de estação foram mantidos da build53. O leitor
+estrito valida 270 registros; os geradores conferem USBWiFiProfiles.inc e as
+personalidades de Info.plist. A matriz completa está em USB-WIFI-ADAPTERS.csv,
+com 262 elegíveis e 8 casos fora da estação estática. Commits, URLs e licenças
+das tabelas primárias estão em data/legacy-usb-adapters.json.
+SOURCE-MANIFEST.sha256 confere os arquivos da entrega correspondente.
+
+EVIDÊNCIAS NO SOURCE
+README.md — modos implementados, limites RFE/BT, canais e inventário.
+src/USBWiFiProfiles.c — gate de proveniência, whitelist e capacidades.
+scripts/usb_wifi_catalog.py — identidade primária, descoberta e elegibilidade.
+kext/Info.plist — 262 personalidades normais e descoberta restrita.
+src/ChipIdentity.c — discriminação B/C e escopo de descoberta.
+docs/RTL8814BU-STATUS.md — bloqueadores da estação B14.
+docs/VALIDATION-0.14.7.md — checkup físico53 e validação de software54.
+
+A build54 corrige os comentários antigos sobre B814: ID confirmado e HAL/PHY
+portados; estação continua bloqueada por firmware/perfil/tracking pendentes.

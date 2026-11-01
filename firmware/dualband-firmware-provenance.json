@@ -1,0 +1,51 @@
+{
+  "RTL8821CU": {
+    "file": "rtw8821c_fw.bin",
+    "symbol": "RTW8821CUFirmware",
+    "include": "kext/RTL8821CUFirmware.inc",
+    "bytes": 139472,
+    "sha256": "2ef409bc418549fcf294061dd0cae1fc22fd9da79b60524950b25de18732f3f0",
+    "version": "24.11",
+    "license": "LICENCE.rtlwifi_firmware.txt",
+    "source": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/main/rtw88/rtw8821c_fw.bin",
+    "source_ref": "main; exact bytes pinned by SHA256",
+    "representation": "unchanged opaque firmware bytes"
+  },
+  "RTL8822BU": {
+    "file": "rtw8822b_fw.bin",
+    "symbol": "RTW8822BUFirmware",
+    "include": "kext/RTL8822BUFirmware.inc",
+    "bytes": 161240,
+    "sha256": "a72da690597bfa99d8eb6fc2ab090d18d8ad92ac2befd35db1c9e3662d8d8418",
+    "version": "30.20",
+    "license": "LICENCE.rtlwifi_firmware.txt",
+    "source": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/main/rtw88/rtw8822b_fw.bin",
+    "source_ref": "main; exact bytes pinned by SHA256",
+    "representation": "unchanged opaque firmware bytes"
+  },
+  "RTL8822CU": {
+    "file": "rtw8822c_fw.bin",
+    "symbol": "RTW8822CUFirmware",
+    "include": "kext/RTL8822CUFirmware.inc",
+    "bytes": 202600,
+    "sha256": "3deecb31210986d98cdbfb000391e08d602a6eee4ffc883969faa2b907ab03ba",
+    "version": "9.9",
+    "license": "LICENCE.rtlwifi_firmware.txt",
+    "source": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/main/rtw88/rtw8822c_fw.bin",
+    "source_ref": "main; exact bytes pinned by SHA256",
+    "representation": "unchanged opaque firmware bytes"
+  },
+  "RTL8192DU": {
+    "file": "rtl8192dufw.bin",
+    "symbol": "RTW8192DUFirmware",
+    "include": "kext/RTL8192DUFirmware.inc",
+    "bytes": 32302,
+    "sha256": "9b51f15642b7f2d41e8369d7df956f92333c09699d8a88039081a8bdc77242a1",
+    "version": "38.0",
+    "license": "LICENCE.rtlwifi_firmware.txt",
+    "source": "https://github.com/lwfinger/rtl8192du/blob/dc2c6951a9fd28fdb20549140052bbdac3490865/rtl8192dufw.bin",
+    "source_ref": "dc2c6951a9fd28fdb20549140052bbdac3490865",
+    "representation": "unchanged opaque firmware bytes",
+    "git_blob_sha": "3ef18e31be1fbc9371e4d37c6cb16860acb47170"
+  }
+}

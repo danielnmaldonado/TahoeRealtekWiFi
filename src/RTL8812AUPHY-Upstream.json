@@ -1,0 +1,91 @@
+{
+  "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+  "selected_license": "BSD-3-Clause",
+  "sources": {
+    "phy.h": "55388bdbec3b743553776282b918d2f6ffe06d4ac1d8849cf0ea0e22f19867e4",
+    "tx.h": "5f0c1dc2c8e9dbcdfece4e34c264bd24731ab6a3ff28011f9ddb09cb695aaa46",
+    "tx.c": "dfc212ab3caf47437ed234dba1b7f7ef0cbd45749d4d34162699446a2a4adf7e",
+    "rtw88xxa.c": "5aea37c1db5310a2a86c2a6d0bdc390fa430faf55125dfcc1ffcb552b085e514",
+    "rtw8812a.c": "31ec275f8da9026278b97e572367a231a5b6b847cae0cfac6b2090b9b541594b",
+    "rtw8821a.c": "75906260b2fd5b21b4d5f0c5c81be6b56272a5b011951336afbc17321992b8c7",
+    "rtw8812a_table.c": "e400b2daf6824f3c23d8a4f3b02fd396cb19f55f7c59ada570b62e2b442b235d",
+    "rtw8821a_table.c": "08fb956aaa71ae0df8651f73c847922bedcfe44c695cdc6867bd3a3900ef2393",
+    "reg.h": "c8246f9305539347fdb62b0294fe12ea24769cb3ad56c2b0235c4269a0307324",
+    "phy.c": "669d76c8acfc9f30418dbd119e777eae4404f6e3bb1198292aab536a3aa9e4ec",
+    "main.h": "6f2eaeb830844efface8a676815e2a0b15f59aa5408387fa85dc91613d351a24",
+    "rtw88xxa.h": "e217f23f9cc1918332a2005da5aca234f481fd4f291002d305b74ae9c8a5a2b6"
+  },
+  "functions": [
+    "rtw8812a_config_1t",
+    "rtw88xxa_get_bb_swing",
+    "rtw88xxa_get_swing_index",
+    "rtw88xxa_pwrtrack_init",
+    "rtw88xxa_set_channel_bb_swing",
+    "rtw8821a_set_ext_band_switch",
+    "rtw8821a_phy_set_rfe_reg_24g",
+    "rtw8821a_phy_set_rfe_reg_5g",
+    "rtw8812a_phy_set_rfe_reg_24g",
+    "rtw8812a_phy_set_rfe_reg_5g",
+    "rtw88xxa_switch_band",
+    "rtw88xxa_phy_read_rf",
+    "rtw8812a_phy_fix_spur",
+    "rtw88xxa_switch_channel",
+    "rtw88xxa_set_reg_bw",
+    "rtw88xxa_post_set_bw_mode",
+    "rtw88xxa_set_channel_rf",
+    "rtw88xxa_set_channel",
+    "rtw88xxa_iqk_backup_mac_bb",
+    "rtw88xxa_iqk_backup_afe",
+    "rtw88xxa_iqk_restore_mac_bb",
+    "rtw88xxa_iqk_configure_mac",
+    "rtw88xxa_iqk_finish",
+    "rtw8812a_do_lck",
+    "rtw8812a_iqk_backup_rf",
+    "rtw8812a_iqk_restore_rf",
+    "rtw8812a_iqk_restore_afe",
+    "rtw8812a_iqk_rx_fill",
+    "rtw8812a_iqk_tx_fill",
+    "rtw8812a_iqk",
+    "rtw8812a_do_iqk",
+    "rtw8821a_iqk_backup_rf",
+    "rtw8821a_iqk_restore_rf",
+    "rtw8821a_iqk_restore_afe",
+    "rtw8821a_iqk_rx_fill",
+    "rtw8821a_iqk_tx_fill",
+    "rtw8821a_iqk_tx_vdf_true",
+    "rtw8821a_iqk_tx_vdf_false",
+    "rtw8821a_iqk_rx",
+    "rtw8821a_iqk",
+    "rtw8821a_do_iqk"
+  ],
+  "adaptations": [
+    "Struct/context and internal symbols renamed; Linux logging removed.",
+    "USB callback wrappers latch errors; integer polls are bounded.",
+    "RFK success masks report actual convergence and exclude out-of-range fallback IQC.",
+    "Backup reads checked before destructive RFK; cleanup writes continue after errors.",
+    "LCK restores original TXPAUSE and RF_LCK; signed IQK packing uses unsigned shifts.",
+    "8821 IQK hardware-ready/TX-failure flags no longer overridden by constants.",
+    "8812 OTP1T1R IQK suppresses absent-path polling and measurement; every present path still requires measured ready/fail/convergence."
+  ],
+  "repository": "torvalds/linux",
+  "base_url": "https://raw.githubusercontent.com/torvalds/linux/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/",
+  "freebsd_rom_crosscheck": {
+    "r21a_rom.c": {
+      "url": "https://raw.githubusercontent.com/freebsd/freebsd-src/685dc743dc3b5645e34836464128e1c0558b404b/sys/dev/rtwn/rtl8821a/r21a_rom.c",
+      "sha256": "98e98a7d4799343c50a559e56c09d10a7cc156c6f71c3eba347f3a3172a68967"
+    },
+    "r12a_rom_image.h": {
+      "url": "https://raw.githubusercontent.com/freebsd/freebsd-src/685dc743dc3b5645e34836464128e1c0558b404b/sys/dev/rtwn/rtl8812a/r12a_rom_image.h",
+      "sha256": "423766a94d80b3edc6d52507dcca8776d3cc43167761f5241ee4df548c881b8d"
+    }
+  },
+  "power_reduction_reference": {
+    "repository": "torvalds/linux",
+    "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+    "path": "drivers/net/wireless/realtek/rtw88/sar.c",
+    "sha256": "6a15b0892f45c41364309ba00d682f51326f6c22062b5a474a42a95a91b1a18d",
+    "function": "rtw_sar_to_phy",
+    "use": "txgi_factor exponent1=2indices/dB for8812A/8821A/8821C/8822B; exponent2=4indices/dB for8822C. Chip descriptor pins remain unchanged.",
+    "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/sar.c"
+  }
+}

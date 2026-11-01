@@ -1,0 +1,74 @@
+{
+  "license": "BSD-3-Clause selected from GPL-2.0 OR BSD-3-Clause upstream",
+  "sources": [
+    {
+      "repository": "torvalds/linux",
+      "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+      "path": "drivers/net/wireless/realtek/rtw88/rtw88xxa.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/rtw88xxa.c",
+      "bytes": 56234,
+      "sha256": "5aea37c1db5310a2a86c2a6d0bdc390fa430faf55125dfcc1ffcb552b085e514"
+    },
+    {
+      "repository": "torvalds/linux",
+      "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+      "path": "drivers/net/wireless/realtek/rtw88/rtw88xxa.h",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/rtw88xxa.h",
+      "bytes": 5666,
+      "sha256": "e217f23f9cc1918332a2005da5aca234f481fd4f291002d305b74ae9c8a5a2b6"
+    },
+    {
+      "repository": "torvalds/linux",
+      "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+      "path": "drivers/net/wireless/realtek/rtw88/rtw8812a.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/rtw8812a.c",
+      "bytes": 34030,
+      "sha256": "31ec275f8da9026278b97e572367a231a5b6b847cae0cfac6b2090b9b541594b"
+    },
+    {
+      "repository": "torvalds/linux",
+      "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+      "path": "drivers/net/wireless/realtek/rtw88/rtw8812a_table.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/rtw8812a_table.c",
+      "bytes": 68802,
+      "sha256": "e400b2daf6824f3c23d8a4f3b02fd396cb19f55f7c59ada570b62e2b442b235d"
+    },
+    {
+      "repository": "torvalds/linux",
+      "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+      "path": "drivers/net/wireless/realtek/rtw88/fw.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/fw.c",
+      "bytes": 67126,
+      "sha256": "0da28129dfcdf3e9b5661523b54ede4632c6c9e5af7008a6f7ce2a1f8b6a19f0"
+    },
+    {
+      "repository": "torvalds/linux",
+      "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+      "path": "drivers/net/wireless/realtek/rtw88/reg.h",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/reg.h",
+      "bytes": 32502,
+      "sha256": "c8246f9305539347fdb62b0294fe12ea24769cb3ad56c2b0235c4269a0307324"
+    }
+  ],
+  "adapted_functions": [
+    "rtw88xxa_efuse_grant",
+    "rtw8812a_read_amplifier_type",
+    "rtw8812a_read_rfe_type",
+    "rtw88xxa_read_usb_type",
+    "rtw88xxa_read_efuse",
+    "trans_carddis_to_cardemu_8812a (USB/all-interface steps)",
+    "trans_cardemu_to_act_8812a (USB/all-interface steps)",
+    "rtw88xxau_init_power_on (CR DMA/security enable, excludes RF)",
+    "rtw_fw_send_h2c_command_register (mailbox wait/write order)"
+  ],
+  "existing_dependencies": {
+    "firmware": "Firmware.c/FirmwareBoot.c unchanged GPL-2.0-only 8051 payload validation, paging, reset and cleanup",
+    "otp": "Efuse.c unchanged packed512-byte logical decoder"
+  },
+  "implementation_limits": [
+    "Caller must independently match actual USB descriptors to a verified RTL8812AU profile and exclusively own the interface.",
+    "No RTL8821AU support: its OTP identity, power flow and RFK are separate.",
+    "Power-on refuses resident MCU firmware; cold card-enable stage only.",
+    "No PHY/RF tables, tuning, RF calibration, station attach, WPA2 or traffic. No kext personality enabled."
+  ]
+}

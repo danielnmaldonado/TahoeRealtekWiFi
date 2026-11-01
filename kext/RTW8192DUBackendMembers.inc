@@ -1,0 +1,43 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/* Include inside RTWUSBController after DU Station/USB/DataPath headers. */
+    rtw_backend_usb_plan duPlan_{};
+    rtw_92du_usb_map duUSB_{};
+    rtw_92du_rom duROM_{};
+    rtw_92du_rom duPortROM_[2]{};
+    struct DUDataPort {
+        rtw_usb_endpoints endpoints{};
+        IOUSBHostPipe *rx = nullptr,*tx[4]{};
+        uint16_t mps[4]{};
+    } duPorts_[2]{};
+    uint8_t duPortCount_ = 0,duActivePort_ = 0,duStationAddress_[6]{};
+    rtw_92du_boot duCore_{};
+    rtw_92du_mac duMAC_{};
+    void *duPHYStorage_ = nullptr;
+    size_t duPHYSize_ = 0;
+    IOService *duDevice_ = nullptr;
+    IOUSBHostInterface *duSibling_ = nullptr;
+    bool duWholeDeviceOwned_ = false,duRSSIValid_ = false;
+    uint8_t duRSSIPWDB_ = 0,duPowerReductionDB_ = 0;
+    bool claim8192DUDevice(),is8192DUUSBProvider(IOService *) const;
+    void close8192DUProviders(),release8192DUStorage();
+    static rtw_usb_error duControlIn(void *,const rtw_usb_setup *,uint8_t *,uint16_t *);
+    static rtw_usb_error duControlOut(void *,const rtw_usb_setup *,const uint8_t *,uint16_t *);
+    static int duWait(void *,uint32_t);
+    int initialize8192DUCore(),attach8192DU(),start8192DU(),set8192DUChannel(uint8_t);
+    int prepare8192DUPorts(const uint8_t *,size_t),select8192DUPort(uint8_t);
+    int start8192DUHardware(),switch8192DUBand(uint8_t);
+    int set8192DUPowerReduction(uint8_t db);
+    int32_t duPowerLimitMBM_=INT32_MAX;
+    int set8192DUPowerLimitMBM(int32_t mbm);
+    void stop8192DU();
+    int state8192DU(ieee80211com *,ieee80211_state,int);
+    rtw_92du_bss station8192DUParams() const;
+    static void update8192DUEDCA(ieee80211com *);
+    static void watchdog8192DU(_ifnet *),initTask8192DU(void *);
+    static int ioctl8192DU(_ifnet *,u_long,caddr_t);
+    static int ampdu8192DURXStart(ieee80211com *,ieee80211_node *,uint8_t);
+    static void ampdu8192DURXStop(ieee80211com *,ieee80211_node *,uint8_t);
+    bool permits8192DUChannel(uint8_t) const,supports8192DUBand(bool five) const,uses8192DUFirmwareRate() const;
+    int tick8192DU(),send8192DUFrame(mbuf_t,ieee80211_node *);
+    rtw_packet_error decode8192DUUSBFrame(rtw_rx_iterator *,rtw_8192eu_rx_frame *,uint8_t *) const;
+    int sample8192DURSSI(const rtw_rx_packet &);

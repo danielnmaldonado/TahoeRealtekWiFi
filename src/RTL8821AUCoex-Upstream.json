@@ -1,0 +1,31 @@
+{
+  "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+  "selected_license": "BSD-3-Clause",
+  "sources": {
+    "main.h": "6f2eaeb830844efface8a676815e2a0b15f59aa5408387fa85dc91613d351a24",
+    "reg.h": "c8246f9305539347fdb62b0294fe12ea24769cb3ad56c2b0235c4269a0307324",
+    "rtw8821a.c": "75906260b2fd5b21b4d5f0c5c81be6b56272a5b011951336afbc17321992b8c7",
+    "coex.c": "f0ecf9a2d2f121fc7dab32dcf3ced250f388175d8251dd398df6298e3e412d41",
+    "coex.h": "047aa0d252aee946869be49960129a52b5132528563ed52d9355e2b9870b3800",
+    "fw.c": "0da28129dfcdf3e9b5661523b54ede4632c6c9e5af7008a6f7ce2a1f8b6a19f0",
+    "fw.h": "45a1bf5213eec95cd450a54bc50caa5652c959dd2b644684ec7447b278f6e701"
+  },
+  "callbacks": [
+    "rtw8821a_coex_cfg_init",
+    "rtw8821a_coex_cfg_ant_switch",
+    "rtw8821a_coex_cfg_gnt_fix",
+    "rtw8821a_coex_cfg_gnt_debug",
+    "rtw8821a_coex_cfg_rfe_type",
+    "rtw8821a_coex_cfg_wl_tx_power",
+    "rtw8821a_coex_cfg_wl_rx_gain"
+  ],
+  "adaptations": [
+    "Debugfs display tail and logging omitted; full station policy and chip tables retained.",
+    "One serialized station; delayed Linux work uses caller-driven monotonic deadlines.",
+    "BT MP requests are asynchronous to avoid blocking USB completion on the same controller gate.",
+    "Firmware commands share the typed AU bootstrap H2C cursor.",
+    "Inactive BT threshold counter saturates at10 instead of wrapping after256 checks.",
+    "SCAN_FINISH preserves the actual caller scan-cache count instead of the upstream TODO30.",
+    "Busy MP slots retain one latest desired LNA level; real C2H completion or a bounded periodic timeout retries it after live authority checks. The applied level is cached only after successful H2C/scoreboard admission; stop/error/reset discards deferred work."
+  ]
+}

@@ -1,0 +1,888 @@
+# AUDITORIA - REGISTROS REAIS DE EXECUCAO, 2026-10-24
+SO Linux. Nenhum teste nativo em macOS foi realizado. Este arquivo centraliza evidencias, nao substitui o source.
+Build portavel: CMake Debug, AddressSanitizer/UndefinedBehaviorSanitizer.
+As paths /mnt/data abaixo pertencem ao ambiente de auditoria e nao serao validos em outro computador.
+
+
+================================================================================
+REPRODUCAO ANTES DA CORRECAO: assertion esperada
+LOG_ORIGINAL: repro_before_fix.log
+SHA256_LOG_ORIGINAL: 95d7f78e02af4ed1c17aac8b88814bf73a935552796e09a5b491fbe16051285d
+--------------------------------------------------------------------------------
+socket-exchange-tests: /mnt/data/audit_20261024/TahoeRealtekWiFi-v0.13.19/tests/socket_exchange_host_tests.cpp:20: void (anonymous namespace)::assertErased(const RTWControlStatus &): Assertion `std::memcmp(&result,&empty,sizeof(result))==0' failed.
+Traceback (most recent call last):
+  File "/mnt/data/audit_20261024/TahoeRealtekWiFi-v0.13.19/scripts/test-app-socket-exchange.py", line 47, in <module>
+    main()
+    ~~~~^^
+  File "/mnt/data/audit_20261024/TahoeRealtekWiFi-v0.13.19/scripts/test-app-socket-exchange.py", line 43, in main
+    subprocess.run([str(binary)], check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/tmp/rtw-socket-exchange-qd5s_d9c/socket-exchange-tests']' died with <Signals.SIGABRT: 6>.
+
+
+================================================================================
+TESTES PORTAVEIS RAPIDOS - 90/90
+LOG_ORIGINAL: tests_fast_final.log
+SHA256_LOG_ORIGINAL: 0b08346639830c58cc52748f697cf694d819bae3cfc3d9c54df9897ffe00fb30
+--------------------------------------------------------------------------------
+Test project /mnt/data/audit_20261024/build
+      Start 46: rtw-usb-wifi-catalog-tests
+      Start 77: rtw-net80211-pae-tests
+      Start 64: rtw-rate-control-tests
+      Start 59: rtw-net80211-ht-tests
+      Start 61: rtw-rtwn-ht-tx-tests
+      Start 41: rtw-wpa-recovery-tests
+      Start 68: rtw-net80211-crypto-tests
+      Start 60: rtw-net80211-ba-tests
+ 1/90 Test #61: rtw-rtwn-ht-tx-tests ..................   Passed    7.24 sec
+      Start 71: rtw-8814au-phy-tests
+ 2/90 Test #68: rtw-net80211-crypto-tests .............   Passed    7.35 sec
+      Start 76: rtw-net80211-runtime-tests
+ 3/90 Test #59: rtw-net80211-ht-tests .................   Passed    7.80 sec
+      Start 66: rtw-rx-order-tests
+ 4/90 Test #60: rtw-net80211-ba-tests .................   Passed    8.80 sec
+      Start 58: rtw-rtwn-ht-tests
+ 5/90 Test #41: rtw-wpa-recovery-tests ................   Passed    9.15 sec
+      Start 72: rtw-8814au-datapath-tests
+ 6/90 Test #66: rtw-rx-order-tests ....................   Passed    3.29 sec
+      Start 57: rtw-gen1-datapath-tests
+ 7/90 Test #64: rtw-rate-control-tests ................   Passed   11.80 sec
+      Start 37: rtw-menu-socket-exchange-tests
+ 8/90 Test #46: rtw-usb-wifi-catalog-tests ............   Passed   12.01 sec
+      Start 67: rtw-performance-diagnostics-tests
+ 9/90 Test #77: rtw-net80211-pae-tests ................   Passed   12.15 sec
+      Start 28: rtw-family-firmware-radio-tests
+10/90 Test #71: rtw-8814au-phy-tests ..................   Passed    5.61 sec
+      Start 62: rtw-net80211-input-tests
+11/90 Test #57: rtw-gen1-datapath-tests ...............   Passed    2.30 sec
+      Start 40: rtw-usb-termination-tests
+12/90 Test #58: rtw-rtwn-ht-tests .....................   Passed    5.23 sec
+      Start 51: rtw-92e-iqk-protocol-tests
+13/90 Test #72: rtw-8814au-datapath-tests .............   Passed    5.08 sec
+      Start 39: rtw-deferred-cleanup-tests
+14/90 Test #76: rtw-net80211-runtime-tests ............   Passed    7.94 sec
+      Start 48: rtw-legacy-ra-tests
+15/90 Test #62: rtw-net80211-input-tests ..............   Passed    2.98 sec
+      Start 47: rtw-legacy-efuse-tests
+16/90 Test #40: rtw-usb-termination-tests .............   Passed    2.56 sec
+      Start 70: rtw-8814au-boot-tests
+17/90 Test #37: rtw-menu-socket-exchange-tests ........   Passed    4.63 sec
+      Start 63: rtw-fw-command-tests
+18/90 Test #67: rtw-performance-diagnostics-tests .....   Passed    4.53 sec
+      Start 69: rtw-net80211-taskq-tests
+19/90 Test #28: rtw-family-firmware-radio-tests .......   Passed    4.78 sec
+      Start 36: rtw-signing-policy-tests
+20/90 Test #39: rtw-deferred-cleanup-tests ............   Passed    3.20 sec
+      Start 50: rtw-92e-iq-chain-trace-tests
+21/90 Test #51: rtw-92e-iqk-protocol-tests ............   Passed    4.25 sec
+      Start 73: rtw-8814au-station-tests
+22/90 Test #48: rtw-legacy-ra-tests ...................   Passed    3.18 sec
+      Start 55: rtw-pack-diagnostics-tests
+23/90 Test #70: rtw-8814au-boot-tests .................   Passed    2.98 sec
+      Start 44: rtw-controller-family-tests
+24/90 Test #47: rtw-legacy-efuse-tests ................   Passed    3.82 sec
+      Start 45: rtw-adapter-support-contract-tests
+25/90 Test #50: rtw-92e-iq-chain-trace-tests ..........   Passed    3.01 sec
+      Start 56: rtw-92e-efuse-tests
+26/90 Test #36: rtw-signing-policy-tests ..............   Passed    3.56 sec
+      Start 43: rtw-signal-pipeline-tests
+27/90 Test #63: rtw-fw-command-tests ..................   Passed    4.19 sec
+      Start 65: rtw-wpa-diagnostics-tests
+28/90 Test #69: rtw-net80211-taskq-tests ..............   Passed    4.29 sec
+      Start 74: rtw-8814au-backend-tests
+29/90 Test #55: rtw-pack-diagnostics-tests ............   Passed    3.60 sec
+      Start 52: rtw-92e-thermal-tests
+30/90 Test #73: rtw-8814au-station-tests ..............   Passed    3.89 sec
+      Start 49: rtw-92e-iq-calib-tests
+31/90 Test #45: rtw-adapter-support-contract-tests ....   Passed    2.63 sec
+      Start 78: rtw-usb-wifi-extensions-tests
+32/90 Test #43: rtw-signal-pipeline-tests .............   Passed    1.82 sec
+      Start 42: rtw-english-ui-tests
+33/90 Test #74: rtw-8814au-backend-tests ..............   Passed    1.91 sec
+      Start 75: rtw-8814au-attach-tests
+34/90 Test #56: rtw-92e-efuse-tests ...................   Passed    2.77 sec
+      Start 35: rtw-r12au-capture-cli-tests
+35/90 Test #44: rtw-controller-family-tests ...........   Passed    4.36 sec
+      Start 26: rtw-family-rx24-tests
+36/90 Test #65: rtw-wpa-diagnostics-tests .............   Passed    3.17 sec
+      Start  4: rtw-radio-cli-contract-tests
+37/90 Test #52: rtw-92e-thermal-tests .................   Passed    1.84 sec
+      Start  5: rtw-network-scan-contract-tests
+38/90 Test #49: rtw-92e-iq-calib-tests ................   Passed    2.10 sec
+      Start 54: rtw-tahoe-validation-tests
+39/90 Test #75: rtw-8814au-attach-tests ...............   Passed    2.19 sec
+      Start 53: rtw-kext-personality-tests
+40/90 Test #42: rtw-english-ui-tests ..................   Passed    2.80 sec
+      Start 29: rtw-backend-status-cli-tests
+41/90 Test  #4: rtw-radio-cli-contract-tests ..........   Passed    1.47 sec
+      Start 38: rtw-menu-source-contract-tests
+42/90 Test #78: rtw-usb-wifi-extensions-tests .........   Passed    3.27 sec
+      Start 80: rtw-kext-linkage-tests
+43/90 Test #26: rtw-family-rx24-tests .................   Passed    2.50 sec
+      Start 19: rtw-r12au-station-tests
+44/90 Test #35: rtw-r12au-capture-cli-tests ...........   Passed    2.61 sec
+      Start 14: rtw-menu-signal-policy-tests
+45/90 Test #53: rtw-kext-personality-tests ............   Passed    1.23 sec
+      Start 23: rtw-r12au-datapath-tests
+46/90 Test  #5: rtw-network-scan-contract-tests .......   Passed    2.47 sec
+      Start  8: rtw-menu-adapter-support-tests
+47/90 Test #14: rtw-menu-signal-policy-tests ..........   Passed    0.68 sec
+      Start 83: rtw-tests
+48/90 Test #83: rtw-tests .............................   Passed    0.19 sec
+      Start 85: rtw-hal-tests
+49/90 Test #54: rtw-tahoe-validation-tests ............   Passed    2.43 sec
+      Start 30: rtw-family-backend-tests
+50/90 Test  #8: rtw-menu-adapter-support-tests ........   Passed    0.46 sec
+      Start 20: rtw-r12au-passive-tests
+51/90 Test #23: rtw-r12au-datapath-tests ..............   Passed    0.74 sec
+      Start 12: rtw-menu-credential-policy-tests
+52/90 Test #20: rtw-r12au-passive-tests ...............   Passed    0.07 sec
+      Start 33: rtw-legacy-hal-tests
+53/90 Test #85: rtw-hal-tests .........................   Passed    0.25 sec
+      Start 84: rtw-driver-tests
+54/90 Test #19: rtw-r12au-station-tests ...............   Passed    1.19 sec
+55/90 Test #30: rtw-family-backend-tests ..............   Passed    0.27 sec
+56/90 Test #12: rtw-menu-credential-policy-tests ......   Passed    0.09 sec
+      Start 34: rtw-92e-hal-trace-tests
+      Start 11: rtw-timeout-lifecycle-tests
+      Start 15: rtw-menu-model-tests
+57/90 Test #33: rtw-legacy-hal-tests ..................   Passed    0.06 sec
+58/90 Test #84: rtw-driver-tests ......................   Passed    0.04 sec
+      Start 21: rtw-r12au-rf-readback-tests
+      Start 87: rtw-monitor-tests
+59/90 Test #34: rtw-92e-hal-trace-tests ...............   Passed    0.02 sec
+      Start 10: rtw-menu-instance-lock-tests
+60/90 Test #38: rtw-menu-source-contract-tests ........   Passed    1.75 sec
+61/90 Test #15: rtw-menu-model-tests ..................   Passed    0.02 sec
+      Start 16: rtw-menu-work-epoch-tests
+      Start 89: rtw-8192eu-tests
+62/90 Test #21: rtw-r12au-rf-readback-tests ...........   Passed    0.02 sec
+63/90 Test #87: rtw-monitor-tests .....................   Passed    0.01 sec
+      Start 13: rtw-signal-sample-tests
+      Start 88: rtw-station-tests
+64/90 Test #13: rtw-signal-sample-tests ...............   Passed    0.01 sec
+      Start 90: rtw-8192eu-hardware-tests
+65/90 Test #16: rtw-menu-work-epoch-tests .............   Passed    0.02 sec
+      Start 81: rtw-usb-probe-tests
+66/90 Test #11: rtw-timeout-lifecycle-tests ...........   Passed    0.04 sec
+67/90 Test #10: rtw-menu-instance-lock-tests ..........   Passed    0.03 sec
+      Start 22: rtw-r12au-rf-calibration-tests
+      Start  6: rtw-diagnostic-publish-policy-tests
+68/90 Test #89: rtw-8192eu-tests ......................   Passed    0.03 sec
+      Start  9: rtw-menu-reconnect-policy-tests
+69/90 Test #90: rtw-8192eu-hardware-tests .............   Passed    0.02 sec
+      Start  1: rtw-family-5ghz-scan-tests
+70/90 Test #88: rtw-station-tests .....................   Passed    0.02 sec
+71/90 Test #81: rtw-usb-probe-tests ...................   Passed    0.02 sec
+72/90 Test #22: rtw-r12au-rf-calibration-tests ........   Passed    0.01 sec
+      Start 82: rtw-ethernet-bridge-tests
+      Start  2: rtw-radio-5ghz-rx-tests
+      Start  7: rtw-network-security-tests
+73/90 Test  #6: rtw-diagnostic-publish-policy-tests ...   Passed    0.01 sec
+      Start 17: rtw-menu-poll-policy-tests
+74/90 Test  #9: rtw-menu-reconnect-policy-tests .......   Passed    0.01 sec
+      Start 25: rtw-92e-ht-descriptor-tests
+75/90 Test #82: rtw-ethernet-bridge-tests .............   Passed    0.01 sec
+      Start 31: rtw-usb-wifi-profiles-tests
+76/90 Test  #1: rtw-family-5ghz-scan-tests ............   Passed    0.01 sec
+77/90 Test  #2: rtw-radio-5ghz-rx-tests ...............   Passed    0.01 sec
+      Start 86: rtw-hw-tests
+      Start 24: rtw-92e-datapath-tests
+78/90 Test #31: rtw-usb-wifi-profiles-tests ...........   Passed    0.01 sec
+      Start 27: rtw-legacy-firmware-stage-tests
+79/90 Test  #7: rtw-network-security-tests ............   Passed    0.01 sec
+80/90 Test #17: rtw-menu-poll-policy-tests ............   Passed    0.01 sec
+81/90 Test #25: rtw-92e-ht-descriptor-tests ...........   Passed    0.01 sec
+      Start 32: rtw-usb-wifi-firmware-tests
+      Start 79: rtw-rx-preflight-tests
+      Start 18: rtw-control-tests
+82/90 Test #86: rtw-hw-tests ..........................   Passed    0.01 sec
+      Start  3: rtw-radio-capabilities-tests
+83/90 Test #24: rtw-92e-datapath-tests ................   Passed    0.03 sec
+84/90 Test #27: rtw-legacy-firmware-stage-tests .......   Passed    0.03 sec
+85/90 Test #79: rtw-rx-preflight-tests ................   Passed    0.03 sec
+86/90 Test #32: rtw-usb-wifi-firmware-tests ...........   Passed    0.03 sec
+87/90 Test #18: rtw-control-tests .....................   Passed    0.03 sec
+88/90 Test  #3: rtw-radio-capabilities-tests ..........   Passed    0.03 sec
+89/90 Test #29: rtw-backend-status-cli-tests ..........   Passed    2.07 sec
+90/90 Test #80: rtw-kext-linkage-tests ................   Passed    1.73 sec
+
+100% tests passed, 0 tests failed out of 90
+
+Total Test time (real) =  27.29 sec
+
+
+================================================================================
+PACOTE DO APLICATIVO - TESTE LONGO 1/1
+LOG_ORIGINAL: test_app_pkg_final.log
+SHA256_LOG_ORIGINAL: 8262bbafd56522e3d5a8e53fc647d777bb53ee3129491ee319f20a9f441d8119
+--------------------------------------------------------------------------------
+Test project /mnt/data/audit_20261024/build
+    Start 37: rtw-app-pkg-tests
+1/1 Test #37: rtw-app-pkg-tests ................   Passed   17.74 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  17.74 sec
+
+
+================================================================================
+MATRIZ USB - TESTE LONGO 1/1
+LOG_ORIGINAL: test_usb_matrix_final.log
+SHA256_LOG_ORIGINAL: f4fac3586ba190749b14392a0c2f538acff41fe1630d4c0ce5071a233fb6fc07
+--------------------------------------------------------------------------------
+Test project /mnt/data/audit_20261024/build
+    Start 80: rtw-usb-wifi-matrix-tests
+1/1 Test #80: rtw-usb-wifi-matrix-tests ........   Passed   17.09 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  17.09 sec
+
+
+================================================================================
+ANALISE ESTATICA CLANG - 50 UNIDADES
+LOG_ORIGINAL: static_analysis.log
+SHA256_LOG_ORIGINAL: f525c019f89fa5c64403ac3246e0dfd5e61d395138a037c74a5b8e782a751420
+--------------------------------------------------------------------------------
+src/LegacyFirmwareStage.c	status=0
+src/USBPackets.c	status=0
+src/FamilyRX24.c	status=0
+src/USBDescriptors.c	status=0
+src/LLT.c	status=0
+src/StationPort.c	status=0
+src/RTL8814AUStation.c	status=0
+src/FCS.c	status=0
+src/RTL8192CDataPath.c	status=0
+src/RTL8814AUBoot.c	status=0
+src/RTL8814AUMAC.c	status=0
+src/Family5GHzScan.c	status=0
+src/RTL8812AUDataPath.c	status=0
+src/HAL8812.c	status=0
+src/Efuse.c	status=0
+src/PHYRegisters.c	status=0
+src/USBWiFiProfiles.c	status=0
+src/RTL8814AUPHY.c	status=0
+src/FamilyRadioPolicy.c	status=0
+src/FamilyBackend.c	status=0
+src/USBProbe.c	status=0
+src/RTL8814AUEfuse.c	status=0
+src/FirmwareBoot.c	status=0
+src/RTL8192EU.c	status=0
+src/RFCalibration.c	status=0
+src/RTL8812AUStation.c	status=0
+src/StationMgmt.c	status=0
+src/Chip.c	status=0
+src/RTL8192EUDataPath.c	status=0
+src/USBWiFiFirmware.c	status=0
+src/Firmware.c	status=0
+src/USBBulk.c	status=0
+src/RFReadback.c	status=0
+src/RXMonitor.c	status=0
+src/PowerSequence.c	status=0
+src/RTL8814AUDataPath.c	status=0
+src/MacDMA.c	status=0
+src/RTL8812AURadio.c	status=0
+src/FrameWire.c	status=0
+src/EthernetBridge.c	status=0
+src/USBControl.c	status=0
+src/PHYProfile.c	status=0
+src/RTL8812AUPassive.c	status=0
+src/USBRegisterIO.c	status=0
+src/RTL8192EUHardware.c	status=0
+src/RTL8192EUHT.c	status=0
+src/Beacon.cpp	status=0
+src/Frame.cpp	status=0
+src/USBIDs.cpp	status=0
+src/LinkState.cpp	status=0
+
+
+================================================================================
+TESTE REAL DO TRANSPORTE APOS CORRECAO
+Comando: python scripts/test-app-socket-exchange.py
+Saida: socket exchange: 10 real-function scenarios passed
+Teste nativo em app/tests/transport-tests.cpp acrescentado, mas nao executado aqui.
+
+
+========================================================================
+RODADA COMPLEMENTAR 24/10/2026 -- BUILD 41 / APP 38
+
+Base: TahoeRealtekWiFi-v0.13.19-KEXT41-APP38-AUDITORIA-CONSOLIDADA-ADHOC-FULL-SOURCE.zip
+SHA256 base: 9be2b81fc3da5a2b0ce35ffc2c9debd569fedf0257773f76a66b999cdac5136f
+
+Revisao e alteracoes: 3 funcoes de recepcao corrigidas, 3 fontes de regressao modificadas.
+
+ASan/UBSan instrumentam apenas alvos portaveis, nao AppKit/IOKit macOS.
+
+Resumo CTest final: 36/36 + 1/1 + 32/32 + 10/10 + 1/1 + 12/12 = 92/92, cada faixa independente.
+
+Uma execucao conjunta foi interrompida por limite de tempo e nao foi contabilizada.
+
+Outra tentativa do teste de empacotamento ficou sem resultado por limite de tempo; a repeticao isolada concluiu com sucesso.
+
+Clang --analyze em 3 unidades: 1 warning de null-deref condicionado a retorno hipotetico de outra unidade para profile=NULL, nao reproduzido, documentado e mantido sem mudanca injustificada.
+
+
+-----------------------------------------------------------------
+F-02 FALHA ORIGINAL family 5G
+LOG=repro_before.txt
+SHA256_LOG=0ff2d7704d09c8832d7f69a13a0bcbb26c0a546ec876a2d6615cfdcbf1b187b8
+
+5ghz scan failed at /mnt/data/audit_round2_20261024/TahoeRealtekWiFi-v0.13.19/tests/family_5ghz_scan_tests.cpp:180: rtw_family_5g_scan_bulk(verified(RTW_WIFI_RTL8812AU), reinterpret_cast<const uint8_t*>(&aliased),sizeof(aliased), 36,1,on_ap,&seen,&aliased)==RTW_FAMILY_5G_SCAN_BAD_ARGUMENT
+
+
+-----------------------------------------------------------------
+F-02 DEPOIS DE CORRIGIR
+LOG=repro_fixed_family.txt
+SHA256_LOG=76676fe26b82ffbd987985555ee3d91f2a7f54c477cf425d47010d14ce07a13e
+
+six-family offline 5GHz scan: 936 checks passed (NO RF/TX)
+
+
+-----------------------------------------------------------------
+F-03 FALHA ORIGINAL RTL8812AU
+LOG=repro_second_before.txt
+SHA256_LOG=85e217a4e3c660c85671a18756ebb19f0395ee0a73b9d6a4a2b967a78e4289f2
+
+FAILED /mnt/data/audit_round2_20261024/TahoeRealtekWiFi-v0.13.19/tests/rtl8812au_passive_tests.cpp:161: rtw_r12au_passive_channel6( reinterpret_cast<const uint8_t*>(&aliased),sizeof(aliased), collected,&seen,&aliased)==RTW_R12AU_PASSIVE_BAD_ARGUMENT
+
+
+-----------------------------------------------------------------
+F-03 DEPOIS DE CORRIGIR
+LOG=repro_fixed_passive.txt
+SHA256_LOG=4c006bb03d2ca0a619146d81a134410990b6283285ecd8db3e01677e1f56938d
+
+rtw-r12au-passive-tests: 39971 checks; no physical radio tested
+
+
+-----------------------------------------------------------------
+F-04 FALHA ORIGINAL preflight USB
+LOG=repro_third_before.log
+SHA256_LOG=97154de57230fc1264bc2c909aa8f0e4e09b409a1f104d79707ed08dde508e42
+
+FAIL /mnt/data/audit_round2_20261024/TahoeRealtekWiFi-v0.13.19/tests/rx_preflight_tests.cpp:95 rtw_rx_preflight_transfer(reinterpret_cast<const uint8_t*>(&aliased), sizeof(aliased), next92e, nullptr, &aliased) == RTW_PACKETS_BAD_ARGUMENT
+
+
+-----------------------------------------------------------------
+F-04 DEPOIS DE CORRIGIR
+LOG=repro_third_fixed.log
+SHA256_LOG=9b3cc7425eefe56a903b01d7e50e4fd201a497891bb27e5c16cb4953ed997611
+
+rx preflight: 99 checks passed
+
+
+-----------------------------------------------------------------
+BUILD COMPLETO ASAN/UBSAN
+LOG=build_round2_complete.log
+SHA256_LOG=477be03f8481d3cff77636c0db9604c7ca3cf2fdf37b92d7fb77bd8049115dd1
+
+datapath-tests
+[ 61%] Built target rtw-92e-datapath-tests
+[ 62%] Built target rtw-92e-ht-descriptor-tests
+[ 64%] Linking CXX executable rtw-legacy-firmware-stage-tests
+[ 64%] Linking CXX executable rtw-family-firmware-radio-tests
+[ 65%] Built target rtw-family-rx24-tests
+[ 66%] Linking CXX executable rtw-family-backend-tests
+[ 67%] Linking CXX executable rtw-usb-wifi-profiles-tests
+[ 67%] Built target rtw-family-firmware-radio-tests
+[ 67%] Built target rtw-legacy-firmware-stage-tests
+[ 67%] Built target rtw-usb-wifi-profiles-tests
+[ 68%] Linking CXX executable rtw-usb-wifi-firmware-tests
+[ 69%] Built target rtw-legacy-hal-tests
+[ 70%] Built target rtw-family-backend-tests
+[ 71%] Built target rtw-92e-hal-trace-tests
+[ 73%] Built target rtw-rx-preflight-tests
+[ 73%] Linking CXX executable rtw-usb-probe-tests
+[ 74%] Linking CXX executable rtw-ethernet-bridge-tests
+[ 75%] Linking CXX executable rtw-tests
+[ 76%] Built target rtw-usb-wifi-firmware-tests
+[ 76%] Linking CXX executable rtw-driver-tests
+[ 77%] Built target rtw-usb-probe-tests
+[ 78%] Built target rtw-ethernet-bridge-tests
+[ 79%] Built target rtw-tests
+[ 80%] Linking CXX executable rtw-hal-tests
+[ 81%] Linking CXX executable rtw-hw-tests
+[ 82%] Built target rtw-driver-tests
+[ 83%] Linking CXX executable rtw-monitor-tests
+[ 83%] Linking CXX executable rtw-station-tests
+[ 84%] Built target rtw-hal-tests
+[ 84%] Built target rtw-hw-tests
+[ 84%] Linking CXX executable rtw-8192eu-tests
+[ 85%] Linking CXX executable rtw-8192eu-hardware-tests
+[ 86%] Built target rtw-monitor-tests
+[ 87%] Built target rtw-station-tests
+[ 87%] Linking CXX executable rtw-backends
+[ 88%] Linking CXX executable rtw-inspect
+[ 89%] Built target rtw-8192eu-tests
+[ 89%] Built target rtw-8192eu-hardware-tests
+[ 90%] Linking CXX executable rtw-acusb-decode
+[ 91%] Linking CXX executable rtw-probe
+[ 92%] Built target rtw-backends
+[ 93%] Built target rtw-inspect
+[ 94%] Linking CXX executable rtw-family-5ghz-scan-tests
+[ 95%] Linking CXX executable rtw-radio-5ghz-rx-tests
+[ 96%] Built target rtw-acusb-decode
+[ 97%] Built target rtw-probe
+[ 97%] Linking CXX executable rtw-radio-capabilities-tests
+[ 97%] Built target rtw-radio-5ghz-rx-tests
+[ 98%] Linking CXX executable rtw-menu-adapter-support-tests
+[ 98%] Built target rtw-family-5ghz-scan-tests
+[ 99%] Built target rtw-radio-capabilities-tests
+[100%] Built target rtw-menu-adapter-support-tests
+
+
+-----------------------------------------------------------------
+ANALISADOR CLANG 3 FONTES
+LOG=clang_three_units.log
+SHA256_LOG=32d4c43674af3b8824ea131b990738c6f180297630c82104eec7db4f5b6b90a0
+
+Analyze src/Family5GHzScan.c
+/mnt/data/audit_round2_20261024/TahoeRealtekWiFi-v0.13.19/src/Family5GHzScan.c:161:21: warning: Access to field 'family' results in a dereference of a null pointer (loaded from variable 'profile') [core.NullDereference]
+  161 |     if (!pick_codec(profile->family, &kind, &chains))
+      |                     ^~~~~~~~~~~~~~~
+1 warning generated.
+Analyze src/RTL8812AUPassive.c
+Analyze src/USBPackets.c
+
+
+-----------------------------------------------------------------
+CTEST 01-36
+LOG=ctest_final_01_36.log
+SHA256_LOG=3294f477f06034f788f0fc07d71519ad933447292758d3b979d8a7920d1b3bcf
+
+ontrol-tests
+17/36 Test #18: rtw-control-tests .....................   Passed    0.01 sec
+      Start 19: rtw-r12au-station-tests
+18/36 Test #14: rtw-menu-signal-policy-tests ..........   Passed    0.45 sec
+      Start 20: rtw-r12au-passive-tests
+19/36 Test #20: rtw-r12au-passive-tests ...............   Passed    0.03 sec
+      Start 21: rtw-r12au-rf-readback-tests
+20/36 Test #21: rtw-r12au-rf-readback-tests ...........   Passed    0.01 sec
+      Start 22: rtw-r12au-rf-calibration-tests
+21/36 Test #22: rtw-r12au-rf-calibration-tests ........   Passed    0.01 sec
+      Start 23: rtw-r12au-datapath-tests
+22/36 Test #19: rtw-r12au-station-tests ...............   Passed    0.54 sec
+      Start 24: rtw-92e-datapath-tests
+23/36 Test #24: rtw-92e-datapath-tests ................   Passed    0.01 sec
+      Start 25: rtw-92e-ht-descriptor-tests
+24/36 Test #25: rtw-92e-ht-descriptor-tests ...........   Passed    0.01 sec
+      Start 26: rtw-family-rx24-tests
+25/36 Test #23: rtw-r12au-datapath-tests ..............   Passed    0.36 sec
+      Start 27: rtw-legacy-firmware-stage-tests
+26/36 Test #27: rtw-legacy-firmware-stage-tests .......   Passed    0.01 sec
+      Start 28: rtw-family-firmware-radio-tests
+27/36 Test #26: rtw-family-rx24-tests .................   Passed    0.91 sec
+      Start 29: rtw-backend-status-cli-tests
+28/36 Test #29: rtw-backend-status-cli-tests ..........   Passed    0.67 sec
+      Start 30: rtw-family-backend-tests
+29/36 Test #30: rtw-family-backend-tests ..............   Passed    0.08 sec
+      Start 31: rtw-usb-wifi-profiles-tests
+30/36 Test #31: rtw-usb-wifi-profiles-tests ...........   Passed    0.01 sec
+      Start 32: rtw-usb-wifi-firmware-tests
+31/36 Test #32: rtw-usb-wifi-firmware-tests ...........   Passed    0.01 sec
+      Start 33: rtw-legacy-hal-tests
+32/36 Test #33: rtw-legacy-hal-tests ..................   Passed    0.01 sec
+      Start 34: rtw-92e-hal-trace-tests
+33/36 Test #34: rtw-92e-hal-trace-tests ...............   Passed    0.01 sec
+      Start 35: rtw-r12au-capture-cli-tests
+34/36 Test #28: rtw-family-firmware-radio-tests .......   Passed    1.94 sec
+      Start 36: rtw-signing-policy-tests
+35/36 Test #35: rtw-r12au-capture-cli-tests ...........   Passed    0.77 sec
+36/36 Test #36: rtw-signing-policy-tests ..............   Passed    1.15 sec
+
+100% tests passed, 0 tests failed out of 36
+
+Total Test time (real) =   4.84 sec
+
+
+-----------------------------------------------------------------
+CTEST 37 teste pacote repeticao
+LOG=ctest_final_pkg_retry.log
+SHA256_LOG=80ae6d71d6fbcc0787b5e0354e3ada30a5d97c690983d71f245235db4489821d
+
+Internal ctest changing into directory: /mnt/data/audit_round2_20261024/build
+Test project /mnt/data/audit_round2_20261024/build
+    Start 37: rtw-app-pkg-tests
+1/1 Test #37: rtw-app-pkg-tests ................   Passed   16.60 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  16.60 sec
+
+
+-----------------------------------------------------------------
+CTEST 38-69
+LOG=ctest_final_38_69.log
+SHA256_LOG=a04172af272c5db0a5b0b980afcda133b6fc3953ea85ebdb63cf30c4867ad54d
+
+............   Passed    0.96 sec
+      Start 51: rtw-92e-iq-chain-trace-tests
+13/32 Test #51: rtw-92e-iq-chain-trace-tests .........   Passed    1.32 sec
+      Start 52: rtw-92e-iqk-protocol-tests
+14/32 Test #47: rtw-usb-wifi-catalog-tests ...........   Passed    5.66 sec
+      Start 53: rtw-92e-thermal-tests
+15/32 Test #53: rtw-92e-thermal-tests ................   Passed    0.82 sec
+      Start 54: rtw-kext-personality-tests
+16/32 Test #52: rtw-92e-iqk-protocol-tests ...........   Passed    1.64 sec
+      Start 55: rtw-tahoe-validation-tests
+17/32 Test #54: rtw-kext-personality-tests ...........   Passed    0.67 sec
+      Start 56: rtw-pack-diagnostics-tests
+18/32 Test #55: rtw-tahoe-validation-tests ...........   Passed    0.76 sec
+      Start 57: rtw-92e-efuse-tests
+19/32 Test #56: rtw-pack-diagnostics-tests ...........   Passed    1.19 sec
+      Start 58: rtw-gen1-datapath-tests
+20/32 Test #57: rtw-92e-efuse-tests ..................   Passed    1.06 sec
+      Start 59: rtw-rtwn-ht-tests
+21/32 Test #58: rtw-gen1-datapath-tests ..............   Passed    1.44 sec
+      Start 60: rtw-net80211-ht-tests
+22/32 Test #59: rtw-rtwn-ht-tests ....................   Passed    1.97 sec
+      Start 61: rtw-net80211-ba-tests
+23/32 Test #60: rtw-net80211-ht-tests ................   Passed    2.91 sec
+      Start 62: rtw-rtwn-ht-tx-tests
+24/32 Test #61: rtw-net80211-ba-tests ................   Passed    3.05 sec
+      Start 63: rtw-net80211-input-tests
+25/32 Test #63: rtw-net80211-input-tests .............   Passed    1.52 sec
+      Start 64: rtw-fw-command-tests
+26/32 Test #62: rtw-rtwn-ht-tx-tests .................   Passed    3.55 sec
+      Start 65: rtw-rate-control-tests
+27/32 Test #64: rtw-fw-command-tests .................   Passed    1.41 sec
+      Start 66: rtw-wpa-diagnostics-tests
+28/32 Test #66: rtw-wpa-diagnostics-tests ............   Passed    1.19 sec
+      Start 67: rtw-rx-order-tests
+29/32 Test #67: rtw-rx-order-tests ...................   Passed    1.93 sec
+      Start 68: rtw-performance-diagnostics-tests
+30/32 Test #65: rtw-rate-control-tests ...............   Passed    3.77 sec
+      Start 69: rtw-net80211-crypto-tests
+31/32 Test #68: rtw-performance-diagnostics-tests ....   Passed    1.91 sec
+32/32 Test #69: rtw-net80211-crypto-tests ............   Passed    2.80 sec
+
+100% tests passed, 0 tests failed out of 32
+
+Total Test time (real) =  29.21 sec
+
+
+-----------------------------------------------------------------
+CTEST 70-79
+LOG=ctest_final_70_79.log
+SHA256_LOG=7b4b037389e6f5a1500198584f4d066d0230e0741e9decd86118759cd7d3b0ce
+
+Internal ctest changing into directory: /mnt/data/audit_round2_20261024/build
+Test project /mnt/data/audit_round2_20261024/build
+      Start 78: rtw-net80211-pae-tests
+      Start 77: rtw-net80211-runtime-tests
+ 1/10 Test #77: rtw-net80211-runtime-tests .......   Passed    2.71 sec
+      Start 72: rtw-8814au-phy-tests
+ 2/10 Test #72: rtw-8814au-phy-tests .............   Passed    2.54 sec
+      Start 73: rtw-8814au-datapath-tests
+ 3/10 Test #78: rtw-net80211-pae-tests ...........   Passed    5.85 sec
+      Start 74: rtw-8814au-station-tests
+ 4/10 Test #73: rtw-8814au-datapath-tests ........   Passed    1.85 sec
+      Start 70: rtw-net80211-taskq-tests
+ 5/10 Test #74: rtw-8814au-station-tests .........   Passed    1.54 sec
+      Start 79: rtw-usb-wifi-extensions-tests
+ 6/10 Test #79: rtw-usb-wifi-extensions-tests ....   Passed    1.15 sec
+      Start 71: rtw-8814au-boot-tests
+ 7/10 Test #70: rtw-net80211-taskq-tests .........   Passed    1.47 sec
+      Start 76: rtw-8814au-attach-tests
+ 8/10 Test #76: rtw-8814au-attach-tests ..........   Passed    0.87 sec
+      Start 75: rtw-8814au-backend-tests
+ 9/10 Test #71: rtw-8814au-boot-tests ............   Passed    1.11 sec
+10/10 Test #75: rtw-8814au-backend-tests .........   Passed    1.00 sec
+
+100% tests passed, 0 tests failed out of 10
+
+Total Test time (real) =  10.44 sec
+
+
+-----------------------------------------------------------------
+CTEST 80 matriz usb
+LOG=ctest_final_80_80.log
+SHA256_LOG=d4609ac323d04787a205b19f423a9c67111db1111839a75beea0fb3cf68be390
+
+Internal ctest changing into directory: /mnt/data/audit_round2_20261024/build
+Test project /mnt/data/audit_round2_20261024/build
+    Start 80: rtw-usb-wifi-matrix-tests
+1/1 Test #80: rtw-usb-wifi-matrix-tests ........   Passed   16.24 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  16.24 sec
+
+
+-----------------------------------------------------------------
+CTEST 81-92
+LOG=ctest_final_81_92.log
+SHA256_LOG=e0b3ac66480feb2b3708208669126d1076e734f23993af689ea93509d556bd32
+
+Internal ctest changing into directory: /mnt/data/audit_round2_20261024/build
+Test project /mnt/data/audit_round2_20261024/build
+      Start 82: rtw-kext-linkage-tests
+      Start 85: rtw-tests
+ 1/12 Test #85: rtw-tests ........................   Passed    0.13 sec
+      Start 87: rtw-hal-tests
+ 2/12 Test #87: rtw-hal-tests ....................   Passed    0.09 sec
+      Start 86: rtw-driver-tests
+ 3/12 Test #86: rtw-driver-tests .................   Passed    0.02 sec
+      Start 90: rtw-station-tests
+ 4/12 Test #90: rtw-station-tests ................   Passed    0.02 sec
+      Start 89: rtw-monitor-tests
+ 5/12 Test #89: rtw-monitor-tests ................   Passed    0.02 sec
+      Start 91: rtw-8192eu-tests
+ 6/12 Test #91: rtw-8192eu-tests .................   Passed    0.02 sec
+      Start 83: rtw-usb-probe-tests
+ 7/12 Test #83: rtw-usb-probe-tests ..............   Passed    0.01 sec
+      Start 88: rtw-hw-tests
+ 8/12 Test #88: rtw-hw-tests .....................   Passed    0.01 sec
+      Start 84: rtw-ethernet-bridge-tests
+ 9/12 Test #84: rtw-ethernet-bridge-tests ........   Passed    0.01 sec
+      Start 92: rtw-8192eu-hardware-tests
+10/12 Test #92: rtw-8192eu-hardware-tests ........   Passed    0.01 sec
+      Start 81: rtw-rx-preflight-tests
+11/12 Test #81: rtw-rx-preflight-tests ...........   Passed    0.01 sec
+12/12 Test #82: rtw-kext-linkage-tests ...........   Passed    0.68 sec
+
+100% tests passed, 0 tests failed out of 12
+
+Total Test time (real) =   0.68 sec
+
+
+-----------------------------------------------------------------
+CTEST overlaps parciais
+LOG=ctest_overlap_final.log
+SHA256_LOG=a4cbb31f32301a89b8b0e3dd969103886d981260dd86b90241247e953c2887f9
+
+Internal ctest changing into directory: /mnt/data/audit_round2_20261024/build
+Test project /mnt/data/audit_round2_20261024/build
+    Start  1: rtw-family-5ghz-scan-tests
+1/3 Test  #1: rtw-family-5ghz-scan-tests .......   Passed    0.01 sec
+    Start 20: rtw-r12au-passive-tests
+2/3 Test #20: rtw-r12au-passive-tests ..........   Passed    0.03 sec
+    Start 81: rtw-rx-preflight-tests
+3/3 Test #81: rtw-rx-preflight-tests ...........   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Total Test time (real) =   0.05 sec
+
+
+-----------------------------------------------------------------
+CTEST primeira execucao interrupcao timeout
+LOG=ctest_fast.log
+SHA256_LOG=224df3d6002f4c3343fe9d0b677f03576e68d6fb021922259e84489f1fb3f7d6
+
+...   Passed    1.35 sec
+      Start 51: rtw-92e-iqk-protocol-tests
+50/90 Test #46: rtw-usb-wifi-catalog-tests ............   Passed    5.79 sec
+      Start 52: rtw-92e-thermal-tests
+51/90 Test #52: rtw-92e-thermal-tests .................   Passed    0.84 sec
+      Start 53: rtw-kext-personality-tests
+52/90 Test #51: rtw-92e-iqk-protocol-tests ............   Passed    1.57 sec
+      Start 54: rtw-tahoe-validation-tests
+53/90 Test #53: rtw-kext-personality-tests ............   Passed    0.71 sec
+      Start 55: rtw-pack-diagnostics-tests
+54/90 Test #54: rtw-tahoe-validation-tests ............   Passed    0.83 sec
+      Start 56: rtw-92e-efuse-tests
+55/90 Test #55: rtw-pack-diagnostics-tests ............   Passed    1.18 sec
+      Start 57: rtw-gen1-datapath-tests
+56/90 Test #56: rtw-92e-efuse-tests ...................   Passed    1.11 sec
+      Start 58: rtw-rtwn-ht-tests
+57/90 Test #57: rtw-gen1-datapath-tests ...............   Passed    1.56 sec
+      Start 59: rtw-net80211-ht-tests
+58/90 Test #58: rtw-rtwn-ht-tests .....................   Passed    2.23 sec
+      Start 60: rtw-net80211-ba-tests
+59/90 Test #59: rtw-net80211-ht-tests .................   Passed    3.11 sec
+      Start 61: rtw-rtwn-ht-tx-tests
+60/90 Test #60: rtw-net80211-ba-tests .................   Passed    3.25 sec
+      Start 62: rtw-net80211-input-tests
+61/90 Test #62: rtw-net80211-input-tests ..............   Passed    1.28 sec
+      Start 63: rtw-fw-command-tests
+62/90 Test #61: rtw-rtwn-ht-tx-tests ..................   Passed    3.26 sec
+      Start 64: rtw-rate-control-tests
+63/90 Test #63: rtw-fw-command-tests ..................   Passed    1.49 sec
+      Start 65: rtw-wpa-diagnostics-tests
+64/90 Test #65: rtw-wpa-diagnostics-tests .............   Passed    1.20 sec
+      Start 66: rtw-rx-order-tests
+65/90 Test #64: rtw-rate-control-tests ................   Passed    4.04 sec
+      Start 67: rtw-performance-diagnostics-tests
+66/90 Test #66: rtw-rx-order-tests ....................   Passed    1.97 sec
+      Start 68: rtw-net80211-crypto-tests
+67/90 Test #67: rtw-performance-diagnostics-tests .....   Passed    1.93 sec
+      Start 69: rtw-net80211-taskq-tests
+68/90 Test #68: rtw-net80211-crypto-tests .............   Passed    2.93 sec
+      Start 70: rtw-8814au-boot-tests
+69/90 Test #69: rtw-net80211-taskq-tests ..............   Passed    1.45 sec
+      Start 71: rtw-8814au-phy-tests
+
+
+-----------------------------------------------------------------
+CTEST execucao pacote com timeout e repeticao
+LOG=ctest_final_37_37.log
+SHA256_LOG=2a3dcd3fb2f993a52c057dd233724df09f8e557e11cbaf061a05492520fbbcdc
+
+Internal ctest changing into directory: /mnt/data/audit_round2_20261024/build
+Test project /mnt/data/audit_round2_20261024/build
+    Start 37: rtw-app-pkg-tests
+
+
+========== 24/10/2026: REAL XCODE KEXT COMPILATION HOTFIX ==========
+
+Xcode 26.6, SDK 26.5; command: ./build.command --kext
+Original failure on user's Mac: include/rtw/DiagnosticPublishPolicy.hpp:3:10: fatal error: 'cstdint' file not found
+Source before: clang++ -std=gnu++14 -nostdinc++ -Iinclude -fsyntax-only kernel_header_probe.cpp -> EXIT 1 (same fatal cstdint)
+Source after:  clang++ -std=gnu++14 -nostdinc++ -Iinclude -fsyntax-only kernel_header_probe.cpp -> EXIT 0
+CMake Debug ASan/UBSan full portable build -> EXIT 0
+Policy executable built with '-nostdinc++' (verified flags.make) -> CTest 1/1 PASS
+CTest rest excluding 2 long tests -> 90/90 PASS
+CTest USB Wi-Fi matrix -> 1/1 PASS
+CTest app package -> 1/1 PASS
+Total unique test groups -> 92/92 PASS (separate invocations)
+Real Xcode re-run with corrected source -> NOT RUN (requires Mac)
+Actual ad-hoc codesign -> NOT RUN (requires Mac)
+Compiler warnings in imported vendor code -> OPEN / unchanged
+Full manual semantic audit of source -> NOT CLAIMED
+
+LOCAL EVIDENCE FILE HASHES (SHA256)
+baseline_kernel_probe.txt: f1ff5e5d5166d401bdce2e4105be3a1abf518004ee1a1e3c62a47dddafdc9aab
+test_diagnostic.log: 5eee13b8f78a87f5e817c90b8911c8dbad49362252b8c7c2b2021dc1b3b50f4f
+build_all.log: e13887ea14e0c0b7d311a491de0b5a9e939362fb7f3c115575ac513234a878a7
+ctest_main.log: a0159dceb4597b79c7ae70ab6fc42eb3e1a29fcef015292d6b83a0f83a9e0b56
+ctest_matrix.log: aa12e7b9f94f2dfd28d0240fa52aa561daebde5446d1fb359b534b694c2b2e38
+ctest_pkg.log: 201c85610fa12b4367bda8c38aa5c74094c72593571521578cc52fe635113dbf
+
+Files edited in code/test/build: CMakeLists.txt, include/rtw/DiagnosticPublishPolicy.hpp, tests/diagnostic_publish_policy_tests.cpp.
+Updated in-place unique files: docs/AUDITORIA-CONSOLIDADA.md, docs/AUDITORIA-EVIDENCIAS.txt, docs/AUDITORIA-COBERTURA.tsv, docs/diffs/CORRECOES.patch, SOURCE-MANIFEST.sha256.
+=========== END HOTFIX ===========
+
+CUMULATIVE PATCH VALIDATION: patch --dry-run --batch -p1 on 5 GHz Stage2 base -> PASS
+CUMULATIVE PATCH APPLICATION: patch --batch -p1 on separate Stage2 source -> PASS
+CUMULATIVE PATCH COMPARISON: 16/16 patched code/test/config files byte-for-byte match corrected source -> PASS
+
+==== 2026-10-24 5-GHZ MULTIFAMILY MANAGEMENT STAGE ====
+Base file: TahoeRealtekWiFi-Source-Fixed.zip
+Base SHA-256: d901747ce73a9f3e466b9d3a52975b5dda7185130fe7f0069df05aeccc8b13a5
+Generated Xcode project: 82 translation units (scripts/generate-kext-project.py)
+Host CMake portable compilation: PASS
+CTest fast (excluding package and USB matrix): 91/91 PASS; 27.83 seconds
+CTest long package and USB matrix: 2/2 PASS; 34.62 seconds
+Targeted ASan+UBSan: 4/4 PASS (initial set)
+Final integration ASan+UBSan station test: PASS
+5-GHz join 7-family synthetic frame and USB RX integration: 1100 assertions PASS
+Clang C11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror: PASS
+Native Xcode compilation and macOS ad-hoc codesign: NOT EXECUTED
+Physical RF/PHY/TX/RX/WPA2/DFS/throughput: NOT VALIDATED; no claim of 5 GHz connectivity
+==== END 5-GHZ MANAGEMENT STAGE ====
+
+
+=== 2026-10-24 STAGE4: RX-ONLY 5 GHZ RTL8814AU ===
+Input: TahoeRealtekWiFi-5GHz-Stage3-Full-Source.zip
+Input SHA256: 2d1c3fb10274e4328cb5cb005108b2aae0451f27c69f88f77975f46a60b6097f
+Inspected source: src/RTL8814AUPHY.c and RTL8814AUAlgorithms.inc (RF/channels),
+  src/RTL8814AURegisters.inc (RFE masks), kext/RTW8814Backend.inc (scan/auth),
+  vendor/itl80211/openbsd/net80211/ieee80211_node.c and ieee80211_proto.c.
+CMake portable build: exit 0 (build_final.log)
+ASan+UBSan tests: rtw-8814au-phy-tests pass; rtw-8814au-backend-tests pass.
+Focused policy/linkage tests: 4/4 pass (signing, PHY, backend, linkage).
+Fast CTest: 91 passed, long app packaging interrupted during combined run.
+Long independent CTest: rtw-usb-wifi-matrix-tests passed (17.15 sec);
+  rtw-app-pkg-tests passed (17.65 sec).
+93 unique CTest groups approved in completed runs; Mac/Xcode NOT run.
+Security: 5G TXPAUSE 0x3f; station PHY not initialized for 5G;
+  unsupported 5G authentication -> ENOTSUP; return to 2G requires RFK.
+No 5 GHz physical adapter test, no macOS final ad-hoc binary signing.
+
+
+=== STAGE5 / 2026-10-24 / KEXT BUILD43 / APP38 ===
+Base SHA256: 62f8037364eb66163db9f0fabdd8cd6b447d2544cf561cb7b6347c6e239635b8
+Baseline: source build42 íntegro; testes novos copiados sem correções no código de produção.
+Reprodução original dos três defeitos (falhas ESPERADAS):
+Internal ctest changing into directory: /mnt/data/rtw_audit_stage5/repro_build
+Test project /mnt/data/rtw_audit_stage5/repro_build
+    Start  1: rtw-family-5ghz-station-tests
+1/3 Test  #1: rtw-family-5ghz-station-tests ....Subprocess aborted***Exception:   0.00 sec
+5-GHz station contract /mnt/data/rtw_audit_stage5/repro_baseline/TahoeRealtekWiFi-v0.13.19/tests/family_5ghz_station_tests.cpp:250: rtw_family_5g_join_prepare(profile,ap_alias,sta.data(),40,out) == RTW_FAMILY_5G_JOIN_BAD_ARGUMENT
+
+    Start  4: rtw-radio-capabilities-tests
+2/3 Test  #4: rtw-radio-capabilities-tests .....Subprocess aborted***Exception:   0.00 sec
+rtw-radio-capabilities-tests: /mnt/data/rtw_audit_stage5/repro_baseline/TahoeRealtekWiFi-v0.13.19/tests/radio_capabilities_tests.cpp:48: int main(): Assertion `rtw_family_radio_prepare_profile( reinterpret_cast<const rtw_usb_wifi_profile*>(alias),36,36,20, reinterpret_cast<rtw_r12au_channel_plan*>(alias)) == RTW_FAMILY_RADIO_INVALID_ARGUMENT' failed.
+
+    Start 20: rtw-r12au-station-tests
+3/3 Test #20: rtw-r12au-station-tests ..........***Failed    0.00 sec
+FAIL 330: rtw_r12au_scan_parse(&rx,36,0, reinterpret_cast<rtw_r12au_ap*>(storage.data())) == RTW_R12AU_SCAN_BAD_ARGUMENT
+
+
+0% tests passed, 3 tests failed out of 3
+
+Total Test time (real) =   0.01 sec
+
+The following tests FAILED:
+	  1 - rtw-family-5ghz-station-tests (Subprocess aborted)
+	  4 - rtw-radio-capabilities-tests (Subprocess aborted)
+	 20 - rtw-r12au-station-tests (Failed)
+Errors while running CTest
+
+ASan/UBSan Debug build: PASS (CMake + host sources), 93 CTest no total.
+100% tests passed, 0 tests failed out of 91
+Total Test time (real) =  29.70 sec
+100% tests passed, 0 tests failed out of 1
+Total Test time (real) =  19.29 sec
+100% tests passed, 0 tests failed out of 1
+Total Test time (real) =  17.77 sec
+Focused 5 after version bump: 5/5 PASS (3 source regressions, signing policy, kext personalities).
+Clang strict syntax for src/Family5GHzStation.c, src/FamilyRadioPolicy.c, src/RTL8812AUStation.c: PASS.
+Clang static analyzer (three files): 1 preexisting conditional warning in FamilyRadioPolicy.c; null profile caps check fails closed; not classified as proven defect.
+Patch: docs/diffs/CORRECOES.patch against build42 input; `patch --dry-run -p1`: 10 files PASS.
+After `patch -p1`, all 10 source files match fixed source byte-by-byte: PASS.
+Source delta: three production .c, three regression .cpp, kext Info.plist, Xcode .pbxproj, README, CHANGELOG.
+Unchanged: firmware, vendor code, app source, signing scripts and all unrelated modules.
+Mac Xcode compilation, physical USB/5GHz/DFS, real ad-hoc codesign, Instruments: NOT EXECUTED.
+=== END STAGE5 ===
+
+
+==============================================================================
+RODADA PRIORIDADES 2026-10-24 — base build 43, entrega build 44 / app 39
+BASE_ZIP_SHA256: f0dfe8177e945c60e53a40b6a72a891de15d1e088250d471719bfeee98d694b4
+SOURCE_ALTERADO: CHANGELOG.md, README.md, TahoeRealtekWiFi.xcodeproj/project.pbxproj, app/Info.plist, app/Protocol.hpp, app/tests/model-tests.cpp, kext/Info.plist, src/FamilyBackend.c, tests/family_backend_tests.cpp
+
+R1: Reproducao PRE-correcao, FamilyBackend USB/RX aliasing.
+  Origem: tests/family_backend_tests.cpp, testando codigo REAL src/FamilyBackend.c
+  Antes: /mnt/data/rtw_priority_20261024/repro-pre.log
+  CTest retornou 8 (assert status==RTW_BACKEND_PREFLIGHT_INVALID_ARGUMENT).
+  Depois: unitario e suite ASan/UBSan passaram.
+  Raiz: memset(out,0) antes de validar sobreposicao de saida e config/RX.
+  Solucao: ranges_overlap com uintptr_t e comparacao por distancias antes de escrever.
+
+R2: Reproducao PRE-correcao, DeviceSelection stale token e reselecao.
+  Origem: app/tests/model-tests.cpp, usando app/Protocol.hpp REAL.
+  Antes: /mnt/data/rtw_priority_20261024/model-repro.log
+  CTest retornou 8: assert(!selection.matches(1234,selection.generation)).
+  Depois: rtw-menu-model-tests passou com ASan/UBSan.
+  Raiz: invalidate incrementava generation, mas matches aceitava novo token;
+        select(same RegistryID) ainda era no-op.
+  Solucao: invalidated bool; matches rejeita invalidated e select permite restaurar id.
+
+R3: Regressao BUILD44/APP39, CMake ASan/UBSan.
+  Build: /mnt/data/rtw_priority_20261024/final-asan-build.log — exit 0.
+  CTest rapido: /mnt/data/rtw_priority_20261024/final-ctest-fast.log
+  RESULTADO: 91/91 PASSARAM, exit 0.
+  CTest USB matriz: primeira tentativa interrompida por timeout; nao contabilizada.
+  Repeticao: /mnt/data/rtw_priority_20261024/final-ctest-matrix-retry.log
+  RESULTADO: 1/1 PASSOU, 16.97 segundos, exit 0.
+  CTest empacotamento: /mnt/data/rtw_priority_20261024/final-ctest-pkg.log
+  RESULTADO: 1/1 PASSOU, 17.74 segundos, exit 0.
+  TOTAL: 93/93 PASSARAM em tres execucoes concluidas.
+
+R4: Clang estrito no src/FamilyBackend.c (-std=c11 -Wall -Wextra
+  -Wconversion -Werror -fsyntax-only), bash -n scripts, plistlib macOS plists: PASSOU.
+  scripts/generate-kext-project.py executado 2x, mesmo hash .pbxproj.
+  Politica de ad-hoc obrigatoria: inalterada, testes portaveis passaram.
+  macOS Xcode/codesign/USB fisico/Instruments/UI: NAO EXECUTADOS.
+  5GHz station operacional sete familias: NAO IMPLEMENTADO / NAO VALIDADO.
+  Nenhum valor de consumo CPU/RAM, duracao de hotspot ou velocidade de PHY
+  foi inventado. Nao ha ambiente macOS e placas fisicas neste teste.
+
+R5: patch unificado aplicado em fonte build43 LIMPO; 9/9 arquivos
+  ficaram byte-a-byte IDENTICOS a arvore resultante. Manifesto/ZIP gerados
+  e verificados separadamente. Sem arquivos de producao excluidos.

@@ -1,0 +1,120 @@
+{
+  "audit_date": "2026-10-30",
+  "scope": [
+    "RTL8192EU receive filter",
+    "RTL8192FU EDCA",
+    "RTL8710BU EDCA"
+  ],
+  "sources": [
+    {
+      "repository": "Mange/rtl8192eu-linux-driver",
+      "commit": "c629cc972a0d878c930d19c4a9309c27c1e61f92",
+      "path": "include/hal_com_reg.h",
+      "git_blob_sha1": "420367194342858d8a49ec439ef9da8e49bf6256",
+      "line_ranges": [
+        [
+          1135,
+          1136
+        ],
+        [
+          1636,
+          1637
+        ]
+      ],
+      "role": "RTL8192EU ACF/ADF and control-subtype mapping",
+      "url": "https://github.com/Mange/rtl8192eu-linux-driver/blob/c629cc972a0d878c930d19c4a9309c27c1e61f92/include/hal_com_reg.h"
+    },
+    {
+      "repository": "kelebek333/rtl8192fu-dkms",
+      "commit": "76c37ba3b7a4bd83de93c5dc0769611f45aa25d0",
+      "path": "hal/rtl8192f/rtl8192f_hal_init.c",
+      "git_blob_sha1": "b0507a4f5cda3c1b856f2a1ecf1f4404eb4f2b1d",
+      "line_ranges": [
+        [
+          4700,
+          4715
+        ]
+      ],
+      "role": "Chip-specific complete DWORD EDCA setter",
+      "url": "https://github.com/kelebek333/rtl8192fu-dkms/blob/76c37ba3b7a4bd83de93c5dc0769611f45aa25d0/hal/rtl8192f/rtl8192f_hal_init.c"
+    },
+    {
+      "repository": "kelebek333/rtl8192fu-dkms",
+      "commit": "76c37ba3b7a4bd83de93c5dc0769611f45aa25d0",
+      "path": "core/rtw_wlan_util.c",
+      "git_blob_sha1": "83e015d89aaa22d8d17c7ca39860ae74afe70111",
+      "line_ranges": [
+        [
+          1531,
+          1536
+        ],
+        [
+          1592,
+          1596
+        ]
+      ],
+      "role": "u16 WMM TXOP assembled at bit 16 without narrowing",
+      "url": "https://github.com/kelebek333/rtl8192fu-dkms/blob/76c37ba3b7a4bd83de93c5dc0769611f45aa25d0/core/rtw_wlan_util.c"
+    },
+    {
+      "repository": "lwfinger/rtl8188gu",
+      "commit": "9dec8292ae13c3a0dbf53eb07da6585427c8db7a",
+      "path": "hal/rtl8710b/rtl8710b_hal_init.c",
+      "git_blob_sha1": "3fa2b3ca2144963e6bd5fd6da68f9f665f6e57f2",
+      "line_ranges": [
+        [
+          3630,
+          3645
+        ]
+      ],
+      "role": "Chip-specific complete DWORD EDCA setter",
+      "url": "https://github.com/lwfinger/rtl8188gu/blob/9dec8292ae13c3a0dbf53eb07da6585427c8db7a/hal/rtl8710b/rtl8710b_hal_init.c"
+    },
+    {
+      "repository": "lwfinger/rtl8188gu",
+      "commit": "9dec8292ae13c3a0dbf53eb07da6585427c8db7a",
+      "path": "core/rtw_wlan_util.c",
+      "git_blob_sha1": "e6c76dd5a1a31173b7fb05782fd0089508fe4846",
+      "line_ranges": [
+        [
+          1557,
+          1562
+        ],
+        [
+          1618,
+          1622
+        ]
+      ],
+      "role": "u16 WMM TXOP assembled at bit 16 without narrowing",
+      "url": "https://github.com/lwfinger/rtl8188gu/blob/9dec8292ae13c3a0dbf53eb07da6585427c8db7a/core/rtw_wlan_util.c"
+    },
+    {
+      "repository": "torvalds/linux",
+      "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+      "path": "drivers/net/wireless/realtek/rtl8xxxu/regs.h",
+      "sha256": "5d400b8adeae0f0f86ad3e7f5e2ea046c7e302cbc9a6b654c32909b753b21c11",
+      "line_ranges": [
+        [
+          852,
+          864
+        ]
+      ],
+      "role": "Exact core used by rtl8192eu_fops: low ACF permits control-subtype filter",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtl8xxxu/regs.h"
+    },
+    {
+      "repository": "torvalds/linux",
+      "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+      "path": "drivers/net/wireless/realtek/rtl8xxxu/core.c",
+      "sha256": "eab41606f9e0a304012f082ff95979222d3e63780d649ed1d923938b7e97b1b1",
+      "line_ranges": [
+        [
+          6847,
+          6885
+        ]
+      ],
+      "role": "Common conf_tx packs u16 TXOP at bit 16 and writes complete DWORD for these two chips",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtl8xxxu/core.c"
+    }
+  ]
+}

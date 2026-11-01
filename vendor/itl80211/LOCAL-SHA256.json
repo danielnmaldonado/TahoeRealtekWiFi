@@ -1,0 +1,22 @@
+{
+  "local_glue": {
+    "kext/RTWNet80211Globals.cpp": "87343ba2e960032d3d25124367bab5b6e83565f969a928f6c9af1ba14d3b68ed",
+    "kext/RTWNet80211Globals.hpp": "7eaf65d2af54b662b4fe6c4992249d717cdd0c51bc38f9415ca8b34e8654bffe",
+    "vendor/itl80211/RTWNet80211Prefix.hpp": "0c6cec4012f021790091b8e40454d16c6fccff29a16aa972f642de1de74af1ae",
+    "vendor/itl80211/compat.h": "78c8325b83acf68a0e9be36e25eee48b0a9670c45fe68fb7a5e497a60ddf4df5",
+    "vendor/itl80211/sources.json": "6adf74a555b777c230d19142065d2ac7b6f9be3740ba78850b4104f0cc51a728"
+  },
+  "modified_imports": {
+    "openbsd/net80211/CTimeout.cpp": "344fd42f6728eedbf527c6bb7d3bc19e51d6be4f26e4d26f376172e2d08f8dc7",
+    "openbsd/net80211/ieee80211.h": "d00c1df1cd29482342fd477ab25a8998fd67add58630f0f4c8e4a7200716b8d1",
+    "openbsd/net80211/ieee80211_node.c": "52b6e09a9543c321b8aec28d1bf2141a0659e26dd21a3884f7fb6b70c178ce55",
+    "openbsd/net80211/ieee80211_pae_input.c": "25e08399f7f9d8cac66d97aba1352d1b63549321eecdd25c74229a5f4a0d820e",
+    "openbsd/net80211/ieee80211_pae_output.c": "a125e50795d87c5e31148ee6de5cb156c2adb4d9f93dc60f39172e44b928732b",
+    "openbsd/net80211/ieee80211_proto.c": "08cb29bf728c229cc794c757388c82e8b089ca7baa3fbf6edb4c871e1febedf9",
+    "openbsd/sys/CTimeout.hpp": "badab7b940e99b0cf1766fa720c88b6f3997894f3a85ff2cf9c227c27a72e289",
+    "openbsd/sys/_if_ether.h": "e551d9a7e02e15cb216a527809f9e4001e06a6ab6dceca0701d67e5fcaf7013f",
+    "openbsd/sys/_task.cpp": "681166eb6245dd08124d986a71a2c121fdaafde74abb409700b638e2ba9daaf9",
+    "openbsd/sys/_task.h": "87adef6f542bd6d91cab9a8fd4dfe5d2b66ad23a054874825b760dc3b6e0bf71"
+  },
+  "upstream_revision": "53c51c2cdd6e4b69beb91f310d74c53422b0f8bd"
+}

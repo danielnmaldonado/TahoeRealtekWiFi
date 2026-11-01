@@ -1,0 +1,40 @@
+{
+  "repository": "torvalds/linux",
+  "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+  "license": "GPL-2.0 OR BSD-3-Clause",
+  "sources": [
+    {
+      "path": "drivers/net/wireless/realtek/rtw88/tx.h",
+      "url": "https://github.com/torvalds/linux/blob/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/tx.h#L25-L60",
+      "sha256": "5f0c1dc2c8e9dbcdfece4e34c264bd24731ab6a3ff28011f9ddb09cb695aaa46",
+      "selection": "RTW_TX_DESC_* masks (verbatim fixture)"
+    },
+    {
+      "path": "drivers/net/wireless/realtek/rtw88/tx.c",
+      "url": "https://github.com/torvalds/linux/blob/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/tx.c#L35-L105",
+      "sha256": "dfc212ab3caf47437ed234dba1b7f7ef0cbd45749d4d34162699446a2a4adf7e",
+      "selection": "rtw_tx_fill_tx_desc; get_tx_ampdu_factor; rtw_tx_data_pkt_info_update; rtw_txq_check_agg"
+    },
+    {
+      "path": "drivers/net/wireless/realtek/rtw88/rtw8814a.c",
+      "url": "https://github.com/torvalds/linux/blob/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/rtw8814a.c#L1336-L1344",
+      "sha256": "8665466940662f8219996864779039253ed447b1000423d8ee5bc573b187d9e9",
+      "selection": "rtw8814a_set_ampdu_factor: checked peer byte-limit port at register0x458"
+    },
+    {
+      "path": "drivers/net/wireless/realtek/rtw88/mac80211.c",
+      "url": "https://github.com/torvalds/linux/blob/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/mac80211.c#L636-L666",
+      "sha256": "5de984df903ec1d96199ecd05b37f7ce3459de575a9439a59ac6f06d47a0853a",
+      "selection": "rtw_ops_ampdu_action: host queue AMPDU flag; no BA H2C"
+    },
+    {
+      "path": "drivers/net/wireless/realtek/rtw88/reg.h",
+      "url": "https://github.com/torvalds/linux/blob/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/reg.h#L413",
+      "sha256": "c8246f9305539347fdb62b0294fe12ea24769cb3ad56c2b0235c4269a0307324",
+      "selection": "REG_AMPDU_MAX_LENGTH = 0x0458"
+    }
+  ],
+  "scope": "HT20 MCS0..15 TX radio aggregation; no USB batching, VHT, crypto offload or hardware sequence",
+  "bounds": "MAX_AGG_NUM encodes pairs; min(16, (4<<peer_HT_factor)-1, floor(live_BA_window/2)); window1 uses ordinary MPDUs",
+  "non_aggregate": "Pinned tx.c writes DW2 from AGG_EN/report/density/BT_NULL only; no AGG_BK added. Preserve existing fixed/group/EAPOL/management bytes."
+}

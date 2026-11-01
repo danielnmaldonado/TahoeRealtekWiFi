@@ -1,0 +1,10 @@
+{
+  "source": "https://gitlab.com/kernel-firmware/linux-firmware",
+  "commit": "4ee5122b3f58e4c07951746c4425e2f4f42e860f",
+  "path": "rtw88/rtw8814a_fw.bin",
+  "size": 68320,
+  "sha256": "aa6bf9d62b2d2d8a37254fd6d917ba2839888cdedc21850d4481874cb1d3d7cb",
+  "version": "33.6",
+  "license": "LICENCE.rtlwifi_firmware.txt",
+  "representation": "unmodified binary bytes in RTL8814AUFirmware.inc"
+}

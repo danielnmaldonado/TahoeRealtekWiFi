@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.research.TahoeUSBWiFi.driver</string>
+	<key>BundleProgram</key>
+	<string>Contents/Helpers/TahoeWiFiHelper</string>
+	<key>MachServices</key>
+	<dict>
+		<key>org.research.TahoeUSBWiFi.driver</key>
+		<true/>
+	</dict>
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>org.research.TahoeUSBWiFi</string>
+	</array>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
+</dict>
+</plist>

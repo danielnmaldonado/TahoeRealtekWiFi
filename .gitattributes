@@ -1,0 +1,5 @@
+# Preserve upstream formatting and verbatim diagnostic output for provenance.
+vendor/itl80211/** -whitespace
+vendor/rtwn/** -whitespace
+docs/validation-v010/** -whitespace
+docs/validation-v0101/** -whitespace

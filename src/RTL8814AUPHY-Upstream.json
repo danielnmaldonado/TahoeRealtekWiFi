@@ -1,0 +1,27 @@
+{
+  "upstream": "torvalds/linux",
+  "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+  "license": "BSD-3-Clause selected from GPL-2.0 OR BSD-3-Clause",
+  "files": [
+    {
+      "path": "rtw8814a.c",
+      "sha256": "8665466940662f8219996864779039253ed447b1000423d8ee5bc573b187d9e9"
+    },
+    {
+      "path": "rtw8814a_table.c",
+      "sha256": "40418d3774023b8bdcc17e377ed302ecac03c786a7500c9ee3faac955d40451a"
+    },
+    {
+      "path": "reg.h",
+      "sha256": "c8246f9305539347fdb62b0294fe12ea24769cb3ad56c2b0235c4269a0307324"
+    },
+    {
+      "path": "phy.c",
+      "sha256": "669d76c8acfc9f30418dbd119e777eae4404f6e3bb1198292aab536a3aa9e4ec"
+    },
+    {
+      "path": "main.h",
+      "sha256": "6f2eaeb830844efface8a676815e2a0b15f59aa5408387fa85dc91613d351a24"
+    }
+  ]
+}

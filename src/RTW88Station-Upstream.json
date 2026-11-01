@@ -1,0 +1,28 @@
+{
+  "upstream": "torvalds/linux",
+  "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+  "license": "BSD-3-Clause selected from GPL-2.0 OR BSD-3-Clause",
+  "files": [
+    {
+      "path": "fw.c",
+      "sha256": "0da28129dfcdf3e9b5661523b54ede4632c6c9e5af7008a6f7ce2a1f8b6a19f0"
+    },
+    {
+      "path": "main.c",
+      "sha256": "cd52ce31a39022269a9cf48a35c2e1b89cc8a25ccb0f2ed1cec8425e910dcfa4"
+    },
+    {
+      "path": "mac80211.c",
+      "sha256": "5de984df903ec1d96199ecd05b37f7ce3459de575a9439a59ac6f06d47a0853a"
+    },
+    {
+      "path": "reg.h",
+      "sha256": "c8246f9305539347fdb62b0294fe12ea24769cb3ad56c2b0235c4269a0307324"
+    },
+    {
+      "path": "sec.c",
+      "sha256": "cad22a56ede19a42b3a29a260cdb8400ae901a19b34c86ad5dd173d2b6eebebc"
+    }
+  ],
+  "scope": "B/C port0/software-CCMP/EDCA and common HT20 H2C wire codec. Readiness comes from typed MAC and board PHY/regulatory callback; no kernel station promotion. Firmware mailbox cursor is shared with RFK/coexistence."
+}

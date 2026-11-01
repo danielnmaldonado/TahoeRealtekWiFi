@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""Run the imported Ethernet handoff against a host-only IOKit KPI boundary."""
+from pathlib import Path
+from host_cpp import compiler, sanitizer_flags
+import argparse
+import subprocess
+
+project = Path(__file__).resolve().parent.parent
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--out", type=Path, default=project / "build/net80211-input")
+parser.add_argument("--source", type=Path,
+                    default=project / "vendor/itl80211/openbsd/sys/_mbuf.cpp")
+args = parser.parse_args()
+args.out.mkdir(parents=True, exist_ok=True)
+host = project / "tests/net80211_input_host"
+command = [*compiler(), "-std=c++14", "-g", "-O1",
+           *sanitizer_flags(), "-fno-omit-frame-pointer",
+           "-I" + str(host / "include"), "-include", str(host / "platform.hpp"),
+           str(args.source), str(project / "tests/net80211_input_tests.cpp"),
+           "-o", str(args.out / "net80211-input-tests")]
+subprocess.run(command, check=True)
+subprocess.run([str(args.out / "net80211-input-tests")], check=True)

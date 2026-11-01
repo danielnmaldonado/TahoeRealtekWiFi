@@ -1,0 +1,397 @@
+{
+  "repository": "freebsd/freebsd-src",
+  "commit": "ebf1041fc854c531a27efd9f979e28d57306777d",
+  "commit_date": "2026-10-20T15:30:38Z",
+  "files": [
+    {
+      "path": "sys/dev/rtwn/if_rtwn.c",
+      "sha256": "faa747da2f09d46020c3904eafae5ee52a04e426be77336e8324493ee9d9d57f",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn.c"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_beacon.c",
+      "sha256": "02764c845d5ffb9de5be26cfb756b570e335464ce1f8885533d34ecaef6b8e37",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_beacon.c"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_beacon.h",
+      "sha256": "39128879bf18c26020c4d9e86de3ccd2f46ad9f6953910cac6c1027bdff3e626",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_beacon.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_calib.c",
+      "sha256": "7faae510cfc4484ed66de87d6042b943f8787b2cb058e648a51421d3d4ba0010",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_calib.c"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_calib.h",
+      "sha256": "75467c9ba5194e5447608c4788cb57a7fd204bfa599339129cee4f6511d03bbc",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_calib.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_cam.c",
+      "sha256": "22254a3994787eb79ef0410235e913d6d552068d6dcbc506e2130169d388b17d",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_cam.c"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_cam.h",
+      "sha256": "35a742127d60c30913469972ff835c860a298d8b7b0de17ad27b5da6b8bdaa65",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_cam.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_debug.h",
+      "sha256": "fe9fb0df61b502b33fc364f9d8780813620737b6921c16e4f49807ae30f866ec",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_debug.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_efuse.c",
+      "sha256": "b3c2cd4e5d9af580b8ba50f98a31e942dd9baff46b008c5e8bbbe89ca9bcfcf5",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_efuse.c"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_efuse.h",
+      "sha256": "784dcb06d53f004597b697aff2178b234d5d7e990074bbefe130933ccaaef1ac",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_efuse.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_fw.c",
+      "sha256": "904919f3cbbdecb3544cd0e4638ef73ddb3a3937c25270574311f45cc4a34a4d",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_fw.c"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_fw.h",
+      "sha256": "be09f45c08bcefb7edfb90a524343bdd0a7262571cd3ec77fb94ae5e82a6b5b7",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_fw.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_nop.h",
+      "sha256": "0cd41abaf18277544734b10f02bc88e4b2a50deeef355c3bbfbd8daf7d98f39c",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_nop.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_ridx.h",
+      "sha256": "68dee5dd493aa0068a7355c9bf741edcb72269b31860c79a28b1a8fef67cbaac",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_ridx.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_rx.c",
+      "sha256": "8cfcf1522b4ef4f97fce29587f62a353fcd984b884db6e4525d52772a191a51e",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_rx.c"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_rx.h",
+      "sha256": "0735aa146ee8d608deea13dde7f6ff44d27219e0bdfd2f14165d674972db13b1",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_rx.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_task.c",
+      "sha256": "e3bc73584fd650904d80253c0d0157a513fa15a277efd5f1b370f28fff8ed6ac",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_task.c"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_task.h",
+      "sha256": "30acdef822e8724606d6fb50aaa33e6fe5d9c001ec38f9a80c0b1240b9ff2539",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_task.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_tx.c",
+      "sha256": "fd4810b4b4f5e9f67fef619dd356bf8e6e1f376e4014abd4909b822594d56c56",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_tx.c"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwn_tx.h",
+      "sha256": "c156117ff02582b93466b8721e99422cc2a26ce380ad9de2dc4988afdc314a0a",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwn_tx.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwnreg.h",
+      "sha256": "4dce4f2d34b01a593d77c451f81650278e1092270f14da87b075fbb402308cc4",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwnreg.h"
+    },
+    {
+      "path": "sys/dev/rtwn/if_rtwnvar.h",
+      "sha256": "578ce6556dba4bd3b1ee29f77f8866a0af48c4704a045f566fc538edbf523dad",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/if_rtwnvar.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8188e/r88e.h",
+      "sha256": "09c5782d571d24bf2ab2689e9f7eb0f0f001290eccdf091c6f5feb4b5b6be617",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8188e/r88e.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8188e/r88e_calib.c",
+      "sha256": "d4a164c1ddcfd346ce960cccb3fc6e0cee37f0f11384177067e353f91c1b7fa2",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8188e/r88e_calib.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8188e/r88e_fw.c",
+      "sha256": "76c958bbcee1f8f0109b36ebd6c20da0c7bacc39877a4b381c247bee78982d97",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8188e/r88e_fw.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8188e/r88e_reg.h",
+      "sha256": "610c7ea662b24c938c9406804749e70ee1eb281a7feb5fa23059ab278bcbb11c",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8188e/r88e_reg.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8188e/r88e_rx.c",
+      "sha256": "4d2b80d0ef424d11345ce6f25bfbcb811a7a03dcb14066594933fee175659a71",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8188e/r88e_rx.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192c/r92c.h",
+      "sha256": "3271766dc913aa86e55b88e27f77ff38a170b88df6937be512788e073eab440a",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192c/r92c.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192c/r92c_calib.c",
+      "sha256": "01d6a36554187d371af697ce32e1f640f6686397b6b1538c45f1b56be1bdaef0",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192c/r92c_calib.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192c/r92c_chan.c",
+      "sha256": "ad8209e6b81e459afb7ce8ba8e7b372c4539744d3c0c9d1255d5a891affb93d9",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192c/r92c_chan.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192c/r92c_init.c",
+      "sha256": "bac29413c1208e50c126cd38be97585b3f855b907c53d4f736f6bb1d86ede397",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192c/r92c_init.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192c/r92c_reg.h",
+      "sha256": "bad278912442962426546d9a197b780eb9a1614b1733526c18a76ec71fa01181",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192c/r92c_reg.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192c/r92c_rf.c",
+      "sha256": "8e6407d88bf9bccaa2a2aeda70498b6455b2e55675ad50bb326fc9352b18731f",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192c/r92c_rf.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192c/usb/r92cu.h",
+      "sha256": "bafdd7e6d067da244ee900cfa295b5d23df9ff291776ec10be18584bec1c3fd9",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192c/usb/r92cu.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e.h",
+      "sha256": "4abd49fb4376f10eb6d0a0de3bc4f7687a8cff5267ce3a24d4a2ce591d4b7686",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_chan.c",
+      "sha256": "2f0420a47b7baf6e25ebcbec0b82894da70b6613575fb2e0a297a63d10dff124",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_chan.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_fw.c",
+      "sha256": "e80176002041dca50535958c82c22f1af43caae1a4f30dc99d4cc0317388ad98",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_fw.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_init.c",
+      "sha256": "fe3903970c79a8bfd3bc27777fdf81a6d79e8d04f40edf567d2e79e1b70e9600",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_init.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_led.c",
+      "sha256": "db4f989703d17ece6004c1cc91ee52fd585a7f4b5a2c06de6c947fef2b725e24",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_led.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_priv.h",
+      "sha256": "003f720453ad715c20b02bef82ee7f86cf91f5c8c9f94bc2015287aec82053a8",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_priv.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_reg.h",
+      "sha256": "2343f7746d60039aea62cc9eb5269176a37eb82547c84355b9a1ba78efe4d525",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_reg.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_rf.c",
+      "sha256": "45125037ca99fa8d4ec46b07f5b9fb840f344be4c32cc2f8ed8e40209ed13080",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_rf.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_rom.c",
+      "sha256": "fccb1eb9150c11ed35e83ba4a136896736c1335bed22d618a9ea5205d558baf1",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_rom.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_rom_defs.h",
+      "sha256": "13c9af95d7046a812e6c87459a4f593d6298e1dee5c73269ca542dfc8532d1d2",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_rom_defs.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_rom_image.h",
+      "sha256": "323709fa427562adcdc1db31422c1f78ffc4ecbf74be052172f352fe384cfb9e",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_rom_image.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_rx.c",
+      "sha256": "8cfeb04af2d3db757d0a8812740c8a02104c47a63171be9e64d8adf4b5b1f67d",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_rx.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/r92e_var.h",
+      "sha256": "4853d9a0d43c786a9fe43fcf4000881f9b21f41df60afbffcfa79b208590df90",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/r92e_var.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/usb/r92eu.h",
+      "sha256": "86180b95ce5db4ddb61ede702ce44f48f67e90e1448177f09f071c570100acf1",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/usb/r92eu.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/usb/r92eu_attach.c",
+      "sha256": "f29a63e2e81e4b4b5153a8f677e04135822d0960c9f4ad1d26225604ea456264",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/usb/r92eu_attach.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/usb/r92eu_init.c",
+      "sha256": "e3a6321736983e3b0f5725ab33b63c2c64b84d6cf04a837e9e8bbcfbb99e09cc",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/usb/r92eu_init.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8192e/usb/r92eu_reg.h",
+      "sha256": "01133597a01bf8126c2eaeb3bcfcd85aca4cb47731769a70bcfc2661de41d2c7",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8192e/usb/r92eu_reg.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/r12a.h",
+      "sha256": "b19758088158f66488556a95f488460bfcbe63800990fea4ca894a3c8d6d3d9b",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/r12a.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/r12a_fw.c",
+      "sha256": "de4844c2045b02ac732dd063c1b00b012f382e653efeeaf716010987f739b541",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/r12a_fw.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/r12a_init.c",
+      "sha256": "1ba86d1c8cf0c4f35243a2c4faea2f13bc34effe33ac70ad13433d3f6b7edbae",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/r12a_init.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/r12a_reg.h",
+      "sha256": "1af2d9beb2e28972561a7df05e9e1489c7128ea1b7e8e0342ccef99dd041c6c5",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/r12a_reg.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/r12a_rx.c",
+      "sha256": "3d5976dce5c8b6a11cf12092bc9f6ff61ca17aa6f2d5eb92614a4d312b6aee2d",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/r12a_rx.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/r12a_tx.c",
+      "sha256": "70607983085ea2869bfb7474d9c2426e187c50ddaa7ddb312f6133e75ecfc53e",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/r12a_tx.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/r12a_var.h",
+      "sha256": "7d5e265e9d1f80bfdacae73df9397050d3cdc8bda05fe23e493e74daae2dece2",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/r12a_var.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/usb/r12au.h",
+      "sha256": "41055470fa523301e93b0e0b97d260fe318e17ee118d06da2ff77a7c1f0b650b",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/usb/r12au.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/usb/r12au_init.c",
+      "sha256": "092a0e84f8f97d8ad6bae60dbd47fc26f9dddaad34e268a97ba34575531ee74e",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/usb/r12au_init.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/usb/r12au_rx.c",
+      "sha256": "16948610c8901516ae5b0ab911c8752e57f562c72689b726ea4656828dd7e470",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/usb/r12au_rx.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8812a/usb/r12au_tx_desc.h",
+      "sha256": "6f914921c289b2fe1e6111d47515e4a491065e248e459e55f537870a2426806a",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8812a/usb/r12au_tx_desc.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8821a/r21a.h",
+      "sha256": "15015b0f5e8dc798019e09001dcc08f818c02ca03efe48955ca1ba64c4e5ce1a",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8821a/r21a.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8821a/r21a_init.c",
+      "sha256": "ada2f9a9b1e6f4596545f650ac98af440ecaf17478f87ddbc0315608d306c5d7",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8821a/r21a_init.c"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8821a/r21a_reg.h",
+      "sha256": "07bfead9eab709561bec31494b0fdce38f710dfb70e8a6f049064f9b94141179",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8821a/r21a_reg.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8821a/usb/r21au.h",
+      "sha256": "c8f455ff62adb53f95c6127bbbf4958588b2c9e5b5f701c983eaba046f962015",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8821a/usb/r21au.h"
+    },
+    {
+      "path": "sys/dev/rtwn/rtl8821a/usb/r21au_init.c",
+      "sha256": "6d3db7cc0234b195b966e7d1d5ab21a57a16b750c82d6630c78d724eac47a442",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/rtl8821a/usb/r21au_init.c"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_attach.c",
+      "sha256": "33739adee2a0f1b4e9395e0f081156c21416f418d8f4bc5a80e541a5706cc9ae",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_attach.c"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_attach.h",
+      "sha256": "aaad142d7b19ef94a10418bda0a95be1cb2d45d147141051b3ebcffe35812dbc",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_attach.h"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_ep.c",
+      "sha256": "3521659ce0a5c82a3f0b04645536d83081467e147223d55b5bd52bc693425dd1",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_ep.c"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_ep.h",
+      "sha256": "1ef7ed5e18b00538f94cca4aa2ec6841f50c2b2d5c9c48e44d81bca62a9e3fb5",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_ep.h"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_reg.c",
+      "sha256": "e55066ccf2dc4d24dcd23e98538354294ae82d869af4d1d78579bb1cbf1be7e4",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_reg.c"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_reg.h",
+      "sha256": "e2a9e805a93b6de251a41def6e86da8ed613afd12d4e5e77498f539283d7d812",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_reg.h"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_rx.c",
+      "sha256": "8efcdd3876dd9375297ea347f47f69f1b6a23f0ee5e9bed7cce8a278f03c81b1",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_rx.c"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_rx.h",
+      "sha256": "1881bb31674a93b25d0fe5257171048bced62da85888a892560f27d376c8f8bf",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_rx.h"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_tx.c",
+      "sha256": "cc376ffff3d4b00e5eed954423f00f7275b2c2b89bad9b49e6ecbfe849520ea5",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_tx.c"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_tx.h",
+      "sha256": "732a7012faa8c21e3a7aded866f078b2309cdce4fbadb37689a3b31651a9301c",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_tx.h"
+    },
+    {
+      "path": "sys/dev/rtwn/usb/rtwn_usb_var.h",
+      "sha256": "9b992fcbdf6e23905b239a8f4dbb7d272d2fa51d993cf5ef4a0a84b66b26ea8e",
+      "url": "https://github.com/freebsd/freebsd-src/blob/ebf1041fc854c531a27efd9f979e28d57306777d/sys/dev/rtwn/usb/rtwn_usb_var.h"
+    }
+  ]
+}

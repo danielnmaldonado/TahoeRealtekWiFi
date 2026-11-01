@@ -1,0 +1,216 @@
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,4 +1,14 @@
++## 2026-10-24 — USB preflight e recuperação de seleção (kext build 44, app build 39)
++
++- `src/FamilyBackend.c`: evitar apagar descritores USB e agregados RX quando
++  saída e entrada compartilham memória. Rejeitar antes da escrita.
++- `app/Protocol.hpp`: após invalidação por desconexão, rejeitar tokens
++  antigos e permitir reseleção do mesmo Registry ID.
++- Regressões reproduzidas na versão anterior e aprovadas após correção.
++- Assinatura ad-hoc, firmware, RF/TX, aparência e protocolos preservados.
++- 5 GHz operacional e Release macOS ainda não comprovados.
++
+ ## 2026-10-24 — auditoria de memória/aliasing (kext build 43, app build 38)
+ 
+ - Rejeitar sobreposição de memória entre saída e entradas somente nos fluxos
+   `rtw_family_5g_join_prepare`, `rtw_family_radio_prepare_profile` e
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,13 @@
+ # Tahoe Wi-Fi USB
++
++**Auditoria de 24/10/2026 — aplicativo 0.2.13 build 39 / kext 0.13.19 build 44:**
++Corrigida a rejeição de buffers USB/RX sobrepostos antes de qualquer escrita,
++e a recuperação da seleção do mesmo Registry ID depois de uma invalidação.
++Foram adicionadas regressões reproduzidas no build 43 antes das correções.
++Firmware, operação RF, protocolos, interface visual e assinatura ad-hoc
++permanecem inalterados. Estação 5 GHz completa e testes macOS/USB físicos
++continuam pendentes. Evidências e checkpoints em `docs/AUDITORIA-CONSOLIDADA.md`.
+ 
+ **Auditoria de 24/10/2026 — aplicativo 0.2.13 build 38 / kext 0.13.19 build 43:**
+ correção dos caminhos de erro de transporte socket/XPC e regressões,
+ mais rejeição de buffers sobrepostos em três rotinas de 5 GHz. A
+--- a/TahoeRealtekWiFi.xcodeproj/project.pbxproj
++++ b/TahoeRealtekWiFi.xcodeproj/project.pbxproj
+@@ -237,10 +237,10 @@
+ 5E554799FB4B8C1E0642B1EC = {isa=PBXShellScriptBuildPhase; buildActionMask=2147483647; files=(); inputPaths=("$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)","$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)","$(PROJECT_DIR)/app/signing.sh",); outputPaths=(); alwaysOutOfDate=1; name="Require ad-hoc signature"; runOnlyForDeploymentPostprocessing=0; shellPath=/bin/bash; shellScript="set -euo pipefail\nsource \"$PROJECT_DIR/app/signing.sh\"\nrtw_sign_kext \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";};
+ BB0000000000000000000015 = {isa=PBXNativeTarget; buildConfigurationList=4A807E8A027297B0B93701FB; buildPhases=(D626F04DF571B9BB2451CBFE,9B788B58035C50F5CB96E64C,5E554799FB4B8C1E0642B1EC,); buildRules=(); dependencies=(); name=TahoeRealtekWiFi; productName=TahoeRealtekWiFi; productReference=A8792157CB4F27FB949C035F; productType="com.apple.product-type.kernel-extension";};
+ BB0000000000000000000016 = {isa=PBXProject; attributes={LastUpgradeCheck=2600;}; buildConfigurationList=B4E10CAA9C5E22150B71559C; compatibilityVersion="Xcode 14.0"; developmentRegion=en; knownRegions=(en,Base); mainGroup=19F479106CE8C3BA8C106518; productRefGroup=0A3E27B8CA818264D75C8D81; projectDirPath=""; projectRoot=""; targets=(BB0000000000000000000015,);};
+ 488864B3D19480A82F7F1786={isa=XCBuildConfiguration;buildSettings={SDKROOT="macosx";ARCHS="x86_64";ONLY_ACTIVE_ARCH="NO";ALWAYS_SEARCH_USER_PATHS="NO";CLANG_CXX_LANGUAGE_STANDARD="gnu++14";GCC_C_LANGUAGE_STANDARD="c11";GCC_ENABLE_CPP_EXCEPTIONS="NO";GCC_ENABLE_CPP_RTTI="NO";CLANG_ENABLE_MODULES="NO";CODE_SIGNING_ALLOWED="NO";ENABLE_USER_SCRIPT_SANDBOXING="NO";MACOSX_DEPLOYMENT_TARGET="11.0";GCC_SYMBOLS_PRIVATE_EXTERN="YES";GCC_INLINES_ARE_PRIVATE_EXTERN="YES";KERNEL_EXTENSION_HEADER_SEARCH_PATHS="$(PROJECT_DIR)/MacKernelSDK/Headers";KERNEL_FRAMEWORK_HEADERS="$(PROJECT_DIR)/MacKernelSDK/Headers";GCC_OPTIMIZATION_LEVEL="0";GCC_PREPROCESSOR_DEFINITIONS=("$(inherited)","KERNEL=1","KERNEL_PRIVATE=1","DRIVER_PRIVATE=1","IEEE80211_STA_ONLY=1","__PRIVATE_SPI__=1");LIBRARY_SEARCH_PATHS=("$(inherited)","$(PROJECT_DIR)/MacKernelSDK/Library/x86_64");HEADER_SEARCH_PATHS=("$(PROJECT_DIR)/vendor/itl80211/openbsd","$(PROJECT_DIR)/vendor/itl80211/linux","$(PROJECT_DIR)/vendor/itl80211","$(PROJECT_DIR)/include","$(PROJECT_DIR)/kext","$(PROJECT_DIR)/vendor/rtwn","$(inherited)");OTHER_CPLUSPLUSFLAGS=("$(inherited)","-fno-builtin","-Wno-deprecated-register","-Wno-c++17-extensions","-Wno-macro-redefined","-Wno-format","-Werror=return-type");};name=Debug;};
+-952548237D7F645F11D1E7B6={isa=XCBuildConfiguration;buildSettings={PRODUCT_NAME=TahoeRealtekWiFi;PRODUCT_BUNDLE_IDENTIFIER=org.research.TahoeRealtekWiFi;MODULE_NAME=org.research.TahoeRealtekWiFi;MODULE_VERSION="43";INFOPLIST_FILE=kext/Info.plist;GENERATE_INFOPLIST_FILE=NO;WRAPPER_EXTENSION=kext;SKIP_INSTALL=YES;CODE_SIGNING_ALLOWED=NO;};name=Debug;};
++952548237D7F645F11D1E7B6={isa=XCBuildConfiguration;buildSettings={PRODUCT_NAME=TahoeRealtekWiFi;PRODUCT_BUNDLE_IDENTIFIER=org.research.TahoeRealtekWiFi;MODULE_NAME=org.research.TahoeRealtekWiFi;MODULE_VERSION="44";INFOPLIST_FILE=kext/Info.plist;GENERATE_INFOPLIST_FILE=NO;WRAPPER_EXTENSION=kext;SKIP_INSTALL=YES;CODE_SIGNING_ALLOWED=NO;};name=Debug;};
+ 35B1014F135DE9B45529B733={isa=XCBuildConfiguration;buildSettings={SDKROOT="macosx";ARCHS="x86_64";ONLY_ACTIVE_ARCH="NO";ALWAYS_SEARCH_USER_PATHS="NO";CLANG_CXX_LANGUAGE_STANDARD="gnu++14";GCC_C_LANGUAGE_STANDARD="c11";GCC_ENABLE_CPP_EXCEPTIONS="NO";GCC_ENABLE_CPP_RTTI="NO";CLANG_ENABLE_MODULES="NO";CODE_SIGNING_ALLOWED="NO";ENABLE_USER_SCRIPT_SANDBOXING="NO";MACOSX_DEPLOYMENT_TARGET="11.0";GCC_SYMBOLS_PRIVATE_EXTERN="YES";GCC_INLINES_ARE_PRIVATE_EXTERN="YES";KERNEL_EXTENSION_HEADER_SEARCH_PATHS="$(PROJECT_DIR)/MacKernelSDK/Headers";KERNEL_FRAMEWORK_HEADERS="$(PROJECT_DIR)/MacKernelSDK/Headers";GCC_OPTIMIZATION_LEVEL="s";GCC_PREPROCESSOR_DEFINITIONS=("$(inherited)","KERNEL=1","KERNEL_PRIVATE=1","DRIVER_PRIVATE=1","IEEE80211_STA_ONLY=1","__PRIVATE_SPI__=1");LIBRARY_SEARCH_PATHS=("$(inherited)","$(PROJECT_DIR)/MacKernelSDK/Library/x86_64");HEADER_SEARCH_PATHS=("$(PROJECT_DIR)/vendor/itl80211/openbsd","$(PROJECT_DIR)/vendor/itl80211/linux","$(PROJECT_DIR)/vendor/itl80211","$(PROJECT_DIR)/include","$(PROJECT_DIR)/kext","$(PROJECT_DIR)/vendor/rtwn","$(inherited)");OTHER_CPLUSPLUSFLAGS=("$(inherited)","-fno-builtin","-Wno-deprecated-register","-Wno-c++17-extensions","-Wno-macro-redefined","-Wno-format","-Werror=return-type");};name=Release;};
+-E2D3A31BEAA1368FC62DA77A={isa=XCBuildConfiguration;buildSettings={PRODUCT_NAME=TahoeRealtekWiFi;PRODUCT_BUNDLE_IDENTIFIER=org.research.TahoeRealtekWiFi;MODULE_NAME=org.research.TahoeRealtekWiFi;MODULE_VERSION="43";INFOPLIST_FILE=kext/Info.plist;GENERATE_INFOPLIST_FILE=NO;WRAPPER_EXTENSION=kext;SKIP_INSTALL=YES;CODE_SIGNING_ALLOWED=NO;};name=Release;};
++E2D3A31BEAA1368FC62DA77A={isa=XCBuildConfiguration;buildSettings={PRODUCT_NAME=TahoeRealtekWiFi;PRODUCT_BUNDLE_IDENTIFIER=org.research.TahoeRealtekWiFi;MODULE_NAME=org.research.TahoeRealtekWiFi;MODULE_VERSION="44";INFOPLIST_FILE=kext/Info.plist;GENERATE_INFOPLIST_FILE=NO;WRAPPER_EXTENSION=kext;SKIP_INSTALL=YES;CODE_SIGNING_ALLOWED=NO;};name=Release;};
+ B4E10CAA9C5E22150B71559C={isa=XCConfigurationList;buildConfigurations=(488864B3D19480A82F7F1786,35B1014F135DE9B45529B733,);defaultConfigurationIsVisible=0;defaultConfigurationName=Release;};
+ 4A807E8A027297B0B93701FB={isa=XCConfigurationList;buildConfigurations=(952548237D7F645F11D1E7B6,E2D3A31BEAA1368FC62DA77A,);defaultConfigurationIsVisible=0;defaultConfigurationName=Release;};
+ };rootObject=BB0000000000000000000016;}
+--- a/app/Info.plist
++++ b/app/Info.plist
+@@ -14,9 +14,9 @@
+ 	<string>APPL</string>
+ 	<key>CFBundleShortVersionString</key>
+ 	<string>0.2.13</string>
+ 	<key>CFBundleVersion</key>
+-	<string>38</string>
++	<string>39</string>
+ 	<key>RTWInstallerProtocolVersion</key>
+ 	<integer>1</integer>
+ 	<key>CFBundleIconFile</key>
+ 	<string>AppIcon</string>
+--- a/app/Protocol.hpp
++++ b/app/Protocol.hpp
+@@ -38,14 +38,18 @@
+     return true;
+ }
+ struct DeviceSelection {
+     uint64_t registryID=0,generation=0;
+-    bool everSelected=false;
++    bool everSelected=false,invalidated=false;
+     bool select(uint64_t id) {
+         if(!id)return false;everSelected=true;
+-        if(id==registryID)return false;
+-        registryID=id;++generation;return true;
++        if(id==registryID&&!invalidated)return false;
++        registryID=id;++generation;invalidated=false;return true;
+     }
+-    void invalidate(){++generation;}
+-    bool matches(uint64_t id,uint64_t token)const{return id==registryID&&token==generation;}
++    // Keep the last selected ID for display/recovery, but it cannot validate
++    // work or prevent selecting that same device again after an interruption.
++    void invalidate(){++generation;invalidated=true;}
++    bool matches(uint64_t id,uint64_t token)const{
++        return !invalidated&&id==registryID&&token==generation;
++    }
+ };
+ }
+--- a/app/tests/model-tests.cpp
++++ b/app/tests/model-tests.cpp
+@@ -72,8 +72,16 @@
+     rtwui::DeviceSelection selection;assert(selection.select(1234));const auto token=selection.generation;
+     assert(selection.matches(1234,token));selection.invalidate();assert(!selection.matches(1234,token));
+     // An unplug invalidates replies while retaining the exact selected ID.
+     assert(selection.registryID==1234&&selection.everSelected);assert(!selection.select(0));
++    // A temporarily absent adapter must not validate new reads using a stale
++    // selection token. Selecting the same registry ID after reappearance must
++    // restore it instead of leaving the UI in a disconnected state.
++    assert(!selection.matches(1234,selection.generation));
++    assert(selection.select(1234));
++    assert(selection.matches(1234,selection.generation));
++    assert(!selection.select(1234)); // unchanged active selection is a no-op
++    selection.invalidate();
+     assert(selection.select(5678));assert(!selection.matches(1234,selection.generation));
+     // A status captured before the latest JOIN/ACK cannot confirm that JOIN.
+     s={};s.version=1;s.flags=15;s.ssidLength=3;memcpy(s.ssid,"Lab",3);
+     const uint8_t wanted[]={'L','a','b'};
+--- a/kext/Info.plist
++++ b/kext/Info.plist
+@@ -14,9 +14,9 @@
+ 	<string>6.0</string>
+ 	<key>CFBundleShortVersionString</key>
+ 	<string>0.13.19</string>
+ 	<key>CFBundleVersion</key>
+-	<string>43</string>
++	<string>44</string>
+ 	<key>IOKitPersonalities</key>
+ 	<dict>
+ 		<key>RTL8192CU-04bb-094c</key>
+ 		<dict>
+--- a/src/FamilyBackend.c
++++ b/src/FamilyBackend.c
+@@ -5,8 +5,19 @@
+ #include "rtw/RTL8814AUDataPath.h"
+ #include "rtw/RTL8812AUDataPath.h"
+ #include "rtw/FamilyRX24.h"
+ #include <string.h>
++
++/* Reject result/input aliasing before clearing a result object. The source
++ * belongs to the caller and may be a descriptor or a shared USB RX buffer. */
++static int ranges_overlap(const void *out, size_t out_len,
++                          const void *input, size_t input_len) {
++    uintptr_t a, b;
++    if (!out || !input || !out_len || !input_len) return 0;
++    a = (uintptr_t)out;
++    b = (uintptr_t)input;
++    return a <= b ? b - a < out_len : a - b < input_len;
++}
+ 
+ #define USB_ONLY RTW_BACKEND_CAP_USB_PREFLIGHT
+ #define OLD_STATION (USB_ONLY | RTW_BACKEND_CAP_RX_WIRE | \
+     RTW_BACKEND_CAP_TX_WIRE | RTW_BACKEND_CAP_KEXT_STATION)
+@@ -131,8 +142,10 @@
+     rtw_usb_desc_error error;
+     rtw_usb_endpoints endpoints;
+     rtw_backend_usb_plan next;
+ 
++    if (out && ranges_overlap(out, sizeof(*out), config, length))
++        return RTW_BACKEND_PREFLIGHT_INVALID_ARGUMENT;
+     if (out) memset(out, 0, sizeof(*out));
+     if (!out || !config || length < 9U || length > 65535U)
+         return RTW_BACKEND_PREFLIGHT_INVALID_ARGUMENT;
+     if (!catalog_id_exists(vendor, product))
+@@ -173,8 +186,10 @@
+     rtw_rx_iterator generic;
+     rtw_r12au_rx_iterator jaguar;
+     rtw_rx24_iterator rx24;
+     unsigned is_jaguar, is_rx24;
++    if (out && ranges_overlap(out, sizeof(*out), transfer, length))
++        return RTW_BACKEND_RX_INVALID_INPUT;
+     if (out) memset(out, 0, sizeof(*out));
+     if (!out || (!transfer && length) || length > 65536U)
+         return RTW_BACKEND_RX_INVALID_INPUT;
+     if (!backend || !(backend->capabilities & RTW_BACKEND_CAP_RX_WIRE) ||
+--- a/tests/family_backend_tests.cpp
++++ b/tests/family_backend_tests.cpp
+@@ -143,8 +143,50 @@
+         assert(rtw_backend_usb_preflight(p->vendor, p->product, 0,
+             b.data(), b.size(), 0, &plan) ==
+             RTW_BACKEND_PREFLIGHT_DESCRIPTOR_MISMATCH);
+ 
++    // The two preflight entry points must not overwrite caller-owned USB
++    // descriptor/aggregate bytes when an output overlaps the input.
++    // This is particularly important when inspecting a reused DMA buffer.
++    {
++        const auto *profile = rtw_usb_wifi_lookup(0x0bda, 0x8812, 0, 1, 0);
++        assert(profile && profile->primary_verified);
++        const auto usb_config = make_configuration(*profile);
++        alignas(rtw_backend_usb_plan) uint8_t shared[256]{};
++        std::memcpy(shared, usb_config.data(), usb_config.size());
++        const auto status = rtw_backend_usb_preflight(profile->vendor,
++            profile->product, profile->match_bcd ? profile->bcd_device : 0,
++            shared, usb_config.size(), profile->interface_number,
++            reinterpret_cast<rtw_backend_usb_plan*>(shared));
++        assert(status == RTW_BACKEND_PREFLIGHT_INVALID_ARGUMENT);
++        assert(std::memcmp(shared, usb_config.data(), usb_config.size()) == 0);
++        // Partial alias must also be rejected before any output is cleared.
++        std::memcpy(shared, usb_config.data(), usb_config.size());
++        const auto partial = rtw_backend_usb_preflight(profile->vendor,
++            profile->product, profile->match_bcd ? profile->bcd_device : 0,
++            shared, usb_config.size(), profile->interface_number,
++            reinterpret_cast<rtw_backend_usb_plan*>(shared + 8));
++        assert(partial == RTW_BACKEND_PREFLIGHT_INVALID_ARGUMENT);
++        assert(std::memcmp(shared, usb_config.data(), usb_config.size()) == 0);
++    }
++    {
++        alignas(rtw_backend_rx_report) uint8_t shared[128]{};
++        const uint8_t initial[] = {
++            0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
++            0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88
++        };
++        std::memcpy(shared, initial, sizeof(initial));
++        const auto status = rtw_backend_rx_preflight(RTW_WIFI_RTL8812AU,
++            shared, sizeof(initial), reinterpret_cast<rtw_backend_rx_report*>(shared));
++        assert(status == RTW_BACKEND_RX_INVALID_INPUT);
++        assert(std::memcmp(shared, initial, sizeof(initial)) == 0);
++        std::memcpy(shared, initial, sizeof(initial));
++        const auto partial = rtw_backend_rx_preflight(RTW_WIFI_RTL8812AU,
++            shared, sizeof(initial), reinterpret_cast<rtw_backend_rx_report*>(shared + 8));
++        assert(partial == RTW_BACKEND_RX_INVALID_INPUT);
++        assert(std::memcmp(shared, initial, sizeof(initial)) == 0);
++    }
++
+     const uint8_t short_bytes[] = {1};
+     rtw_backend_rx_report report{};
+     assert(rtw_backend_rx_preflight(RTW_WIFI_RTL8192CU, short_bytes,
+         sizeof(short_bytes), &report) == RTW_BACKEND_RX_MALFORMED);

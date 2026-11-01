@@ -1,0 +1,206 @@
+{
+  "upstream": "torvalds/linux",
+  "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+  "license": "GPL-2.0-only",
+  "port": "RTL8192DU cold boot, eFuse/ROM, wire codec and station MAC/H2C; PHY algorithms have a separate manifest; kernel station adapter integration hooks provided",
+  "sources": [
+    {
+      "path": "rtl8192du/hw.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192du/hw.c",
+      "sha256": "9c46b57d0c2a586b2fd1f188a3d9f72bed7a408e3dde2080a9292e337b11ae99",
+      "symbols": [
+        "_rtl92du_init_mac",
+        "_rtl92du_init_power_on",
+        "rtl92du_hw_init",
+        "rtl92du_card_disable",
+        "_rtl92du_poweroff_adapter"
+      ]
+    },
+    {
+      "path": "rtl8192du/phy.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192du/phy.c",
+      "sha256": "7a5bce53fd324ff5c23193344784f922cecf056280f8f14c88ed3008077490ce",
+      "symbols": [
+        "rtl92du_phy_set_poweron"
+      ]
+    },
+    {
+      "path": "rtl8192du/fw.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192du/fw.c",
+      "sha256": "f9b837e446f69428c35b9ad0f57830c9101d043375a9895e468e177fedc7af8b",
+      "symbols": [
+        "rtl92du_download_fw"
+      ]
+    },
+    {
+      "path": "rtl8192d/hw_common.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/hw_common.c",
+      "sha256": "40953120e1befa0db433e986e2c6cb76b2d7a0a716085fb1757d0f6ee55b4856",
+      "symbols": [
+        "_rtl92d_read_chip_version",
+        "_rtl92d_read_macphymode_from_prom",
+        "_rtl92d_read_adapter_info",
+        "rtl92d_llt_write",
+        "rtl92d_update_hal_rate_mask"
+      ]
+    },
+    {
+      "path": "rtl8192d/phy_common.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/phy_common.c",
+      "sha256": "d4a0b3b01ee18ef6e24799c55631d186c2f932592fb25a8a95afa7888b915929",
+      "symbols": [
+        "rtl92d_phy_config_macphymode",
+        "rtl92d_phy_config_maccoexist_rfpage"
+      ]
+    },
+    {
+      "path": "rtl8192d/fw_common.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/fw_common.c",
+      "sha256": "2ffa39c4113a59e9ce26e7d04640c3845fc7fe1b14f5c36a685a0567aa2dea2d",
+      "symbols": [
+        "rtl92d_enable_fw_download",
+        "rtl92d_write_fw",
+        "rtl92d_fw_free_to_go",
+        "rtl92d_fw_init",
+        "rtl92d_fill_h2c_cmd",
+        "rtl92d_set_fw_joinbss_report_cmd"
+      ]
+    },
+    {
+      "path": "rtl8192d/fw_common.h",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/fw_common.h",
+      "sha256": "07da5124f56f0623649fab92dac415bf599b70f56d51ff12ea5fdfeba37abfe1",
+      "symbols": [
+        "FW_8192D_PAGE_SIZE",
+        "IS_FW_HEADER_EXIST"
+      ]
+    },
+    {
+      "path": "rtl8192d/reg.h",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/reg.h",
+      "sha256": "7154fb402302e11464af92852a73c35842bf82d5e557f32827a3c10498c091a1",
+      "symbols": [
+        "RTL8190_EEPROM_ID",
+        "EEPROM_ENDPOINT_SETTING",
+        "EEPROM_MAC_ADDR_MAC0_92DU",
+        "FW_MAC0_READY",
+        "FW_MAC1_READY"
+      ]
+    },
+    {
+      "path": "efuse.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/efuse.c",
+      "sha256": "2d04d7f1b9948cec50356956818cfbd2116dd41e4c8b2b291eb1bc38443ca690",
+      "symbols": [
+        "_rtl_fw_block_write_usb",
+        "rtl_fw_page_write"
+      ]
+    },
+    {
+      "path": "usb.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/usb.c",
+      "sha256": "b7ddc13b676581d4078c0bb3098839140be19da345f4885be62c3c3a0a4ea718",
+      "symbols": [
+        "_usbctrl_vendorreq_sync",
+        "_usb_read_sync",
+        "_usb_write_chunk_sync",
+        "REALTEK_USB_VENQT_CMD_REQ",
+        "REALTEK_USB_VENQT_CMD_IDX"
+      ]
+    },
+    {
+      "path": "rtl8192du/trx.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192du/trx.c",
+      "sha256": "1cfbcf884fd6597f93ea39a264f273671640df50f7f5b601803d6cebe452f114",
+      "symbols": [
+        "_rtl92du_hwq_to_descq",
+        "rtl92du_tx_fill_desc",
+        "rtl92du_endpoint_mapping"
+      ]
+    },
+    {
+      "path": "rtl8192du/trx.h",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192du/trx.h",
+      "sha256": "8b2368fc5292bea30c6950dc17014da1e19b3167f0ecba886b20900aa818053e",
+      "symbols": []
+    },
+    {
+      "path": "rtl8192d/trx_common.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/trx_common.c",
+      "sha256": "554feadf3884959b64e0d6f1b38a9d3f9551c4926556d17f0291f22de1f1abb2",
+      "symbols": [
+        "_rtl92d_query_rxphystatus",
+        "rtl92d_rx_query_desc"
+      ]
+    },
+    {
+      "path": "rtl8192d/trx_common.h",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192d/trx_common.h",
+      "sha256": "c645cf1712cffc66d9074794c2628bf3da3f591f817a54c68384ff2f461452f5",
+      "symbols": [
+        "RX/TX descriptor setters/getters",
+        "rx_fwinfo_92d"
+      ]
+    },
+    {
+      "path": "rtl8192du/dm.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/rtl8192du/dm.c",
+      "sha256": "d9c25d780ba1a083d579c4e83a62db06ba40a21d6534d7d780d930baf72a377d",
+      "symbols": [
+        "rtl92du_dm_pwdb_monitor"
+      ]
+    },
+    {
+      "path": "base.h",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/base.h",
+      "sha256": "a93a99824119ced34c27e7c8ca889b842d2c2198c3a857c9c3a57121edf569f1",
+      "symbols": [
+        "RTL_TX_HEADER_SIZE",
+        "RTL_DUMMY_OFFSET"
+      ]
+    },
+    {
+      "path": "base.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/base.c",
+      "sha256": "c2d69759a369228069d473d48e008d02e48741765b1e8c416091c59ef57c5c47",
+      "symbols": [
+        "rtl_get_tcb_desc"
+      ]
+    },
+    {
+      "path": "wifi.h",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtlwifi/wifi.h",
+      "sha256": "e7aa5187eee1b1e6329e507014e5e4a730870d48218dac8f0b4b5ba031438513",
+      "symbols": [
+        "H2C_JOINBSSRPT",
+        "H2C_RSSI_REPORT",
+        "H2C_RA_MASK",
+        "RATR_INX_WIRELESS_NGB"
+      ]
+    }
+  ],
+  "vendor_sources": [
+    {
+      "repository": "lwfinger/rtl8192du",
+      "commit": "dc2c6951a9fd28fdb20549140052bbdac3490865",
+      "path": "hal/usb_ops_linux.c",
+      "url": "https://raw.githubusercontent.com/lwfinger/rtl8192du/dc2c6951a9fd28fdb20549140052bbdac3490865/hal/usb_ops_linux.c",
+      "sha256": "2357a869302bd531f0ac6ad6c34375e42f10f61e91a7aa1b8e118d53ab805e94",
+      "symbols": [
+        "usb_read_reg",
+        "usb_write_reg"
+      ]
+    },
+    {
+      "repository": "lwfinger/rtl8192du",
+      "commit": "dc2c6951a9fd28fdb20549140052bbdac3490865",
+      "path": "hal/rtl8192du_xmit.c",
+      "url": "https://raw.githubusercontent.com/lwfinger/rtl8192du/dc2c6951a9fd28fdb20549140052bbdac3490865/hal/rtl8192du_xmit.c",
+      "sha256": "514a17501f409c2393d39a113877f1ebbd2d8c044cbd94c94444a114192c7771",
+      "symbols": [
+        "update_txdesc",
+        "rtl8192du_xmitframe_complete"
+      ]
+    }
+  ]
+}

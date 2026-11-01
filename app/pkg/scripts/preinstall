@@ -1,0 +1,55 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
+
+require_target "${3:-}"
+check_app_closed
+[[ ! -L "$APP" ]] || fail "The destination is a symbolic link; nothing was changed."
+if [[ -e "$APP" ]]; then
+    [[ -d "$APP" ]] || fail "Another file type occupies the destination."
+    # Read metadata only. Never execute an unprotected old app with root privileges.
+    [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" == "$BUNDLE_ID" ]] ||
+        fail "Another application occupies the destination. Nothing was changed."
+    current_build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")
+    incoming_build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$SCRIPT_DIR/package-info.plist")
+    [[ "$current_build" =~ ^[0-9]+$ && "$incoming_build" =~ ^[0-9]+$ &&
+       "${#current_build}" -le 9 && "${#incoming_build}" -le 9 ]] ||
+        fail "Invalid build number; versions could not be compared."
+    (( 10#$current_build <= 10#$incoming_build )) ||
+        fail "A newer version is already installed. The service and app were preserved."
+    version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")
+    protocol=$(/usr/libexec/PlistBuddy -c 'Print :RTWInstallerProtocolVersion' "$APP/Contents/Info.plist" 2>/dev/null || true)
+    if [[ "$protocol" == 1 || "$version" == 0.2.4 || "$version" == 0.2.5 ]]; then
+        # A manually copied, unprotected bundle can be repaired by replacement.
+        # Do not execute it. A registered service must first be removed by its app.
+        if bundle_is_protected && validation="$(check_bundle_tree 2>&1)"; then
+            if identify_console_user; then
+                log "Preparing the update in the user session without deleting passwords."
+                run_as_console_user "$EXECUTABLE" --prepare-update ||
+                    fail "Could not prepare the old service. Open the previous app and check Login Items."
+                # The old service must no longer retain the previous code identity.
+                for (( attempt=0; attempt<10; ++attempt )); do
+                    if ! service_is_registered; then break; fi
+                    /bin/sleep 1
+                done
+                if service_is_registered; then
+                    fail "The previous service is still loaded. Replacement was canceled."
+                fi
+            elif service_is_registered; then
+                fail "Sign in to a user session to update the existing service."
+            fi
+        elif service_is_registered; then
+            fail "The old app is incomplete, has an invalid signature or is unprotected, and its service is still registered. Restore or disable the service before updating."
+        else
+            log "Replacing an incomplete or unprotected copy; no old code was executed."
+        fi
+    elif service_is_registered; then
+        fail "The old version has no update protocol. Disable the service before replacing the app."
+    fi
+elif service_is_registered; then
+    fail "An old service is registered without the app at the destination. Restore the previous app to disable it."
+fi
+log "Preflight completed. The kernel extension and user data will not be changed."
+exit 0

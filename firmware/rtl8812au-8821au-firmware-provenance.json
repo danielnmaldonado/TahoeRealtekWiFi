@@ -1,0 +1,20 @@
+{
+  "8812": {
+    "source": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/main/rtw88/rtw8812a_fw.bin",
+    "source_ref": "main",
+    "sha256": "abdcca4e8bf76ebfba23d433de310ffefebd0ff9d01990639d4cd9602b32b71a",
+    "bytes": 27030,
+    "version": "52.14",
+    "license": "LICENCE.rtlwifi_firmware.txt",
+    "representation": "unmodified binary bytes in RTL8812AUFirmware.inc"
+  },
+  "8821": {
+    "source": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/main/rtw88/rtw8821a_fw.bin",
+    "source_ref": "main",
+    "sha256": "4693ece655044d96f81bd3f3e8db14dc352b493219c4fd0a75788a6fbd9eac3c",
+    "bytes": 31898,
+    "version": "42.4",
+    "license": "LICENCE.rtlwifi_firmware.txt",
+    "representation": "unmodified binary bytes in RTL8821AUFirmware.inc"
+  }
+}

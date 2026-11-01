@@ -1,0 +1,11 @@
+{
+  "source": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/firmware/linux-firmware/+/refs/tags/20250211/rtlwifi/rtl8723bu_nic.bin?format=TEXT",
+  "source_ref": "refs/tags/20250211",
+  "file": "rtl8723bu_nic.bin",
+  "bytes": 32108,
+  "sha256": "a52b5a7be4841b4b2839eddf5122b3300a3610866abe4bb3c3c9e444c8ab7969",
+  "signature": "0x5301",
+  "version": "35.0",
+  "license": "LICENCE.rtlwifi_firmware.txt",
+  "representation": "unchanged opaque bytes; real NIC firmware for rtl8xxxu8723bu"
+}

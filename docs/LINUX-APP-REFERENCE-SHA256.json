@@ -1,0 +1,54 @@
+{
+  "linux": {
+    "repository": "torvalds/linux",
+    "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+    "files": [
+      {
+        "path": "drivers/net/wireless/realtek/rtl8xxxu/8192e.c",
+        "sha256": "dc0fc229a072f0bd125e0edf171caa7122eb62c5df4ce288e34974aeea674c04",
+        "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtl8xxxu/8192e.c"
+      },
+      {
+        "path": "drivers/net/wireless/realtek/rtl8xxxu/core.c",
+        "sha256": "eab41606f9e0a304012f082ff95979222d3e63780d649ed1d923938b7e97b1b1",
+        "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtl8xxxu/core.c"
+      },
+      {
+        "path": "drivers/net/wireless/realtek/rtl8xxxu/rtl8xxxu.h",
+        "sha256": "1979e54d2b5002a903c794751e31094aa414c32281459d109a1afd65178ef7f4",
+        "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtl8xxxu/rtl8xxxu.h"
+      }
+    ]
+  },
+  "realtek": {
+    "repository": "Mange/rtl8192eu-linux-driver",
+    "commit": "c629cc972a0d878c930d19c4a9309c27c1e61f92",
+    "files": [
+      {
+        "path": "os_dep/linux/usb_intf.c",
+        "sha256": "1a46dee42822e6dee5036bf4523935e63f441f7745d3a1412a53b07ce5207661",
+        "url": "https://github.com/Mange/rtl8192eu-linux-driver/blob/c629cc972a0d878c930d19c4a9309c27c1e61f92/os_dep/linux/usb_intf.c"
+      },
+      {
+        "path": "os_dep/linux/ioctl_cfg80211.c",
+        "sha256": "1d9b92ee3bbbf4a029b668103a856ae269762a2f8304d8347032ce158938e2f4",
+        "url": "https://github.com/Mange/rtl8192eu-linux-driver/blob/c629cc972a0d878c930d19c4a9309c27c1e61f92/os_dep/linux/ioctl_cfg80211.c"
+      },
+      {
+        "path": "hal/rtl8192e/usb/usb_halinit.c",
+        "sha256": "2a9618dbcfd51d69f080475e4b8687b0de4bfa2fc1ebd4663ae0a978020cdafc",
+        "url": "https://github.com/Mange/rtl8192eu-linux-driver/blob/c629cc972a0d878c930d19c4a9309c27c1e61f92/hal/rtl8192e/usb/usb_halinit.c"
+      },
+      {
+        "path": "hal/rtl8192e/usb/rtl8192eu_xmit.c",
+        "sha256": "89f6ff8cc584f4c2e748a9f6b36946d7b429390e0d67a9768682bb3642f8a72e",
+        "url": "https://github.com/Mange/rtl8192eu-linux-driver/blob/c629cc972a0d878c930d19c4a9309c27c1e61f92/hal/rtl8192e/usb/rtl8192eu_xmit.c"
+      },
+      {
+        "path": "hal/rtl8192e/rtl8192e_rxdesc.c",
+        "sha256": "2f59ee1789e21c74ad5f4118b76237e7a162061fcea98eb9b49b6dae02fd6d89",
+        "url": "https://github.com/Mange/rtl8192eu-linux-driver/blob/c629cc972a0d878c930d19c4a9309c27c1e61f92/hal/rtl8192e/rtl8192e_rxdesc.c"
+      }
+    ]
+  }
+}

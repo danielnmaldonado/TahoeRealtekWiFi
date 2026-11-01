@@ -1,0 +1,1 @@
+/* The CCMP implementation does not use the platform media API. */

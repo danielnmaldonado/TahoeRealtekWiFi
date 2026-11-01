@@ -1,0 +1,1158 @@
+{
+  "repository": "torvalds/linux",
+  "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+  "upstream_license": "GPL-2.0 OR BSD-3-Clause",
+  "source_blob_verification": "Each local source blob matches the GitHub directory listing git SHA1.",
+  "files": [
+    {
+      "path": "tx.h",
+      "sha256": "5f0c1dc2c8e9dbcdfece4e34c264bd24731ab6a3ff28011f9ddb09cb695aaa46",
+      "git_blob_sha1": "d34cdeca16f192f007484b1b2d4f44f4dbc10a79",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/tx.h"
+    },
+    {
+      "path": "tx.c",
+      "sha256": "dfc212ab3caf47437ed234dba1b7f7ef0cbd45749d4d34162699446a2a4adf7e",
+      "git_blob_sha1": "8786bbb421c2b9de01f6af6ee6aa5744b141a45b",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/tx.c"
+    },
+    {
+      "path": "usb.c",
+      "sha256": "64d44452d287386bdb0de219c6a53ab288aec7762983df6929e798b2bc610a3b",
+      "git_blob_sha1": "64e1c3420e0a8cf3326042ceb6da6940e4809076",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/usb.c"
+    },
+    {
+      "path": "mac.c",
+      "sha256": "ec8a96ef305231f15af22bc94ad5708e0daf3bfb3ff470ec96757913e2be59f6",
+      "git_blob_sha1": "eaa928bab240c7e991175ee2f5958de05fa83069",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/mac.c"
+    },
+    {
+      "path": "fw.c",
+      "sha256": "0da28129dfcdf3e9b5661523b54ede4632c6c9e5af7008a6f7ce2a1f8b6a19f0",
+      "git_blob_sha1": "945fedcd375b62b4110ab631e87889bb84e2f16b",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/fw.c"
+    },
+    {
+      "path": "fw.h",
+      "sha256": "45a1bf5213eec95cd450a54bc50caa5652c959dd2b644684ec7447b278f6e701",
+      "git_blob_sha1": "48ad9ceab6ea128cfe5ae3e8ea512a89b2e59cde",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/fw.h"
+    },
+    {
+      "path": "reg.h",
+      "sha256": "c8246f9305539347fdb62b0294fe12ea24769cb3ad56c2b0235c4269a0307324",
+      "git_blob_sha1": "08e9494977e06aa08fce2f040294b786d8574ed1",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/reg.h"
+    },
+    {
+      "path": "rtw8821c.c",
+      "sha256": "cdfe1d8670c42dadb6aa12a10137aa83c17c6bc072a1ce2b78fccf42b9ed5658",
+      "git_blob_sha1": "ee689fa3d87f8d5a63140b8a3180155ac43251c5",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8821c.c"
+    },
+    {
+      "path": "rtw8822b.c",
+      "sha256": "fb51b70730020fcc77d482ee061c7fba87f4676ca3fc38f1c6c5c45d39a1e113",
+      "git_blob_sha1": "a56c8befa077b2a8c8a2b3256718ce255ebd1ab7",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8822b.c"
+    },
+    {
+      "path": "rtw8822c.c",
+      "sha256": "a12e2b2ddde31ce8e0242d3e5b29769c364950a72b161fdcbd3905ec145d4a83",
+      "git_blob_sha1": "32d9709f2c2431a2df2f363e548f2c510fe41c34",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8822c.c"
+    },
+    {
+      "path": "rtw8821cu.c",
+      "sha256": "6efeb90288ba95e0642a74b132ebcc391a57396bbdc4194a9eb8b68ac0271f23",
+      "git_blob_sha1": "8cd09d66655db6dad4043995fddedeb2a4d082db",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8821cu.c"
+    },
+    {
+      "path": "rtw8822bu.c",
+      "sha256": "f887ae7ff81dc2d0e76268236bce291be8e48850d841fa4a70d8ae75de082569",
+      "git_blob_sha1": "2769b86ce1b2aa7bdaf1d2c08a80470b03cb7ea0",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8822bu.c"
+    },
+    {
+      "path": "rtw8822cu.c",
+      "sha256": "dcb31e665b5ff0693f36281e6d2d4edcc93ad0e4c8a1db37bafd507eaa1a3e03",
+      "git_blob_sha1": "755f76840b121059eef5dbd4f86b70584dab102f",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8822cu.c"
+    },
+    {
+      "path": "mac.h",
+      "sha256": "006c62b0d7b7a6dee95cc27172c0452bcfa6b05f80a1a91610c4750f42f4c91a",
+      "git_blob_sha1": "b73af90ee1d7f94d5633a12b6405e94972b26d0d",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/mac.h"
+    },
+    {
+      "path": "bf.h",
+      "sha256": "f2a98c7fb254b9c467ab1ccf1d0cf6c438d15c8845d47ca91fa8205d06f69c0a",
+      "git_blob_sha1": "a5d3010e6be6ef776b1c604207f68d6331721feb",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/bf.h"
+    },
+    {
+      "path": "rtw8821c.h",
+      "sha256": "ab4edfefbe88aeff6b5aec6feb7c77db71418bd3e7ac05d37506d3f42c25dc53",
+      "git_blob_sha1": "ea85b7e730505f03cfc3634fc3a06217a91108bd",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8821c.h"
+    },
+    {
+      "path": "rtw8822b.h",
+      "sha256": "3356219290cbce7689fad3834f6a1be5f66603b260681359d8e7a8a334ea3fa3",
+      "git_blob_sha1": "9fca9ba67c90f124dd1da08e65aa962e52234364",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8822b.h"
+    },
+    {
+      "path": "rtw8822c.h",
+      "sha256": "975cb88c627ebabb93729c6b5082a6274a9fe69a11094830db83e95486e93b18",
+      "git_blob_sha1": "fc62b67a15f216496bfb572a55366f900a2d6734",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8822c.h"
+    },
+    {
+      "path": "main.h",
+      "sha256": "6f2eaeb830844efface8a676815e2a0b15f59aa5408387fa85dc91613d351a24",
+      "git_blob_sha1": "c6e981ba798681e2546ca6c8790a56ed57172d62",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/main.h"
+    },
+    {
+      "path": "main.c",
+      "sha256": "cd52ce31a39022269a9cf48a35c2e1b89cc8a25ccb0f2ed1cec8425e910dcfa4",
+      "git_blob_sha1": "cd9254370fcc72c9f7bcca3361a848e22c1f733c",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/main.c"
+    },
+    {
+      "path": "efuse.c",
+      "sha256": "2120e85547a1f622a5248eeeffd96e068d552d326809bc64488b8c84b21daff5",
+      "git_blob_sha1": "b85075cd68d0a433563be736b5c3f7f26ee5f958",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/efuse.c"
+    },
+    {
+      "path": "util.c",
+      "sha256": "f5b17292be0028da0b5296caa4bb062f879a8b92161ccc299e092bb64d39a8a8",
+      "git_blob_sha1": "fcd6eb1ab32a73b9a8fcfe5731695dff1671608f",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/util.c"
+    },
+    {
+      "path": "phy.c",
+      "sha256": "669d76c8acfc9f30418dbd119e777eae4404f6e3bb1198292aab536a3aa9e4ec",
+      "git_blob_sha1": "e2ac5c6fd5002996534e061b6f45dfdd65728525",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/phy.c"
+    },
+    {
+      "path": "phy.h",
+      "sha256": "55388bdbec3b743553776282b918d2f6ffe06d4ac1d8849cf0ea0e22f19867e4",
+      "git_blob_sha1": "8449936497bb1912d21de54ce33d1452191078bc",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/phy.h"
+    },
+    {
+      "path": "rtw8821c_table.c",
+      "sha256": "ebc2547ddd66b7df434e0ef91319eddf5565c452863c4a0fd64660839d3e9a0c",
+      "git_blob_sha1": "0393b9a0c1a3123b9dd473e20172f14f19f58350",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8821c_table.c"
+    },
+    {
+      "path": "rtw8822b_table.c",
+      "sha256": "8e58874cfb30a2bcbfe24af93348a56a35f2968fcbf2fbea2e7b48f733d212a7",
+      "git_blob_sha1": "b9010b111a134f71b0ac35f1dd71fc7a890e5950",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8822b_table.c"
+    },
+    {
+      "path": "rtw8822c_table.c",
+      "sha256": "ec3f4d9eed016932b9100e4e2332c12f67bd0824a3f3b4b05cc515e7916a2247",
+      "git_blob_sha1": "5699846a399baa2f8c1e70b81ac6fd37b41f225d",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rtw8822c_table.c"
+    },
+    {
+      "path": "regd.c",
+      "sha256": "d12704ef1123132bd881d5831f4d996a0e0dab5a81a460ed87baac671ca7fd0d",
+      "git_blob_sha1": "7f3b2ea3f2a560a150087a4d693a0c376c9bdabb",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/regd.c"
+    },
+    {
+      "path": "efuse.h",
+      "sha256": "9a7ca402cd372484c180d8b046da53e2d320e6bbad32243456dd6119b2a71f15",
+      "git_blob_sha1": "97a51f0b0e466a57e29bb28e3000133d77a7ab3b",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/efuse.h"
+    },
+    {
+      "path": "rx.c",
+      "sha256": "d7a64bb9257c3094c0aa355a79bcf86d4bc3f328062c680f912c67c8cb5116cc",
+      "git_blob_sha1": "01fd299abb7fe9966bd7345dc4ea827536c42248",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rx.c"
+    },
+    {
+      "path": "rx.h",
+      "sha256": "def008a6081b860a8d1a5e17d7fb72ce6d19a528320cedef7c3184676791afa4",
+      "git_blob_sha1": "74359f641c766fcd8b9d7a2cb92ef0207aec7430",
+      "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/rx.h"
+    }
+  ],
+  "external_firmware_fixtures": [
+    {
+      "name": "rtw8822c_fw.bin",
+      "size": 202600,
+      "sha256": "3deecb31210986d98cdbfb000391e08d602a6eee4ffc883969faa2b907ab03ba",
+      "url": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/main/rtw88/rtw8822c_fw.bin",
+      "usage": "External header-validation fixture only; firmware is not redistributed here or automatically loaded."
+    },
+    {
+      "name": "rtw8821c_fw.bin",
+      "size": 139472,
+      "sha256": "2ef409bc418549fcf294061dd0cae1fc22fd9da79b60524950b25de18732f3f0",
+      "url": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/main/rtw88/rtw8821c_fw.bin",
+      "usage": "External header-validation fixture only; firmware is not redistributed here or automatically loaded."
+    },
+    {
+      "name": "rtw8822b_fw.bin",
+      "size": 161240,
+      "sha256": "a72da690597bfa99d8eb6fc2ab090d18d8ad92ac2befd35db1c9e3662d8d8418",
+      "url": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/main/rtw88/rtw8822b_fw.bin",
+      "usage": "External header-validation fixture only; firmware is not redistributed here or automatically loaded."
+    }
+  ],
+  "scope": "B/C USB TX/control wire encoding,typed USB board identity/power/OTP,3081 firmware boot,MAC/FIFO setup and conditional PHY boot tables. No automatic station enablement or full PHY/RFK-complete claim.",
+  "generated_chip_mac_tables": {
+    "generator": "scripts/generate-rtw88-mac.py",
+    "sha256": "097bdfa5fac00318b32b80f005ef57f4e2239be10252f4d80b370bd5a6fd819c",
+    "functions": {
+      "rtw8821c_mac_init": 37,
+      "rtw8822b_mac_init": 33,
+      "rtw8822c_mac_init": 75
+    }
+  },
+  "generated_power_tables": {
+    "generator": "scripts/generate-rtw88-power.py",
+    "sha256": "b4a3d374d6008b422c75d4975c6624d396b5ab9573588f223982202d4288701a",
+    "usb_on_operations": {
+      "8821c": 15,
+      "8822b": 23,
+      "8822c": 20
+    },
+    "usb_off_operations": {
+      "8821c": 16,
+      "8822b": 18,
+      "8822c": 17
+    }
+  },
+  "generated_phy_tables": {
+    "generator": "scripts/generate-rtw88-phy.py",
+    "sha256": "b13c88dbd09e1e015669fd941f446bf9549e3fd15099df6158f2e34235e7d4a5",
+    "word_counts": {
+      "8821c": 12240,
+      "8822b": 42618,
+      "8822c": 92430
+    },
+    "reference_trace_fixture_sha256": "1814b6a349d0870a775760ae92b11e34e11f53b2d89b4b1a0a49534e0d37014b",
+    "reference_trace_count": 84
+  },
+  "generated_operating_phy": {
+    "generator": "scripts/generate-rtw88-operating.py",
+    "functions": {
+      "__cfg_txpwr_lmt_by_alt": {
+        "source": "phy.c",
+        "sha256": "5b20cd5aca3a632262910dec90146378491b294fc205690ede747bee9927fb5f"
+      },
+      "__rtw8822c_dac_cal_restore": {
+        "source": "rtw8822c.c",
+        "sha256": "71bdc36fd632faeb607077cd173be971d5829ebe409a8338ec6e3209f3911fd7"
+      },
+      "__rtw8822c_dac_iq_sort": {
+        "source": "rtw8822c.c",
+        "sha256": "f18e450dcaa2b726f3cf527427a1992d6e4779a52bbfb70a1dba612f6f7cba9b"
+      },
+      "__rtw8822c_pwr_track": {
+        "source": "rtw8822c.c",
+        "sha256": "753c09a0e0fa6705407748b2dfb4eb2902e1b8b6be3772cb9047ca51c342a097"
+      },
+      "__rtw_phy_tx_power_limit_config": {
+        "source": "phy.c",
+        "sha256": "dd77294eb2c33aabfcf30984b4d7b58a43e67887586cb5630ddcc7f48034c926"
+      },
+      "_rtw8822c_txgapk_gain_valid": {
+        "source": "rtw8822c.c",
+        "sha256": "ab573f240b644d6fd407d3885f02c16340a182d06cd8cfe1762cf93426155f13"
+      },
+      "_rtw8822c_txgapk_write_gain_bb_table": {
+        "source": "rtw8822c.c",
+        "sha256": "7bfa5cfec1d7d863784b0c7eb82c496bbab685a50ee4c08962f8b78de6e5a0ea"
+      },
+      "check_rf_status": {
+        "source": "rtw8822c.c",
+        "sha256": "140f19b7969e6132d3f90ee74c3a9ddbe09dac2eb0ecbf60c377ccb9fe9c31aa"
+      },
+      "rtw8821c_cck_tx_filter_srrc": {
+        "source": "rtw8821c.c",
+        "sha256": "5ed59270a7f0566a7b0401c4a9c9ce13ffa28f3db2f603a0b568637fd4bf175d"
+      },
+      "rtw8821c_do_iqk": {
+        "source": "rtw8821c.c",
+        "sha256": "5169e48e7fcdeb9940d7aa32a00ce50a65ac8ee96732eb83505aecd0a5e01dc2"
+      },
+      "rtw8821c_get_bb_swing": {
+        "source": "rtw8821c.c",
+        "sha256": "9f15b11bd02207d4d73a9df2f8ec2d50f1c83edebd03432718501e13872ac895"
+      },
+      "rtw8821c_get_swing_index": {
+        "source": "rtw8821c.c",
+        "sha256": "4634f596321d100e84c1564d3b214e707fc17228ed090688b8277b50ab08918c"
+      },
+      "rtw8821c_phy_calibration": {
+        "source": "rtw8821c.c",
+        "sha256": "b12ef40456a928c164cc529d6695bed9c9765ff5309d9a1414998d28f9096601"
+      },
+      "rtw8821c_phy_pwrtrack": {
+        "source": "rtw8821c.c",
+        "sha256": "1b09c9433c8ad742023a1e5711a7275e35aa37b810ecedd49a8a0ec056813417"
+      },
+      "rtw8821c_pwr_track": {
+        "source": "rtw8821c.c",
+        "sha256": "98289704c776580a7cbe6a042bcfc233064f6494914103a038e66de571d05de5"
+      },
+      "rtw8821c_pwrtrack_init": {
+        "source": "rtw8821c.c",
+        "sha256": "f3f626fb59cfa39136e19470a63ebd0ed25c48c705198bca7a8cc608e26eecdf"
+      },
+      "rtw8821c_pwrtrack_set": {
+        "source": "rtw8821c.c",
+        "sha256": "0102eaf89655b14fd0b8e6e87f5107509cc7894f5834937028b3f9a000cea55a"
+      },
+      "rtw8821c_pwrtrack_set_pwr": {
+        "source": "rtw8821c.c",
+        "sha256": "ad9eeaa47f3ca5442bd4de17aa93a2e4f9610d631438ef6fd798c165679ac56f"
+      },
+      "rtw8821c_set_channel": {
+        "source": "rtw8821c.c",
+        "sha256": "d81a4f5f7d1d5c62b0334c71b128c03c48ebcab879a7e92aa877cf02ab67b0bd"
+      },
+      "rtw8821c_set_channel_bb": {
+        "source": "rtw8821c.c",
+        "sha256": "6a2edf3bbaeb9cee2be5c1a442fa2ac99b7c011b57489881254172f7c5cf6d3b"
+      },
+      "rtw8821c_set_channel_bb_swing": {
+        "source": "rtw8821c.c",
+        "sha256": "cdfe126555d6bb7c60195bb40440acfccf7253bf400d2c8652a03c726d343a25"
+      },
+      "rtw8821c_set_channel_rf": {
+        "source": "rtw8821c.c",
+        "sha256": "30ae635ef9ba653ce23770e5d6de34853de44cb5af270a734dc02159c8580177"
+      },
+      "rtw8821c_set_channel_rxdfir": {
+        "source": "rtw8821c.c",
+        "sha256": "2e372a7e066d03b777a18cef1c557530bac38e7f5a3e69bbd450750228354e75"
+      },
+      "rtw8821c_set_tx_power_index": {
+        "source": "rtw8821c.c",
+        "sha256": "70b0913010166f423be521529a52914707a4ba6e24f100a88acf5f8d810ff976"
+      },
+      "rtw8821c_set_tx_power_index_by_rate": {
+        "source": "rtw8821c.c",
+        "sha256": "7e1f2085622cb889b1b095b3efe345c24ad605de55269cbb473c039e65accbd0"
+      },
+      "rtw8821c_switch_rf_set": {
+        "source": "rtw8821c.c",
+        "sha256": "0a102db1c04ca0e8ac0a344bc25c7493e753c51ada3dd4e605fdbbf767406672"
+      },
+      "rtw8821c_txagc_swing_offset": {
+        "source": "rtw8821c.c",
+        "sha256": "492482fd14a0e206e2ea3c632eed9afa122b5d45f144d2b7c4595cd4725638c8"
+      },
+      "rtw8822b_config_trx_mode": {
+        "source": "rtw8822b.c",
+        "sha256": "2d022dda31cba632809798c771a863fcd2412a0c126cae7bf439b531aacea613"
+      },
+      "rtw8822b_do_iqk": {
+        "source": "rtw8822b.c",
+        "sha256": "f8fa0063f2036b88db728b0ada55ec48e976c186075f0e79fc741c0d66f372ab"
+      },
+      "rtw8822b_get_cca_val": {
+        "source": "rtw8822b.c",
+        "sha256": "5b640725e33d174dff132dcf7bb77633c524c357da41d5aedcb4f8fb53f61614"
+      },
+      "rtw8822b_get_swing_index": {
+        "source": "rtw8822b.c",
+        "sha256": "a0930d2b5e59436ab4b2a16a575cda952dc101d90193eabfd3616606bcc24e73"
+      },
+      "rtw8822b_phy_calibration": {
+        "source": "rtw8822b.c",
+        "sha256": "82bdc0b1ee7104ccd8ee242185e36a4384ff24bdf73097e009d9f71c41cd3cdf"
+      },
+      "rtw8822b_phy_pwrtrack": {
+        "source": "rtw8822b.c",
+        "sha256": "9e008ffbc951cbec12b4ea0285523d1da8bc0cc93756b7f7df011f9c5c002b21"
+      },
+      "rtw8822b_phy_pwrtrack_path": {
+        "source": "rtw8822b.c",
+        "sha256": "37f491df31a5d26f007a65dcbc4857316bd4a3d41af069fbc018a6a0b2ebedc4"
+      },
+      "rtw8822b_phy_rfe_init": {
+        "source": "rtw8822b.c",
+        "sha256": "7f331d328ed6a71b017101d5a69f60845678ea6efef6514b82a58911e3e4e0d1"
+      },
+      "rtw8822b_pwr_track": {
+        "source": "rtw8822b.c",
+        "sha256": "ce00ce5d69cc08eaad910ae40058cc02653a326a4c3588dbeec01ff1d8277f63"
+      },
+      "rtw8822b_pwrtrack_init": {
+        "source": "rtw8822b.c",
+        "sha256": "336882b9e33ae804c9e47707b3ecccee6b27331454d3b27b305d4b84bf7ce26d"
+      },
+      "rtw8822b_pwrtrack_set": {
+        "source": "rtw8822b.c",
+        "sha256": "1110aeee4c31d76204dc38e49e9f5a46c51356f77350c6ecdf451ced75608150"
+      },
+      "rtw8822b_pwrtrack_set_pwr": {
+        "source": "rtw8822b.c",
+        "sha256": "0b7a8477a97e9d6a85ec7bd9a0933baceb5eef07169290258a8dd3ace2ada2eb"
+      },
+      "rtw8822b_set_channel": {
+        "source": "rtw8822b.c",
+        "sha256": "538ecd04efa06da67eea4856c64023fb0e988fe1299d392cbf8a779619d7f839"
+      },
+      "rtw8822b_set_channel_bb": {
+        "source": "rtw8822b.c",
+        "sha256": "d4cb53ba808c403d93c77d5e570b4a9d609697bda2b7f07b417feecb33b7bee6"
+      },
+      "rtw8822b_set_channel_cca": {
+        "source": "rtw8822b.c",
+        "sha256": "9e44ecac2bd4bbcb14b0bb25c60bc87aacf017fb1af295e749f6b2f8fa87fb55"
+      },
+      "rtw8822b_set_channel_rf": {
+        "source": "rtw8822b.c",
+        "sha256": "916c3b603935cdcbb444f00bff9100c062f2c901d3fc10a4ca1c95fad9357481"
+      },
+      "rtw8822b_set_channel_rfe_efem": {
+        "source": "rtw8822b.c",
+        "sha256": "03ac6b5ea5ec95258b190a2a7e387fcb79f7c29de91a9c2c2cb816f96331fd1b"
+      },
+      "rtw8822b_set_channel_rfe_ifem": {
+        "source": "rtw8822b.c",
+        "sha256": "5bf28549d2587339f45e71cb9449fd3b4343ca99967d4d768d25c283f50e6d3a"
+      },
+      "rtw8822b_set_channel_rxdfir": {
+        "source": "rtw8822b.c",
+        "sha256": "760740bb0d88fdc9d57fd5e5ef19e090b10f0f8b1bdb7521ac44c2992b303d61"
+      },
+      "rtw8822b_set_tx_power_index": {
+        "source": "rtw8822b.c",
+        "sha256": "115d67cc5236e5807456b786a82c92eda705b14e0307142416d4dcacf33a3014"
+      },
+      "rtw8822b_set_tx_power_index_by_rate": {
+        "source": "rtw8822b.c",
+        "sha256": "64a45eed365642c1e28b5ef152d60094ed10e32b1609f171ac3bdd4e0c883489"
+      },
+      "rtw8822b_toggle_igi": {
+        "source": "rtw8822b.c",
+        "sha256": "9a3bb07fec43ce5d49a67e90c72b55c28e832a33201924cf3ff2fa53bed0a885"
+      },
+      "rtw8822b_txagc_swing_offset": {
+        "source": "rtw8822b.c",
+        "sha256": "877f46e8548c3905e065093b8d9418d70898b97c7c5e4d6eb664a31e0a5f3eb2"
+      },
+      "rtw8822c_bb_reset": {
+        "source": "rtw8822c.c",
+        "sha256": "8c5b43fcc3bbe94964bf109fc22eb2f33ee0ea107090862b1b63745e0e2c2755"
+      },
+      "rtw8822c_config_cck_rx_path": {
+        "source": "rtw8822c.c",
+        "sha256": "d58bec8ad5c150a3ea7e088cc73da91fb2e68a0299587e9cdea80ecd9ad04e59"
+      },
+      "rtw8822c_config_cck_tx_path": {
+        "source": "rtw8822c.c",
+        "sha256": "bac31929cca8e62d3a4526420fde31fe23e2238e474d87829aa2ab6ca66a48af"
+      },
+      "rtw8822c_config_ofdm_rx_path": {
+        "source": "rtw8822c.c",
+        "sha256": "a720c8ce13a30189bd277be5e7994e9ba0668f803b0301f2ff6ba8fa11a88b3c"
+      },
+      "rtw8822c_config_ofdm_tx_path": {
+        "source": "rtw8822c.c",
+        "sha256": "6cc313d8f8c5dbd4d1d40c81cd113068950b8c87a04d5ad59561be77055699c6"
+      },
+      "rtw8822c_config_rx_path": {
+        "source": "rtw8822c.c",
+        "sha256": "d00990902868c8e7c26527490b71b122190810934ee01ffd228c304214759d0c"
+      },
+      "rtw8822c_config_trx_mode": {
+        "source": "rtw8822c.c",
+        "sha256": "0e7b1191fb6bb5ee4f47c853e7de4f941f6c50c18a63e76f8bf43ce375e5fb03"
+      },
+      "rtw8822c_config_tx_path": {
+        "source": "rtw8822c.c",
+        "sha256": "acf9de51d1ff317e008979d63dde80764d10fc1aad16b21768ab206aafd6c518"
+      },
+      "rtw8822c_dac_backup_reg": {
+        "source": "rtw8822c.c",
+        "sha256": "954f53e4d380bd7084183f63e13b591bd538d0764b8b43c274141ce5360835d9"
+      },
+      "rtw8822c_dac_bb_setting": {
+        "source": "rtw8822c.c",
+        "sha256": "4524f3dc8bcba7d313bceda9465e36d83c629d366c78d7c666f01279ef69c019"
+      },
+      "rtw8822c_dac_cal_adc": {
+        "source": "rtw8822c.c",
+        "sha256": "80d91cfd48b898dc3764eec90e00a43685a80a0e62cc209ce7f8460625759a1e"
+      },
+      "rtw8822c_dac_cal_backup": {
+        "source": "rtw8822c.c",
+        "sha256": "c804ecaca2db8fffbfd755b0120d2ea910e9939382473633750cf704ce3e1fdb"
+      },
+      "rtw8822c_dac_cal_backup_dck": {
+        "source": "rtw8822c.c",
+        "sha256": "912a8f527bd9cbe3dd03a6dda4e9ebb482bc2cd60418a7718edaa25333a79f0f"
+      },
+      "rtw8822c_dac_cal_backup_path": {
+        "source": "rtw8822c.c",
+        "sha256": "5cd778b405be0d5f424fca2a20485e5284f8a74493a36011ab2b050104c22a1e"
+      },
+      "rtw8822c_dac_cal_backup_vec": {
+        "source": "rtw8822c.c",
+        "sha256": "cba89247553684aa030e5d7e144e317cf3de5ef1817b486258c1e49572df8c88"
+      },
+      "rtw8822c_dac_cal_iq_sample": {
+        "source": "rtw8822c.c",
+        "sha256": "6c94448e5b6e0469b664857cc908ea412c35436bbb06cf90e6c1c181b164c991"
+      },
+      "rtw8822c_dac_cal_iq_search": {
+        "source": "rtw8822c.c",
+        "sha256": "d7f7c55e658d2b58dcff20e0f063485a2d4750e80825010f7d8049427a8b3317"
+      },
+      "rtw8822c_dac_cal_restore": {
+        "source": "rtw8822c.c",
+        "sha256": "58758c0c41c4d64adb7bbeb272166f2b3c2137b929c8f56067202b8fecdc9aaf"
+      },
+      "rtw8822c_dac_cal_restore_dck": {
+        "source": "rtw8822c.c",
+        "sha256": "3777b6366b0a46630e877087a868ad5f08997193ed1c5332ce69809151b412fa"
+      },
+      "rtw8822c_dac_cal_restore_path": {
+        "source": "rtw8822c.c",
+        "sha256": "6a0733d507daa4854f02f8df3de20dc1541dc93477385d2730bb876feafb95d8"
+      },
+      "rtw8822c_dac_cal_restore_prepare": {
+        "source": "rtw8822c.c",
+        "sha256": "03ebd7eed4848d68c9bc98a735d15a204a69933bb2ca61f7a78e6ae1c6dea442"
+      },
+      "rtw8822c_dac_cal_restore_wait": {
+        "source": "rtw8822c.c",
+        "sha256": "7e2bae3010ea71de643a9558f55df9599dde6cceaf3bf445d5b49278f02d73f8"
+      },
+      "rtw8822c_dac_cal_rf_mode": {
+        "source": "rtw8822c.c",
+        "sha256": "c4dbfcedaeaf962cb42be8351d0906463b7891c0ebe7586cb5f039d29fb4aa5c"
+      },
+      "rtw8822c_dac_cal_step1": {
+        "source": "rtw8822c.c",
+        "sha256": "6b4b8098c16b4caeec5813f1dcb2f19254dfed7c3de54f131aea1f82cce2c865"
+      },
+      "rtw8822c_dac_cal_step2": {
+        "source": "rtw8822c.c",
+        "sha256": "a0d76525aaeb857a3b759d7b9051ae98adb0cc8573c967944f74800f510f4421"
+      },
+      "rtw8822c_dac_cal_step3": {
+        "source": "rtw8822c.c",
+        "sha256": "8a6cd1c5c783298280679379b674b6e7aa8044bcd7d507610f14b8a929c9b479"
+      },
+      "rtw8822c_dac_cal_step4": {
+        "source": "rtw8822c.c",
+        "sha256": "9859a7dd0650b34b4719eab29cebeb7163f17bf1f36018607d7891dd940318b0"
+      },
+      "rtw8822c_dac_iq_check": {
+        "source": "rtw8822c.c",
+        "sha256": "7dd19fa664ef104f7f14ce297950c759c68db8a97fa7f570117c273fd59dcf90"
+      },
+      "rtw8822c_dac_iq_offset": {
+        "source": "rtw8822c.c",
+        "sha256": "f3aec75f9243c8b474e8c691569703f1acd22698ba591da1e2c9b995f54ddf71"
+      },
+      "rtw8822c_dac_iq_sort": {
+        "source": "rtw8822c.c",
+        "sha256": "ba5912e09e7590aa5e7148378803a9ec642fd54ef00fee4b9f4d69917441fc71"
+      },
+      "rtw8822c_dac_restore_reg": {
+        "source": "rtw8822c.c",
+        "sha256": "ec67bc11dab645b797909c065f5f5d2642a31c28626af8f6c4d9232bb5dd79af"
+      },
+      "rtw8822c_do_dpk": {
+        "source": "rtw8822c.c",
+        "sha256": "0cc6f02e49a311e16080fab48e460dcefa714228b2b650b9a1626409e862cb52"
+      },
+      "rtw8822c_do_gapk": {
+        "source": "rtw8822c.c",
+        "sha256": "33b4c635756ed08357e72d54c9764d575db8433ff775b5759d839e2ae99b04d0"
+      },
+      "rtw8822c_do_iqk": {
+        "source": "rtw8822c.c",
+        "sha256": "6d4a9d1b2028dd85ddc07c5fbf64c08065d6fb676345216c0ef458fb614d6559"
+      },
+      "rtw8822c_do_lck": {
+        "source": "rtw8822c.c",
+        "sha256": "7187b831b3c4806db008fce405ebc696f538f9396e937a9976ea97bc11d6b532"
+      },
+      "rtw8822c_dpk_afe_setting": {
+        "source": "rtw8822c.c",
+        "sha256": "374b711070a66f27d713b925291f2e4a914012cc9642636b72bfe523a0706122"
+      },
+      "rtw8822c_dpk_agc_gain_chk": {
+        "source": "rtw8822c.c",
+        "sha256": "3033db76db552548e0d1be025beb9d72808a3ebbcb9cec575d32f283ac9bcf10"
+      },
+      "rtw8822c_dpk_agc_loss_chk": {
+        "source": "rtw8822c.c",
+        "sha256": "f154e510fbcab41cacc4729975950cf0a093f6abb0dbd80cf43efc4a951496f0"
+      },
+      "rtw8822c_dpk_backup_registers": {
+        "source": "rtw8822c.c",
+        "sha256": "6439f0240402db5accffd2656dc885f875290b67816e9a70e26c2509ebff7ea2"
+      },
+      "rtw8822c_dpk_backup_rf_registers": {
+        "source": "rtw8822c.c",
+        "sha256": "ebca037a1c6505020f6638b9ef4db6770fb2eebfebce42d38ec2301290e90f1f"
+      },
+      "rtw8822c_dpk_by_path": {
+        "source": "rtw8822c.c",
+        "sha256": "5d1a6727e6426c3c4270532b094757d25d9125077abd183b9f7f2059cdaf8622"
+      },
+      "rtw8822c_dpk_cal_coef1": {
+        "source": "rtw8822c.c",
+        "sha256": "7df2c386f5169928213b7fe741975ee94fe906c32703072e4b276afde74ee319"
+      },
+      "rtw8822c_dpk_cal_gs": {
+        "source": "rtw8822c.c",
+        "sha256": "7ae00bda9c2f4c37c66cab0dd39db3cace3acfd649e2a4feb58489b68d00c497"
+      },
+      "rtw8822c_dpk_calibrate": {
+        "source": "rtw8822c.c",
+        "sha256": "8cb0d99c4da31ddcff9f031ec2dde804be81c9647b65966f8d893d23cf2315b4"
+      },
+      "rtw8822c_dpk_check_pass": {
+        "source": "rtw8822c.c",
+        "sha256": "852f8720ea46ab2abd77baae9e667cbace54220faf0b9964d01b3b06dde3ede8"
+      },
+      "rtw8822c_dpk_coef_iq_check": {
+        "source": "rtw8822c.c",
+        "sha256": "5a9b09216ba5b45418adbc063a240856cfe6254f45c585d03ddddf3521b8ab84"
+      },
+      "rtw8822c_dpk_coef_read": {
+        "source": "rtw8822c.c",
+        "sha256": "eb562faa754a3eeded91d8fd2162e7020c7cf6f8b36f86468b14f21a5ffb20af"
+      },
+      "rtw8822c_dpk_coef_tbl_apply": {
+        "source": "rtw8822c.c",
+        "sha256": "a31b94ee72a0c6f7b5e4f59c23037dbd57b8e11388c74095e1032a87d3cf2fb8"
+      },
+      "rtw8822c_dpk_coef_transfer": {
+        "source": "rtw8822c.c",
+        "sha256": "8134d66346c372aecd43c1e5c794f139ae6800e7177b289bb12e55eb37fe0e80"
+      },
+      "rtw8822c_dpk_coef_write": {
+        "source": "rtw8822c.c",
+        "sha256": "1d44ccf26f39504af9c845c6442e1b8bc548d388bf88fd8f285bda3711ea4b7d"
+      },
+      "rtw8822c_dpk_dc_corr_check": {
+        "source": "rtw8822c.c",
+        "sha256": "8da2afebe33a06146ce415382a5b12fe705e35a9ad2d63809f388690bf51c2f9"
+      },
+      "rtw8822c_dpk_dgain_read": {
+        "source": "rtw8822c.c",
+        "sha256": "e97f65d84b566a301f9755d21b2de067b004c16ea82b665b36e2de6f49da1491"
+      },
+      "rtw8822c_dpk_enable_disable": {
+        "source": "rtw8822c.c",
+        "sha256": "2c71e5397f56bf89de731ebc987e1b13db45014a18bf8f8a266cb8b8e8e81560"
+      },
+      "rtw8822c_dpk_fill_result": {
+        "source": "rtw8822c.c",
+        "sha256": "3f83647a57d940ba039b4907c7d01ff5dddc311338224292b5ffd7ab60aa1e53"
+      },
+      "rtw8822c_dpk_gainloss": {
+        "source": "rtw8822c.c",
+        "sha256": "95ea566aebd3621f6edf5fad0e997dbcd06262fc89fb26724f2a6469f5f945cb"
+      },
+      "rtw8822c_dpk_gainloss_result": {
+        "source": "rtw8822c.c",
+        "sha256": "d10df2d344c4c5a56d724adcc55e6991eee25cfe5901213bdb581d9140cd857a"
+      },
+      "rtw8822c_dpk_get_cmd": {
+        "source": "rtw8822c.c",
+        "sha256": "2fc952a00df15ad181ba8274818d48b8dcabe01b4092f9a1ac282ca7efb286fe"
+      },
+      "rtw8822c_dpk_get_coef": {
+        "source": "rtw8822c.c",
+        "sha256": "13a1a6558e61c57dadbfcc3bcf1576d5714c1ce44a24333d8b83218a47884adb"
+      },
+      "rtw8822c_dpk_information": {
+        "source": "rtw8822c.c",
+        "sha256": "8af48d6d094f95e3e8c5df2144cfa3581bd10aa8e041b9eecf66fa57eee8220c"
+      },
+      "rtw8822c_dpk_mac_bb_setting": {
+        "source": "rtw8822c.c",
+        "sha256": "22a98cb0a684c698cf667403b6aea36d95abd1329a432102d2dcb31112ea13a2"
+      },
+      "rtw8822c_dpk_on": {
+        "source": "rtw8822c.c",
+        "sha256": "8d18a3ec2a9d066dd417d4dd8910fc9a6e4966211d8d6a2ba87ee558b1b8667d"
+      },
+      "rtw8822c_dpk_one_shot": {
+        "source": "rtw8822c.c",
+        "sha256": "5630852fb27c97f5202f8a30fa74fd2039eca7cacd35d187ba3ddb0513f068c4"
+      },
+      "rtw8822c_dpk_pas_agc": {
+        "source": "rtw8822c.c",
+        "sha256": "9752cb96942e706330a7f46639b10d854b09bcbd7409869c41a5c802b9638ff3"
+      },
+      "rtw8822c_dpk_pas_read": {
+        "source": "rtw8822c.c",
+        "sha256": "e0e56226f4db1a7d0c1a1826dbfe7d19fc0f83b376bc0639a4843ab0b96bb64f"
+      },
+      "rtw8822c_dpk_path_select": {
+        "source": "rtw8822c.c",
+        "sha256": "31b6aad33c21979ec535b99debb00e52bf69dd8a8f541131b2df904b09cbd643"
+      },
+      "rtw8822c_dpk_pre_setting": {
+        "source": "rtw8822c.c",
+        "sha256": "3709c6e923ae04001b12e5bf97009154c7a47d04fcdfd80e2a48fd9cd010a4ee"
+      },
+      "rtw8822c_dpk_reload": {
+        "source": "rtw8822c.c",
+        "sha256": "5e08c4438ea0055b31fcfa2440eff2eb65c2196c03c585a6e806b605c1a04469"
+      },
+      "rtw8822c_dpk_reload_data": {
+        "source": "rtw8822c.c",
+        "sha256": "139278a07a78a9b3775e3e28d0675d609a1e0810d9d904fe5e957824531ce22f"
+      },
+      "rtw8822c_dpk_reload_rf_registers": {
+        "source": "rtw8822c.c",
+        "sha256": "39ecfc727295c6794efc5dd4524c31bfc965ae926d8a3a54001b2d0fca04abf8"
+      },
+      "rtw8822c_dpk_restore_registers": {
+        "source": "rtw8822c.c",
+        "sha256": "57bf4aacaae7b4d95f808ceab1c96d93fbe06e797fdf2ca9594c7582f48714d5"
+      },
+      "rtw8822c_dpk_result_reset": {
+        "source": "rtw8822c.c",
+        "sha256": "77d9ef28d1fa5384b5f3139dad555b4f4f3cd028a8b421ea4ae9b66635864a88"
+      },
+      "rtw8822c_dpk_rf_setting": {
+        "source": "rtw8822c.c",
+        "sha256": "2e6fb7dd7848be67ab07f5b64be30901122e31defc74da5a6b9768d55f304426"
+      },
+      "rtw8822c_dpk_rxbb_dc_cal": {
+        "source": "rtw8822c.c",
+        "sha256": "5398c0d5030430718b164610c10d2d3a5d3e94e6a25e3235d040eef1d4d3cd93"
+      },
+      "rtw8822c_dpk_set_gnt_wl": {
+        "source": "rtw8822c.c",
+        "sha256": "ff9d911db8fe3ceaa9576ed0084d7ba6f3e396fea6b07aa2d2e072836fc02f38"
+      },
+      "rtw8822c_dpk_thermal_read": {
+        "source": "rtw8822c.c",
+        "sha256": "7073c7a367e74c6d391675afe7ff49e91c0e21aca30f3c515e3de6c2a6ca42f9"
+      },
+      "rtw8822c_dpk_track": {
+        "source": "rtw8822c.c",
+        "sha256": "30243f2a38b7c29ac4d38d1d79e2a093b46ed9a5ef9c94876828d0607bdb6d20"
+      },
+      "rtw8822c_dpk_tx_pause": {
+        "source": "rtw8822c.c",
+        "sha256": "557b9b23c8c004fb15e02e5bd73e923dde726e716840a063f0d361ce9b1eafcc"
+      },
+      "rtw8822c_gain_check_state": {
+        "source": "rtw8822c.c",
+        "sha256": "bee9a891c9cc8d6f069a89cc3360474e195e7c1c5b99f4018735664700ae340a"
+      },
+      "rtw8822c_gain_large_state": {
+        "source": "rtw8822c.c",
+        "sha256": "a404e575a90dadfe073ebee3d836d1e15300061fdd9db113d98a82484e46d88c"
+      },
+      "rtw8822c_gain_less_state": {
+        "source": "rtw8822c.c",
+        "sha256": "87d14d3470400e52c9e5e150d3b42793808d3107d32617b781921cf15c0698fd"
+      },
+      "rtw8822c_get_path_read_addr": {
+        "source": "rtw8822c.c",
+        "sha256": "e3e0d27529dd7617a39f02101b8071c48c218ebfc9d237f207b5f87890cd7b31"
+      },
+      "rtw8822c_get_path_write_addr": {
+        "source": "rtw8822c.c",
+        "sha256": "9f2f8975cf14e2769901fbe63369d7c073677cc7af15ec079afa668c1a1bf2e5"
+      },
+      "rtw8822c_gl_large_state": {
+        "source": "rtw8822c.c",
+        "sha256": "b21596faad7f10dc8b5308deb6b3974ced174d88e2e6ef0f8deaaa69f8d2074b"
+      },
+      "rtw8822c_gl_less_state": {
+        "source": "rtw8822c.c",
+        "sha256": "8a64fd07f77fa90b5433587d75281be5a3c71e9e112355f435eebbf0faf8ba26"
+      },
+      "rtw8822c_gl_state": {
+        "source": "rtw8822c.c",
+        "sha256": "0aa174e8dda218253f3f24976e53fa2f8ed9d7d3807d24b4b72b4649db6fc767"
+      },
+      "rtw8822c_loss_check_state": {
+        "source": "rtw8822c.c",
+        "sha256": "ca6acb04e81806566287038b9a9e782a8699c360a6b6853af715c588623a8f43"
+      },
+      "rtw8822c_pa_bias": {
+        "source": "rtw8822c.c",
+        "sha256": "24f041e9f1b669bd5a6656da254956f099d920355e2988486db7a4c4ccde2bc8"
+      },
+      "rtw8822c_parse_tbl_dpk": {
+        "source": "rtw8822c.c",
+        "sha256": "a208bc2375d21865825ea63f9ae3f8c54b5a3f4d4d0218c127f563cb46571dae"
+      },
+      "rtw8822c_phy_calibration": {
+        "source": "rtw8822c.c",
+        "sha256": "a83d85b9a18c583d660a3e40f29245c275dc225a530162f000c31e2ed558d5d6"
+      },
+      "rtw8822c_power_trim": {
+        "source": "rtw8822c.c",
+        "sha256": "e3ac12b332af886099cfeee25a08728ee2cec21ea761a662909014ba1d969d50"
+      },
+      "rtw8822c_psd_log2base": {
+        "source": "rtw8822c.c",
+        "sha256": "2c2c9af732c3675b7f01701eeea972eee3a9a220ff61c389ae45849d3d5e9c53"
+      },
+      "rtw8822c_pwr_track": {
+        "source": "rtw8822c.c",
+        "sha256": "d81d91220ea95a1e6f749bbc4ef826466948e9897be2feb3b254d9e0e417652d"
+      },
+      "rtw8822c_pwr_track_path": {
+        "source": "rtw8822c.c",
+        "sha256": "0cc1fefd227284d7ffcc14bbd04b8cd231be5833a3647650b060bf234a006fa3"
+      },
+      "rtw8822c_pwr_track_stats": {
+        "source": "rtw8822c.c",
+        "sha256": "6e68f2ecd7294e7f4b4a11b14dfca998a0d92f7e0d2421253a7c1b025e125c08"
+      },
+      "rtw8822c_pwrtrack_init": {
+        "source": "rtw8822c.c",
+        "sha256": "bcedd99d86bdbc77da7026355751e03e584b6eae2df558cb9c16ba88f740f59c"
+      },
+      "rtw8822c_pwrtrack_set": {
+        "source": "rtw8822c.c",
+        "sha256": "838406f523cb7c38d621634d7f71854381cdd9245e7c2ea6c6b7e0cf4b67a14f"
+      },
+      "rtw8822c_rf_dac_cal": {
+        "source": "rtw8822c.c",
+        "sha256": "124722a162466de579bb13d8522faf0d71d8e3493d1b0233d80c69848ba6e0f0"
+      },
+      "rtw8822c_rf_init": {
+        "source": "rtw8822c.c",
+        "sha256": "9c42111b9a1621f1c2a330c185b68d8e346fa98353b50ffcddef457380a2dd9b"
+      },
+      "rtw8822c_rf_minmax_cmp": {
+        "source": "rtw8822c.c",
+        "sha256": "15b20d08af9e7f1e5534ea24fe4e3a532c94fbc617559c32c8d0c693a86ecce0"
+      },
+      "rtw8822c_rf_x2_check": {
+        "source": "rtw8822c.c",
+        "sha256": "1a4393fbc566b280f4a3b9e7bd1be118d783c644e7074fd25215bdcc9d60916e"
+      },
+      "rtw8822c_rfk_handshake": {
+        "source": "rtw8822c.c",
+        "sha256": "44468369081c2d7f5f7537f89e7bc8cc2b57dc7b44d0635d015dc6f734dab05e"
+      },
+      "rtw8822c_rfk_power_save": {
+        "source": "rtw8822c.c",
+        "sha256": "0e4b9970dafef1364d3f14173329dd0ce48705d925b315599de6338456f3df3e"
+      },
+      "rtw8822c_rstb_3wire": {
+        "source": "rtw8822c.c",
+        "sha256": "6234af1f5f244ee278a844d20de87cfd6b5122dec51d4590d1e49cbd941511e9"
+      },
+      "rtw8822c_set_channel": {
+        "source": "rtw8822c.c",
+        "sha256": "173b74d2666375ac7e0d1f4ba203fba7655c2cdb70dd971878909b428f8da233"
+      },
+      "rtw8822c_set_channel_bb": {
+        "source": "rtw8822c.c",
+        "sha256": "c06163bbbea2839389fb6b7705f02872cf9bc77fe1cab825bfd3863d5bca2ab5"
+      },
+      "rtw8822c_set_channel_rf": {
+        "source": "rtw8822c.c",
+        "sha256": "3fd921e9dd7038fcae003ca94b873795b2344a6324cbf36bfc21be45e56b2fa4"
+      },
+      "rtw8822c_set_power_trim": {
+        "source": "rtw8822c.c",
+        "sha256": "9474e8a4915e12fcace45f417b363e183a8fc00837513eb940672d1423a18eeb"
+      },
+      "rtw8822c_set_tx_power_diff": {
+        "source": "rtw8822c.c",
+        "sha256": "53cc47336ddd853cfe9b0ceb81d79b206d6366036d53213b3cf4a111a30c456f"
+      },
+      "rtw8822c_set_tx_power_index": {
+        "source": "rtw8822c.c",
+        "sha256": "a0066644c8ddb97468eb92aec629c5e406e55f621d82e5d7cc09152dc634ab2b"
+      },
+      "rtw8822c_set_write_tx_power_ref": {
+        "source": "rtw8822c.c",
+        "sha256": "c52f918b500dc0960199d329b62b31c5e3b4f80fa046d62036651a77d21b888a"
+      },
+      "rtw8822c_thermal_trim": {
+        "source": "rtw8822c.c",
+        "sha256": "a962d018fda7548b2890924e7f3a67e0fa4a324aa7b9e3b3e9519024f9e0d492"
+      },
+      "rtw8822c_toggle_igi": {
+        "source": "rtw8822c.c",
+        "sha256": "f011ce698a52a8a3a8cccf288f2d0d86efe1c4c4561fbd11497630c983341e8e"
+      },
+      "rtw8822c_txgapk": {
+        "source": "rtw8822c.c",
+        "sha256": "10f0b0347df906931a113fe19152fbc8e7b6e14846ec6b0c7393d3de51d7f19d"
+      },
+      "rtw8822c_txgapk_afe_dpk": {
+        "source": "rtw8822c.c",
+        "sha256": "7a8f28b1e95ffeb7bbf5ccd18c9cd324ed5dd75203bb5a138098dde3ef449802"
+      },
+      "rtw8822c_txgapk_afe_dpk_restore": {
+        "source": "rtw8822c.c",
+        "sha256": "147033f4cf2d6554cdb954ea01bc7eb73a1365f9ab03f960928badbbd2aec040"
+      },
+      "rtw8822c_txgapk_backup_bb_reg": {
+        "source": "rtw8822c.c",
+        "sha256": "95aa263e315199447d7d11ab8e9f3f178f710a3c9eb83d79319ebc8b34cf8459"
+      },
+      "rtw8822c_txgapk_bb_dpk": {
+        "source": "rtw8822c.c",
+        "sha256": "14968d36041c1291e8c474bea911b2cae6d71d9316df101faaa2b3b5ca9bc6e3"
+      },
+      "rtw8822c_txgapk_bb_dpk_restore": {
+        "source": "rtw8822c.c",
+        "sha256": "a76f0261b334df05dae0a82ce31493acb5e65eb672f7d22516964384832c3ab1"
+      },
+      "rtw8822c_txgapk_cal_gain": {
+        "source": "rtw8822c.c",
+        "sha256": "f69e988a5488b5d121562f79dff73b7ee21a1f28ab12390e82850b55686c5952"
+      },
+      "rtw8822c_txgapk_calculate_offset": {
+        "source": "rtw8822c.c",
+        "sha256": "cc9827144c5758d4764005f883e8285b68f3c5013c835d2bf4def3e578d16780"
+      },
+      "rtw8822c_txgapk_read_offset": {
+        "source": "rtw8822c.c",
+        "sha256": "8a6b0a86e17a6438c117c1b08d9a22b53af73392efc27ad6904ef920948d0d78"
+      },
+      "rtw8822c_txgapk_reload_bb_reg": {
+        "source": "rtw8822c.c",
+        "sha256": "a4ec92e2fc14db4c80435ecabe0c79b9e300767d72dcd88a8fbc289f6393c887"
+      },
+      "rtw8822c_txgapk_rf_restore": {
+        "source": "rtw8822c.c",
+        "sha256": "b959af82ecc53f0e49f13c85939851f071eab6cc727d6dfacc81751d7b0ac138"
+      },
+      "rtw8822c_txgapk_save_all_tx_gain_table": {
+        "source": "rtw8822c.c",
+        "sha256": "28a2df2205f34618e5216e33213f17849746b9e3305f833920faa2f506a958a3"
+      },
+      "rtw8822c_txgapk_tx_pause": {
+        "source": "rtw8822c.c",
+        "sha256": "1a6ba37a13dc143d8a13583759e401fcbac5164bb160f99879138fbee30e0f9f"
+      },
+      "rtw8822c_txgapk_write_gain_bb_table": {
+        "source": "rtw8822c.c",
+        "sha256": "d9cde2dd15bf5542f8a20bb31ffbc23e376b940c9e6737d4c4b063c7dfb0b510"
+      },
+      "rtw8822c_txgapk_write_tx_gain": {
+        "source": "rtw8822c.c",
+        "sha256": "b9826ca99a255590f153238949935cabaf1aebaf78ab7ca55dbb1700f149db78"
+      },
+      "rtw_cfg_txpwr_lmt_by_alt": {
+        "source": "phy.c",
+        "sha256": "07bd0dbbec4503aa625c4a60e596b130f8106306fedf05055d18c10d3df6f140"
+      },
+      "rtw_channel_to_idx": {
+        "source": "phy.c",
+        "sha256": "ff814523b02b02b4c582fc4ebb16facac59ecfbbe2bddaadd63fa267757b5955"
+      },
+      "rtw_get_channel_group": {
+        "source": "phy.c",
+        "sha256": "1f860d6cfbe7f40bed1e1b2ab10f9dd3830eb49df531baeaf88c76e30b904778"
+      },
+      "rtw_get_tx_power_params": {
+        "source": "phy.c",
+        "sha256": "40fae66ac74f5d2a19425be14eab13d3221f86b0f4962e6f4f52d6ba0e1ebe05"
+      },
+      "rtw_parse_tbl_bb_pg": {
+        "source": "phy.c",
+        "sha256": "58f554c7e8ff3cbed5d38e195518b0900466933dc9509bb66fbf20c6ec085fe7"
+      },
+      "rtw_parse_tbl_txpwr_lmt": {
+        "source": "phy.c",
+        "sha256": "ef4a84d5ab8a77c81c6b8a75c1473abd776d10bbc493882fcb0b9e3822d847d8"
+      },
+      "rtw_phy_config_swing_table": {
+        "source": "phy.c",
+        "sha256": "2c5b05dcbaee4ba266b9c4d5990c1bd1cc775ae46243e57dd3b2dcdc70adb51c"
+      },
+      "rtw_phy_get_2g_tx_power_index": {
+        "source": "phy.c",
+        "sha256": "1416524caebc7b2a6b4dde3d5a035dd034eb5d140843e908e75080344d75bf3d"
+      },
+      "rtw_phy_get_5g_tx_power_index": {
+        "source": "phy.c",
+        "sha256": "132f1d935d54bd646ddfa1237327c4143bb41d29b1c2b09acca0ef10edae6d55"
+      },
+      "rtw_phy_get_dis_dpd_by_rate_diff": {
+        "source": "phy.c",
+        "sha256": "8218c0b780d7687da488b38d2c2509c6d525fea2ca636692b5dd25b550b8d6f9"
+      },
+      "rtw_phy_get_rate_values_of_txpwr_by_rate": {
+        "source": "phy.c",
+        "sha256": "a511c192b9c2b73b3e90f4f578ed2e36229f8f6cda0ea9602fdfd523c8502ae1"
+      },
+      "rtw_phy_get_tx_power_index": {
+        "source": "phy.c",
+        "sha256": "f559e078b6644d8ea83d00ebb08f6fc7c7fc8b82ac95147ed4d55ca483b545e4"
+      },
+      "rtw_phy_get_tx_power_limit": {
+        "source": "phy.c",
+        "sha256": "f9e7a033e4ae6bbed1c4569bdda1dcb028d985c24e5b7e9da5194fc01458c783"
+      },
+      "rtw_phy_get_tx_power_sar": {
+        "source": "phy.c",
+        "sha256": "29bb208c98bd8fcc37180310b369303b25bb3d92aa43f262979450548a6ed034"
+      },
+      "rtw_phy_init_tx_power": {
+        "source": "phy.c",
+        "sha256": "24800db1f65b1a5623622d1da4fdb25e8258345b7c5dbddd62edc5087239f2f5"
+      },
+      "rtw_phy_init_tx_power_limit": {
+        "source": "phy.c",
+        "sha256": "ba2395ec3db3711fbe2e3c450d72457e3238ab488b745849d4090b920a91f3bf"
+      },
+      "rtw_phy_pwrtrack_avg": {
+        "source": "phy.c",
+        "sha256": "ffd75de836d5e8d53a272b20ca0324cd401445d71cb24f3a4161c6898b1ef252"
+      },
+      "rtw_phy_pwrtrack_get_delta": {
+        "source": "phy.c",
+        "sha256": "a125ce6fd788861113eb62e41d03e8878a360fc4854c88a8582513bf7b71eb6c"
+      },
+      "rtw_phy_pwrtrack_get_pwridx": {
+        "source": "phy.c",
+        "sha256": "49f2ceeac118cfd40c6e94d4d75d6285f9a8701c69dd7e65878cef071a461c1b"
+      },
+      "rtw_phy_pwrtrack_need_iqk": {
+        "source": "phy.c",
+        "sha256": "83ff2e05eb4b94b6919924682ce6ef941dd6146cdc06671a85f667efd74587d7"
+      },
+      "rtw_phy_pwrtrack_need_lck": {
+        "source": "phy.c",
+        "sha256": "07cd72bb8e9eb3b91e0f1a0dff9ffc5d860f8a856d35f1fe72b13d7363cca1f8"
+      },
+      "rtw_phy_pwrtrack_thermal_changed": {
+        "source": "phy.c",
+        "sha256": "21b8c6c1705cd87eab19307cdbd9e563573f6b585b41ee7df4ee2bc7ceb5b1a7"
+      },
+      "rtw_phy_rate_to_rate_section": {
+        "source": "phy.c",
+        "sha256": "0868ca3df5dbdf7e27b9079b90a62d05f2ca6290919e9375297e0466759df6d0"
+      },
+      "rtw_phy_set_tx_power_limit": {
+        "source": "phy.c",
+        "sha256": "3a70ac4edad640ec5200a4f43c580ba072c573e506325276c9125e1c7aee1419"
+      },
+      "rtw_phy_store_tx_power_by_rate": {
+        "source": "phy.c",
+        "sha256": "2389b8d64da726dac91dc01012546dec0c8f6096997d1ececd67074c6aa5d0ac"
+      },
+      "rtw_phy_tx_power_by_rate_config": {
+        "source": "phy.c",
+        "sha256": "42cbb8c34efdfb1861ea6c228c10d761bda634d4a28184a003f7896a5f42a457"
+      },
+      "rtw_phy_tx_power_by_rate_config_by_path": {
+        "source": "phy.c",
+        "sha256": "a57347f293793816383f06731e315df2f2356651673b6d767327691b755ebe70"
+      },
+      "rtw_phy_tx_power_limit_config": {
+        "source": "phy.c",
+        "sha256": "d51bb55642d41fab57870e76214ef468866a2a47c55632f0d1769bd6ec667e60"
+      },
+      "rtw_set_channel_mac": {
+        "source": "mac.c",
+        "sha256": "42b02a70068c00515b2a1d27a268629702e140be713fd300feb266056c7bcf41"
+      },
+      "rtw_xref_5g_txpwr_lmt": {
+        "source": "phy.c",
+        "sha256": "8b1d8dd28bbd44061832b69b651c7f8c1682300dc01255f4bf19eef4ee21960a"
+      },
+      "rtw_xref_5g_txpwr_lmt_by_ch": {
+        "source": "phy.c",
+        "sha256": "c0cae51caeeb08b001f247680c0fc6afe0eea94967b364a45d498c95208fb9be"
+      },
+      "rtw_xref_txpwr_lmt": {
+        "source": "phy.c",
+        "sha256": "eeb1b699f54977a086d5425cd27d1ad87ddae939fbd68a50b046baf85435f931"
+      },
+      "rtw_xref_txpwr_lmt_by_bw": {
+        "source": "phy.c",
+        "sha256": "71f8d81ea0eca411c89fff35fa56e4663ac877c79ba5553462568a994c9b9b90"
+      },
+      "rtw_xref_txpwr_lmt_by_rs": {
+        "source": "phy.c",
+        "sha256": "d075bd052af097ecd1f71b66fb74f3aaba5332ec049b387029242467a6e0852b"
+      },
+      "tbl_to_dec_pwr_by_rate": {
+        "source": "phy.c",
+        "sha256": "8de9bdb8f2d1c292ea226813b164bbdb6420e543005ba4be7bba130940db43a4"
+      }
+    },
+    "referenced_object_count": 62,
+    "generated_sha256": {
+      "RTW88PHYOperating8821C.inc": "c020c3a719bdd304d8c2cda94d76a6d6186fd84b8f4b074b31341d74d6309542",
+      "RTW88PHYOperating8822B.inc": "d9a3ad3e8709fb875500e76b72f9beeb6919d241fd1af60ff247750d32932a8b",
+      "RTW88PHYOperating8822C.inc": "3b5771691e61e7ac863c5763ff6bae0daccc7530510b5f3df64af0575e8afaf8",
+      "RTW88PHYOperatingCommon.inc": "c12a1d1955e37cfee544df8b73541c4d006ee72ff5c642a9c2c1b6276b9e19a8",
+      "RTW88PHYOperatingPower.inc": "8340726514305468fdc34bf0bfca0551c17ac8ebbfd11c676791cbbd79d8bf49",
+      "RTW88PHYOperatingPrototypes.inc": "fa6fb00b1d63e0ef5ab09abd3e89c60ecdd2f2ef925b07b7219bae9a94bf06d0",
+      "RTW88PHYOperatingTypes.inc": "3d8b691c12473aaeeecc4b03094e9385cfbab1eef4b42cfb264e2f61755cd213"
+    },
+    "checked_adaptations": [
+      "Checked USB/RF/coexistence IO,500000-operation and120-second per-stage budgets,original bounded hardware polls",
+      "Native saved-register restore attempts followed by primary per-chip power-off on failure",
+      "Fresh firmware IQK completion required; A/B stale RF_DTXLOK is cleared before request",
+      "8822C RF backup indexing uses path*DACK_RF_8822C+i",
+      "8822C ADC/DAC samples initialized and minimum valid sample/stability/residual criteria enforced",
+      "8822C DPK AGC transition count/state bounds,nonzero GS coefficient and second DC-correlation failure checked",
+      "8822C saved LTE grant and RFK-end restoration attempted after failed calibration",
+      "8822C PSD logarithm promotes arithmetic to64 bits",
+      "Factory signed TX-power differences retain sign until final0..chipmax clamp",
+      "SAR offset retains32-bit sign through final factory-base addition; impossible active-rate caps revoke readiness",
+      "21C/22B thermal AGC headroom uses the uncapped factory/regulatory lookup, preserving reduction across table and separate gain",
+      "Fresh channel/power plans reset stale thermal gain and restore22B factory swing independently per physical path",
+      "Explicit actual association input selects segmented firmware IQK; readiness never implies association",
+      "Canonical firmware-context mailbox cursor is shared; physical OTP tail cache supplies actual trim values",
+      "Power epoch and PHY table reload invalidate previous calibrated readiness",
+      "Actual hardware reconfiguration and every TXPAUSE restoration require live3081 FW_READY(CFFF/C078); loss latches and revokes PHY/MAC/FW authority while pure readiness/per-frame rate stay USB-free",
+      "Actual firmware antenna cap controls TRX/power/rate and required DPK paths,physical RF transport remains distinct",
+      "Caller-owned long-packet sequence can be shared with general/PHYDM startup; mailbox cursor remains canonical"
+    ],
+    "thermal_average_reference": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/include/linux/average.h",
+    "physical_hardware_validation": false
+  },
+  "kernel_bc_backend": {
+    "implementation": "kext/RTW88Backend.inc",
+    "members": "kext/RTW88BackendMembers.inc",
+    "rx_phy_codec": "src/RTW88RX.c",
+    "rssi_generator": "scripts/generate-rtw88-rx.py",
+    "rssi_generated_sha256": "00069069405f24edc0908e1f22e91b9f87f8f556bcb3ac8843a58fdee885344e",
+    "station_modes": "2.4/5GHz HT20 at actual firmware feature NSS; no VHT,HT40/80,TX AMPDU advertisement",
+    "physical_validation": false,
+    "hardware_feature_source": "main.c:rtw_dump_hw_feature/rtw_hw_config_rf_ant_num",
+    "packet_header_source": "fw.c:rtw_fw_send_general_info/rtw_fw_send_phydm_info;fw.h",
+    "isolated_controller_test": "scripts/test-rtw88-backend.py"
+  },
+  "power_reduction_reference": {
+    "repository": "torvalds/linux",
+    "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+    "path": "drivers/net/wireless/realtek/rtw88/sar.c",
+    "sha256": "6a15b0892f45c41364309ba00d682f51326f6c22062b5a474a42a95a91b1a18d",
+    "function": "rtw_sar_to_phy",
+    "use": "txgi_factor exponent1=2indices/dB for8812A/8821A/8821C/8822B; exponent2=4indices/dB for8822C. Chip descriptor pins remain unchanged.",
+    "url": "https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/sar.c"
+  }
+}

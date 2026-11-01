@@ -1,0 +1,23 @@
+/Library/Developer/KDKs/KDK_26.7.1_25G241.kdk/System/Library/Extensions/System.kext/PlugIns/Mach.kext/Mach
+                 U _thread_call_allocate
+                 U _thread_call_allocate_with_options
+/Library/Developer/KDKs/KDK_26.7.1_25G241.kdk/System/Library/Extensions/System.kext/PlugIns/Private.kext/Private
+                 U _thread_call_allocate_with_priority
+                 U _thread_call_allocate_with_qos
+
+Pinned SDK API declaration:
+ *  @function thread_call_allocate_with_options
+ *  @abstract Allocate a thread call to execute with a specified priority.
+ *  @discussion Identical to thread_call_allocate, except that priority
+ *  and options are specified by caller.
+ *  @param func Callback to invoke when thread call is scheduled.
+ *  @param param0 First argument to pass to callback.
+ *  @param pri Priority of item.
+ *  @param options Options for item.
+ *  @result Thread call which can be passed to thread_call_enter variants.
+ */
+extern thread_call_t    thread_call_allocate_with_options(
+	thread_call_func_t      func,
+	thread_call_param_t     param0,
+	thread_call_priority_t  pri,
+	thread_call_options_t   options);

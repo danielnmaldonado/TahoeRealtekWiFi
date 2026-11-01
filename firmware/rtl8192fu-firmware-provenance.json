@@ -1,0 +1,9 @@
+{
+  "source": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/main/rtlwifi/rtl8192fufw.bin",
+  "source_ref": "main",
+  "sha256": "3001f8b50176ede76d0cde20c7c7ff84ebe12331049e65e1a1a768b1d45b74de",
+  "bytes": 31136,
+  "version": "7.3",
+  "license": "LICENCE.rtlwifi_firmware.txt",
+  "representation": "unmodified binary bytes in RTL8192FUFirmware.inc"
+}

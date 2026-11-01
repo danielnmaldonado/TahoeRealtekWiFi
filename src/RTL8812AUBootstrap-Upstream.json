@@ -1,0 +1,29 @@
+{
+  "repository": "torvalds/linux",
+  "commit": "f47d223627f80cb7a1eb14c585fe6cb35de5e984",
+  "selected_license": "BSD-3-Clause",
+  "source_sha256": {
+    "rtw88xxa.c": "5aea37c1db5310a2a86c2a6d0bdc390fa430faf55125dfcc1ffcb552b085e514",
+    "rtw8812a.c": "31ec275f8da9026278b97e572367a231a5b6b847cae0cfac6b2090b9b541594b",
+    "rtw8821a.c": "75906260b2fd5b21b4d5f0c5c81be6b56272a5b011951336afbc17321992b8c7",
+    "rtw8812a_table.c": "e400b2daf6824f3c23d8a4f3b02fd396cb19f55f7c59ada570b62e2b442b235d",
+    "rtw8821a_table.c": "08fb956aaa71ae0df8651f73c847922bedcfe44c695cdc6867bd3a3900ef2393",
+    "mac.c": "ec8a96ef305231f15af22bc94ad5708e0daf3bfb3ff470ec96757913e2be59f6",
+    "mac.h": "006c62b0d7b7a6dee95cc27172c0452bcfa6b05f80a1a91610c4750f42f4c91a",
+    "usb.c": "64d44452d287386bdb0de219c6a53ab288aec7762983df6929e798b2bc610a3b",
+    "main.c": "cd52ce31a39022269a9cf48a35c2e1b89cc8a25ccb0f2ed1cec8425e910dcfa4",
+    "main.h": "6f2eaeb830844efface8a676815e2a0b15f59aa5408387fa85dc91613d351a24",
+    "fw.c": "0da28129dfcdf3e9b5661523b54ede4632c6c9e5af7008a6f7ce2a1f8b6a19f0",
+    "fw.h": "45a1bf5213eec95cd450a54bc50caa5652c959dd2b644684ec7447b278f6e701",
+    "mac80211.c": "5de984df903ec1d96199ecd05b37f7ce3459de575a9439a59ac6f06d47a0853a",
+    "sec.h": "78d112a2f089487d4e2221b3217c36df0694b3db8e1147acaa53204ce10004a8",
+    "sec.c": "cad22a56ede19a42b3a29a260cdb8400ae901a19b34c86ad5dd173d2b6eebebc"
+  },
+  "base_url": "https://raw.githubusercontent.com/torvalds/linux/f47d223627f80cb7a1eb14c585fe6cb35de5e984/drivers/net/wireless/realtek/rtw88/",
+  "adaptations": [
+    "USB-only power branches; all upstream cut masks are ALL.",
+    "Distinct 8812/8821 MAC tables, FIFO/page geometry and endpoint maps.",
+    "Bounded allocation-free OTP, LLT, firmware and H2C operations.",
+    "TX remains paused; hardware crypto disabled for software net80211 CCMP."
+  ]
+}

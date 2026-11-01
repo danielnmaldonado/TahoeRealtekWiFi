@@ -1,0 +1,22 @@
+{
+  "source": "https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/microcode/urtwn/microcode.h",
+  "source_sha256": "cfb809a802f0ee9275e73a2c6eeaa7bfbb253792f8c3e98c98c7c287bd33eabe",
+  "license": "firmware/urtwn-license",
+  "images": {
+    "rtl8188eu": {
+      "bytes": 13904,
+      "sha256": "1241ddbfc87f0495e0bf09d8b94c94680b60a3d8eeab89462b3c4d8d3e8a1ee0",
+      "signature": "0x88e1"
+    },
+    "rtl8192cT": {
+      "bytes": 16116,
+      "sha256": "da7c57ce4426864c7ff2e417373098046a9454f7b8108ed42210209bfa9d07bc",
+      "signature": "0x88c1"
+    },
+    "rtl8192cU": {
+      "bytes": 16116,
+      "sha256": "99c540f91f473829b67840395f74e9d8caeb06b9f0c430872473ff5357fa3bb1",
+      "signature": "0x88c1"
+    }
+  }
+}

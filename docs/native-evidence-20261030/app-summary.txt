@@ -1,0 +1,14 @@
+model/protocol/join generation: passed
+Signal UI: spike rejection, persistent change, hysteresis, unknown/expiry, identity/clock reset, scan sorting, bounded history passed
+Polling: 64 state combinations, invalid clocks, bounded tolerance and timeouts passed
+Work epoch: 100,000 concurrent invalidations; stale tokens rejected
+credential/login policy: 16438 checks passed
+reconnect-policy: 2338 checks passed
+instance-lock: mutual exclusion, fork, 2000 reopen cycles, symlink and mode checks passed
+Adapter support: 82105 checks passed; 270 catalogued, 122 eligible, 105 backend missing, 43 unverified/conflict.
+transport/crypto: passed
+login-item backend: 25 checks passed (mock, no login changes)
+credential-store backend: 142 checks passed (mock, no user Keychain changes)
+AppKit menu/adapter selection/login item: passed
+credential-flow: saved reuse, noninteractive autojoin, locked/missing Keychain, hotplug and duplicate-action guards passed
+CLI exact adapter argument parsing: passed

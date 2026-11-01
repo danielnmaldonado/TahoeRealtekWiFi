@@ -1,0 +1,96 @@
+{
+  "upstream": "torvalds/linux",
+  "commit": "0e135910deec43ffe97eca0b6af1f8f847285b59",
+  "license": "GPL-2.0-only",
+  "symbols": [
+    "rtl8723bu_reset_8051",
+    "rtl8xxxu_disabled_to_emu",
+    "rtl8723b_emu_to_active",
+    "rtl8723bu_power_on",
+    "rtl8xxxu_flush_fifo",
+    "rtl8xxxu_active_to_lps",
+    "rtl8xxxu_firmware_self_reset",
+    "rtl8723bu_active_to_emu",
+    "rtl8723bu_power_off",
+    "rtl8xxxu_gen2_channel_to_group",
+    "rtl8723b_set_tx_power",
+    "rtl8xxxu_init_phy_regs",
+    "rtl8723bu_init_phy_bb",
+    "rtl8xxxu_write_rfreg",
+    "rtl8xxxu_init_rf_regs",
+    "rtl8xxxu_init_phy_rf",
+    "rtl8723bu_init_phy_rf",
+    "rtl8723bu_phy_init_antenna_selection",
+    "rtl8xxxu_gen2_prepare_calibrate",
+    "rtl8xxxu_save_regs",
+    "rtl8xxxu_save_mac_regs",
+    "rtl8xxxu_path_adda_on",
+    "rtl8xxxu_mac_calibration",
+    "rtl8xxxu_read_rfreg",
+    "rtl8723bu_iqk_path_a",
+    "rtl8723bu_rx_iqk_path_a",
+    "rtl8xxxu_restore_regs",
+    "rtl8xxxu_restore_mac_regs",
+    "rtl8723bu_phy_iqcalibrate",
+    "rtl8xxxu_gen2_simularity_compare",
+    "rtl8xxxu_fill_iqk_matrix_a",
+    "rtl8xxxu_write32_mask",
+    "rtl8xxxu_fill_iqk_matrix_b",
+    "rtl8723bu_phy_iq_calibrate",
+    "rtl8723bu_write_btreg",
+    "rtl8723bu_set_ps_tdma",
+    "rtl8723b_enable_rf",
+    "rtl8723bu_init_aggregation",
+    "rtl8723bu_init_statistics",
+    "rtl8723a_phy_lc_calibrate",
+    "rtl8723a_set_crystal_cap",
+    "rtl8xxxu_download_firmware",
+    "rtl8xxxu_start_firmware",
+    "rtl8xxxu_auto_llt_table",
+    "rtl8xxxu_init_queue_reserved_page",
+    "rtl8xxxu_init_queue_priority",
+    "rtl8xxxu_init_burst",
+    "rtl8xxxu_gen2_usb_quirks",
+    "rtl8xxxu_gen2_config_channel",
+    "rtl8723bu_update_bt_link_info",
+    "rtl8723bu_set_coex_with_type",
+    "rtl8723bu_handle_bt_info",
+    "rtl8723bu_handle_bt_inquiry"
+  ],
+  "adaptations": [
+    "typed serialized checked I/O; bounded cleanup after errors",
+    "Imported register tables have translation-unit-private linkage",
+    "factory signed power clamping0..63",
+    "IQK candidate requires nonzero TX/RX coefficients and real channel readback",
+    "LCK/RFK keep TX paused until station response rates are programmed",
+    "HID+A2DP profile flag typo corrected in primary coexistence helper",
+    "three-pipe VO endpoint follows programmed VOQ instead of VIQ"
+  ],
+  "files": [
+    {
+      "path": "8723b.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtl8xxxu/8723b.c",
+      "sha256": "06efb8be1f587922f545ed88d6ac3bc62aa8492b255a07dc11d850e709e0216d"
+    },
+    {
+      "path": "8723a.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtl8xxxu/8723a.c",
+      "sha256": "240634718dd0b52d116bd705e413ba1a5a22e2830be70ee5e7f22fc69510c3cc"
+    },
+    {
+      "path": "core.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtl8xxxu/core.c",
+      "sha256": "eab41606f9e0a304012f082ff95979222d3e63780d649ed1d923938b7e97b1b1"
+    },
+    {
+      "path": "rtl8xxxu.h",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtl8xxxu/rtl8xxxu.h",
+      "sha256": "1979e54d2b5002a903c794751e31094aa414c32281459d109a1afd65178ef7f4"
+    },
+    {
+      "path": "regs.h",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtl8xxxu/regs.h",
+      "sha256": "5d400b8adeae0f0f86ad3e7f5e2ea046c7e302cbc9a6b654c32909b753b21c11"
+    }
+  ]
+}

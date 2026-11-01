@@ -1,0 +1,271 @@
+vid_pid,family,verified_identity,chip_5ghz_nominal,offline_descriptor_plus_beacon_parser,5ghz_station_operational,limitation
+038b:0100,RTL8192CU,false,false,false,false,No verified USB identity
+0409:0408,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0411:0242,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0411:025d,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0411:029b,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0411:029d,RTL8821AU,false,true,false,false,No verified USB identity
+04bb:094c,RTL8192CU,true,false,false,false,No 5GHz hardware
+04bb:0950,RTL8192CU,true,false,false,false,No 5GHz hardware
+04bb:0952,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+04bb:0953,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+04bb:0959,RTL8821AU,false,true,false,false,No verified USB identity
+04bb:095a,RTL8821AU,false,true,false,false,No verified USB identity
+04ca:8602,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+04f2:aff7,RTL8192CU,true,false,false,false,No 5GHz hardware
+04f2:aff8,RTL8192CU,true,false,false,false,No 5GHz hardware
+04f2:aff9,RTL8192CU,true,false,false,false,No 5GHz hardware
+04f2:affa,RTL8192CU,true,false,false,false,No 5GHz hardware
+04f2:affb,RTL8192CU,true,false,false,false,No 5GHz hardware
+04f2:affc,RTL8192CU,true,false,false,false,No 5GHz hardware
+050d:1004,RTL8192CU,true,false,false,false,No 5GHz hardware
+050d:1102,RTL8192CU,true,false,false,false,No 5GHz hardware
+050d:1105,RTL8192DU,true,true,false,false,No verified USB RX codec
+050d:1106,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+050d:1109,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+050d:110a,RTL8192DU,true,true,false,false,No verified USB RX codec
+050d:11f2,RTL8192CU,true,false,false,false,No 5GHz hardware
+050d:120a,RTL8192DU,true,true,false,false,No verified USB RX codec
+050d:2102,RTL8192CU,true,false,false,false,No 5GHz hardware
+050d:2103,RTL8192CU,true,false,false,false,No 5GHz hardware
+056e:4007,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+056e:4008,RTL8188EU,true,false,false,false,No 5GHz hardware
+056e:4009,RTL8192CU,false,false,false,false,No verified USB identity
+056e:400b,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+056e:400d,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+056e:400e,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+056e:400f,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+056e:4010,RTL8821AU,false,true,false,false,No verified USB identity
+056e:4011,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0586:341f,RTL8192CU,true,false,false,false,No 5GHz hardware
+0586:3426,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+058c:ff20,RTL8812AU,false,true,false,false,No verified USB identity
+06f8:e033,RTL8192CU,true,false,false,false,No 5GHz hardware
+06f8:e035,RTL8192CU,true,false,false,false,No 5GHz hardware
+0789:016d,RTL8192CU,true,false,false,false,No 5GHz hardware
+0789:016e,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+07aa:0056,RTL8192CU,true,false,false,false,No 5GHz hardware
+07b8:0811,RTL8821AU,false,true,false,false,No verified USB identity
+07b8:8178,RTL8192CU,true,false,false,false,No 5GHz hardware
+07b8:8179,RTL8188EU,true,false,false,false,No 5GHz hardware
+07b8:8189,RTL8192CU,true,false,false,false,No 5GHz hardware
+07b8:818b,RTL8192EU,false,false,false,false,No verified USB identity
+07b8:8812,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0846:9021,RTL8192CU,true,false,false,false,No 5GHz hardware
+0846:9041,RTL8192CU,true,false,false,false,No 5GHz hardware
+0846:9042,RTL8192CU,true,false,false,false,No 5GHz hardware
+0846:9043,RTL8192CU,true,false,false,false,No 5GHz hardware
+0846:9051,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0846:9052,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0846:9054,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0846:9055,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0846:f001,RTL8192CU,true,false,false,false,No 5GHz hardware
+08c4:0115,RTL8812AU,false,true,false,false,No verified USB identity
+0b05:17ab,RTL8192CU,true,false,false,false,No 5GHz hardware
+0b05:17ba,RTL8192CU,true,false,false,false,No 5GHz hardware
+0b05:17c0,RTL8192CU,true,false,false,false,No 5GHz hardware
+0b05:17d2,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0b05:1817,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0b05:1841,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0b05:184c,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0b05:1852,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0b05:1853,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0b05:1870,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0b05:1874,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0b05:18e9,RTL8821CU,false,true,false,false,No verified USB identity
+0b05:18f0,RTL8188EU,true,false,false,false,No 5GHz hardware
+0b05:18f1,RTL8192FU,true,false,false,false,No 5GHz hardware
+0bda:0170,RTL8821AU,false,true,false,false,No verified USB identity
+0bda:0179,RTL8188EU,true,false,false,false,No 5GHz hardware
+0bda:018a,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:0811,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:0823,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:0a8a,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:17c0,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:1e1e,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:2003,RTL8821AU,false,true,false,false,No verified USB identity
+0bda:2005,RTL8710BU,true,false,false,false,No 5GHz hardware
+0bda:2006,RTL8821CU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:2102,RTL8821CU,false,true,false,false,No verified USB identity
+0bda:2e2e,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:317f,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:318b,RTL8192FU,true,false,false,false,No 5GHz hardware
+0bda:5088,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:8011,RTL8192CU,false,false,false,false,No verified USB identity
+0bda:8170,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:8176,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:8177,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:8178,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:8179,RTL8188EU,true,false,false,false,No 5GHz hardware
+0bda:817a,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:817b,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:817c,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:817d,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:817e,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:817f,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:8186,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:818a,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:818b,RTL8192EU,true,false,false,false,No 5GHz hardware
+0bda:818c,RTL8192EU,true,false,false,false,No 5GHz hardware
+0bda:8191,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:8192,RTL8192CU,false,false,false,false,No verified USB identity
+0bda:8194,RTL8192DU,true,true,false,false,No verified USB RX codec
+0bda:819a,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:8754,RTL8192CU,true,false,false,false,No 5GHz hardware
+0bda:8812,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:8813,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:881a,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:881b,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:881c,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:a179,RTL8188EU,false,false,false,false,No verified USB identity
+0bda:a811,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:a812,RTL8812AU,false,true,false,false,No verified USB identity
+0bda:b711,RTL8710BU,true,false,false,false,No 5GHz hardware
+0bda:b720,RTL8723BU,true,false,false,false,No 5GHz hardware
+0bda:b812,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:b814,RTL8814BU,false,false,false,false,No verified USB identity
+0bda:b81a,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:b82c,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:c811,RTL8821CU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:c812,RTL8822CU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:c820,RTL8821CU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:c82b,RTL8821CU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:c82c,RTL8822CU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0bda:f192,RTL8192FU,true,false,false,false,No 5GHz hardware
+0df6:0052,RTL8192CU,true,false,false,false,No 5GHz hardware
+0df6:005c,RTL8192CU,true,false,false,false,No 5GHz hardware
+0df6:0061,RTL8192CU,true,false,false,false,No 5GHz hardware
+0df6:0070,RTL8192CU,true,false,false,false,No 5GHz hardware
+0df6:0074,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0df6:0076,RTL8188EU,true,false,false,false,No 5GHz hardware
+0df6:0077,RTL8192CU,true,false,false,false,No 5GHz hardware
+0df6:007a,RTL8821AU,false,true,false,false,No verified USB identity
+0df6:007b,RTL8814AU,false,true,false,false,No verified USB identity
+0e0b:9071,RTL8192CU,false,false,false,false,No verified USB identity
+0e66:0019,RTL8192CU,true,false,false,false,No 5GHz hardware
+0e66:0020,RTL8192CU,true,false,false,false,No 5GHz hardware
+0e66:0022,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0e66:0023,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0e66:0024,RTL8821AU,false,true,false,false,No verified USB identity
+0e66:0025,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0e66:0026,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+0eb0:9071,RTL8192CU,true,false,false,false,No 5GHz hardware
+103c:1629,RTL8192CU,true,false,false,false,No 5GHz hardware
+1058:0631,RTL8192CU,true,false,false,false,No 5GHz hardware
+1058:0632,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+13b1:003f,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+13b1:0043,RTL8822BU,false,true,false,false,No verified USB identity
+13b1:0045,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+13d3:3357,RTL8192CU,true,false,false,false,No 5GHz hardware
+13d3:3358,RTL8192CU,true,false,false,false,No 5GHz hardware
+13d3:3359,RTL8192CU,true,false,false,false,No 5GHz hardware
+148f:9097,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+1668:8105,RTL8821AU,false,true,false,false,No verified USB identity
+1668:8108,RTL8821AU,false,true,false,false,No verified USB identity
+1740:0100,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+1eda:2520,RTL8821AU,false,true,false,false,No verified USB identity
+1eda:2525,RTL8821AU,false,true,false,false,No verified USB identity
+2001:3307,RTL8192CU,true,false,false,false,No 5GHz hardware
+2001:3308,RTL8192CU,true,false,false,false,No 5GHz hardware
+2001:3309,RTL8192CU,true,false,false,false,No 5GHz hardware
+2001:330a,RTL8192CU,true,false,false,false,No 5GHz hardware
+2001:330b,RTL8192CU,true,false,false,false,No 5GHz hardware
+2001:330d,RTL8192CU,true,false,false,false,No 5GHz hardware
+2001:330e,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:330f,RTL8188EU,true,false,false,false,No 5GHz hardware
+2001:3310,RTL8188EU,true,false,false,false,No 5GHz hardware
+2001:3311,RTL8188EU,true,false,false,false,No 5GHz hardware
+2001:3312,RTL8192EU,true,false,false,false,No 5GHz hardware
+2001:3313,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:3314,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:3315,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:3316,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:3318,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:3319,RTL8192EU,true,false,false,false,No 5GHz hardware
+2001:331a,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:331b,RTL8188EU,true,false,false,false,No 5GHz hardware
+2001:331c,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:331d,RTL8821CU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:331e,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:331f,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2001:3320,RTL8814AU,false,true,false,false,No verified USB identity
+2001:3322,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2019:1201,RTL8192CU,true,false,false,false,No 5GHz hardware
+2019:4902,RTL8192CU,true,false,false,false,No 5GHz hardware
+2019:ab2a,RTL8192CU,true,false,false,false,No 5GHz hardware
+2019:ab2b,RTL8192CU,true,false,false,false,No 5GHz hardware
+2019:ab2e,RTL8192CU,true,false,false,false,No 5GHz hardware
+2019:ab30,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2019:ab32,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2019:ab33,RTL8192EU,true,false,false,false,No 5GHz hardware
+2019:ed17,RTL8192CU,true,false,false,false,No 5GHz hardware
+20f4:108a,RTL8723BU,false,false,false,false,No verified USB identity
+20f4:624d,RTL8192CU,true,false,false,false,No 5GHz hardware
+20f4:648b,RTL8192CU,true,false,false,false,No 5GHz hardware
+20f4:648c,RTL8192CU,false,false,false,false,No verified USB identity
+20f4:664b,RTL8192DU,true,true,false,false,No verified USB RX codec
+20f4:804b,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+20f4:805a,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+20f4:805b,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+20f4:808a,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+20f4:809a,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+20f4:809b,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:0100,RTL8192CU,true,false,false,false,No 5GHz hardware
+2357:0101,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:0103,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:0106,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:0107,RTL8192EU,true,false,false,false,No 5GHz hardware
+2357:0108,RTL8192EU,true,false,false,false,No 5GHz hardware
+2357:0109,RTL8192EU,true,false,false,false,No 5GHz hardware
+2357:010c,RTL8188EU,true,false,false,false,No 5GHz hardware
+2357:010d,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:010e,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:010f,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:0111,RTL8188EU,true,false,false,false,No 5GHz hardware
+2357:0112,RTL8821CU,false,true,false,false,No verified USB identity
+2357:0113,RTL8821CU,false,true,false,false,No verified USB identity
+2357:0114,RTL8821CU,false,true,false,false,No verified USB identity
+2357:0115,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:0116,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:0117,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:011e,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:011f,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:0120,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:0121,RTL8821AU,false,true,false,false,No verified USB identity
+2357:0122,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:0126,RTL8192EU,true,false,false,false,No 5GHz hardware
+2357:0127,RTL8188EU,false,false,false,false,No verified USB identity
+2357:0128,RTL8821CU,false,true,false,false,No verified USB identity
+2357:0129,RTL8821CU,false,true,false,false,No verified USB identity
+2357:012a,RTL8188EU,false,false,false,false,No verified USB identity
+2357:012c,RTL8821CU,false,true,false,false,No verified USB identity
+2357:012d,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:012e,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2357:012f,RTL8188EU,false,false,false,false,No verified USB identity
+2357:0132,RTL8188EU,false,false,false,false,No verified USB identity
+2357:0138,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2604:0012,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+2c2b:0002,RTL8814AU,false,true,false,false,No verified USB identity
+4855:0090,RTL8192CU,true,false,false,false,No 5GHz hardware
+4855:0091,RTL8192CU,true,false,false,false,No 5GHz hardware
+4856:0091,RTL8192CU,true,false,false,false,No 5GHz hardware
+7392:7811,RTL8192CU,true,false,false,false,No 5GHz hardware
+7392:7822,RTL8192CU,true,false,false,false,No 5GHz hardware
+7392:a611,RTL8723BU,true,false,false,false,No 5GHz hardware
+7392:a811,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:a812,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:a813,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:a822,RTL8812AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:a833,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:a834,RTL8814AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:b611,RTL8821AU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:b722,RTL8192FU,true,false,false,false,No 5GHz hardware
+7392:b811,RTL8188EU,true,false,false,false,No 5GHz hardware
+7392:b822,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:c822,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:d822,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:e822,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+7392:f822,RTL8822BU,true,true,true,false,No 5GHz radio/firmware/association/TX backend verified
+9846:9041,RTL8192CU,true,false,false,false,No 5GHz hardware
+cdab:8010,RTL8192CU,true,false,false,false,No 5GHz hardware
+cdab:8011,RTL8192CU,true,false,false,false,No 5GHz hardware
