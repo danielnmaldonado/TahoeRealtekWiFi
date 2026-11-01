@@ -1,0 +1,123 @@
+name: Build kext and app (macOS Tahoe)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Intel x86_64 - kext and app
+    runs-on: macos-26-intel
+    timeout-minutes: 90
+    env:
+      RTW_SIGN_IDENTITY: '-'
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check the Intel runner and Xcode 26 toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(uname -m)" != "x86_64" ]]; then
+            echo 'This project requires an Intel x86_64 macOS runner.' >&2
+            exit 1
+          fi
+          xcode-select -p
+          xcodebuild -version
+          sdk_version="$(xcrun --sdk macosx --show-sdk-version)"
+          echo "macOS SDK: ${sdk_version}"
+          if [[ "${sdk_version}" != 26.* ]]; then
+            echo 'The project requires the macOS 26 SDK from Xcode 26.' >&2
+            exit 1
+          fi
+          xcrun --find clang++
+          xcrun --find swift
+          /usr/bin/python3 --version
+          git --version
+          for tool in ditto iconutil lipo plutil codesign; do
+            command -v "${tool}" >/dev/null
+          done
+
+      - name: Verify committed source checksums
+        shell: bash
+        run: shasum -a 256 -c SOURCE-MANIFEST.sha256
+
+      - name: Compile and sign the x86_64 kernel extension
+        id: kext
+        shell: bash
+        run: bash ./build.command --kext
+
+      - name: Compile and sign the x86_64 menu-bar app
+        id: app
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: bash ./build.command --app
+
+      - name: Confirm the generated Xcode project matches the repository
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: git diff --exit-code -- TahoeRealtekWiFi.xcodeproj/project.pbxproj
+
+      - name: Archive validated bundles without losing macOS permissions
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d "Release/TahoeRealtekWiFi.kext" ]]; then
+            test -s "Release/TahoeRealtekWiFi.kext/Contents/MacOS/TahoeRealtekWiFi"
+            codesign --verify --strict "Release/TahoeRealtekWiFi.kext"
+            ditto -c -k --sequesterRsrc --keepParent \
+              "Release/TahoeRealtekWiFi.kext" \
+              "${RUNNER_TEMP}/TahoeRealtekWiFi.kext.zip"
+          fi
+          if [[ -d "Release/Tahoe Wi-Fi USB.app" ]]; then
+            test -s "Release/Tahoe Wi-Fi USB.app/Contents/MacOS/TahoeUSBWiFi"
+            test -s "Release/Tahoe Wi-Fi USB.app/Contents/Helpers/TahoeWiFiHelper"
+            codesign --verify --deep --strict "Release/Tahoe Wi-Fi USB.app"
+            ditto -c -k --sequesterRsrc --keepParent \
+              "Release/Tahoe Wi-Fi USB.app" \
+              "${RUNNER_TEMP}/Tahoe-Wi-Fi-USB.app.zip"
+          fi
+
+      - name: Upload kernel extension
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: TahoeRealtekWiFi-kext-x86_64
+          path: ${{ runner.temp }}/TahoeRealtekWiFi.kext.zip
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload menu-bar app
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tahoe-Wi-Fi-USB-app-x86_64
+          path: ${{ runner.temp }}/Tahoe-Wi-Fi-USB.app.zip
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload build logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build-logs
+          path: |
+            Release/build-kext.log
+            Release/build-app.log
+          if-no-files-found: warn
+          retention-days: 14
