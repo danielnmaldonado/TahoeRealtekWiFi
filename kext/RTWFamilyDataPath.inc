@@ -1,4 +1,27 @@
 // SPDX-License-Identifier: GPL-2.0-only
+bool RTWUSBController::usesLegacyHighThroughput() const {
+    const auto&ic=core_.sc_ic;const auto&r=core_.rate_config;
+    return (family_==RTW_WIFI_RTL8192CU||family_==RTW_WIFI_RTL8188EU)&&
+        running_&&!stopping_&&ic.ic_state==IEEE80211_S_RUN&&ic.ic_bss&&
+        (ic.ic_bss->ni_flags&IEEE80211_NODE_HT)&&r.ht&&r.raid<=1&&
+        (r.rate_mask&0x0ffff000U)&&!r.bw40&&!r.sgi40&&
+        (family_!=RTW_WIFI_RTL8188EU||!(r.rate_mask&0x0ff00000U));
+}
+bool RTWUSBController::acceptsLegacyReceiveRate(const rtw_rx_packet&p) const {
+    if(p.rate_index<12)return true;
+    return usesLegacyHighThroughput()&&p.rate_index<12U+8U*core_.nrxchains&&
+        !p.bandwidth_code;
+}
+uint8_t RTWUSBController::legacyHostHTRate() const {
+    const auto&r=rateControl_;
+    if(r.hostHTCount&&r.hostHTIndex<r.hostHTCount&&
+       (core_.rate_config.rate_mask&(1U<<r.hostHTRates[r.hostHTIndex])))
+        return r.hostHTRates[r.hostHTIndex];
+    /* A stale feedback epoch disables adaptation, retaining a conservative
+     * negotiated explicit rate until the next complete transport reset. */
+    for(uint8_t hw=12;hw<20;++hw)if(core_.rate_config.rate_mask&(1U<<hw))return hw;
+    return 0;
+}
 bool RTWUSBController::usesLegacyFirmwareRate() const {
     const auto&ic=core_.sc_ic;
     /* CU RUN is entered only after both firmware MACID masks and initial
@@ -36,9 +59,8 @@ rtw_packet_error RTWUSBController::decodeUSBFrame(rtw_rx_iterator*it,
     rtw_92c_rx_frame old{};
     auto result=rtw_92c_rx_next(it,family_==RTW_WIFI_RTL8188EU,&old);
     if(result!=RTW_PACKETS_OK)return result;
-    /* Preserve structural decoding of foreign HT traffic during scanning.
-     * The receive policy drops that MPDU after validation, keeping beacons
-     * in the same USB aggregate available to net80211. */
+    /* Normalize gen1's separate HT indicator into the common HW-rate range;
+     * live HT20/chain admission is checked after structural aggregate QA. */
     out->payload=old.packet;
     if(old.ht&&!old.report_type)out->payload.rate_index=(uint8_t)(12U+old.packet.rate_index);out->report_is_c2h=old.report_type!=0;
     out->security_code=old.security_code;out->sw_decrypt_required=old.sw_decrypt_required;

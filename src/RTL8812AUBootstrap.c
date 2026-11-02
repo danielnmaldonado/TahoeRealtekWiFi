@@ -89,13 +89,16 @@ int rtw_r12au_identify(rtw_r12au_boot*c){
  e=rtw_r12au_decode_board(c->chip,cfg,c->logical_rom,c->chip==RTW_R12AU_CHIP_8812AU?hints:NULL,(bt&BIT_BT_FUNC_EN)!=0,&c->board);
  if(!e)c->identified=1;return e;
 }
+static int reset_resident_mcu(rtw_r12au_boot*c,uint32_t status);
 int rtw_r12au_power_on(rtw_r12au_boot*c){
  uint32_t status=0;int e;if(!valid(c)||!c->identified)return EINVAL;if(c->io_error)return c->io_error;if(c->powered)return 0;
- if((e=rtw_r12au_read(c,REG_MCUFW_CTRL,1,&status)))return e;if(status&BIT_RAM_DL_SEL)return EBUSY;
+ if((e=rtw_r12au_read(c,REG_MCUFW_CTRL,1,&status)))return e;
  if((e=rtw_r12au_write(c,REG_TXPAUSE,1,0x3f)))return e;
  if(c->chip==RTW_R12AU_CHIP_8812AU){if((e=rtw_r12au_write(c,REG_RF_CTRL,1,5))||(e=rtw_r12au_write(c,REG_RF_CTRL,1,7))||(e=rtw_r12au_write(c,REG_RF_B_CTRL,1,5))||(e=rtw_r12au_write(c,REG_RF_B_CTRL,1,7)))return e;
-  e=power_flow(c,au_8812a_enable,ARRAY_SIZE(au_8812a_enable));
- }else e=power_flow(c,au_8821a_enable,ARRAY_SIZE(au_8821a_enable));
+ }
+ if((status&BIT_RAM_DL_SEL)&&(e=reset_resident_mcu(c,status)))return e;
+ if(c->chip==RTW_R12AU_CHIP_8812AU)e=power_flow(c,au_8812a_enable,ARRAY_SIZE(au_8812a_enable));
+ else e=power_flow(c,au_8821a_enable,ARRAY_SIZE(au_8821a_enable));
  if(!e)e=rtw_r12au_write(c,REG_CR,2,0);if(!e)e=rtw_r12au_write(c,REG_CR,2,0x63f);
  if(!e&&c->chip==RTW_R12AU_CHIP_8821AU&&(c->board.sys_cfg&BIT_LDO))e=rtw_r12au_update(c,REG_LDO_SWR_CTRL,1,BIT(6),BIT(6));
  if(!e)c->powered=1;return e;
@@ -109,6 +112,29 @@ int rtw_r12au_fw_inspect(rtw_r12au_chip chip,const uint8_t*data,size_t n,rtw_fw_
 static int reset_mcu(rtw_r12au_boot*c){
  uint32_t cpu=0;uint32_t bit=c->chip==RTW_R12AU_CHIP_8812AU?BIT(3):BIT(0);int e;
  if((e=rtw_r12au_update(c,REG_RSV_CTRL,1,BIT(1),0))||(e=rtw_r12au_update(c,REG_RSV_CTRL+1,1,bit,0))||(e=rtw_r12au_read(c,REG_SYS_FUNC_EN+1,1,&cpu))||(e=rtw_r12au_write(c,REG_SYS_FUNC_EN+1,1,cpu&~BIT(2)))||(e=rtw_r12au_update(c,REG_RSV_CTRL,1,BIT(1),0))||(e=rtw_r12au_update(c,REG_RSV_CTRL+1,1,bit,bit))||(e=rtw_r12au_write(c,REG_SYS_FUNC_EN+1,1,cpu|BIT(2))))return e;return 0;
+}
+/* Pinned Linux rtw88xxau_hw_reset: retire resident RAM firmware before the
+ * cold power sequence. Caller has positively identified and exclusively owns
+ * this typed AU; no ROM/RFE or firmware-ready admission is relaxed. Unlike
+ * upstream's void callback, a failed MAC-off handshake stops this boot. */
+static int reset_resident_mcu(rtw_r12au_boot*c,uint32_t status){
+ int e;++c->warm_reset_attempts;c->warm_reset_mcu=status;c->warm_reset_error=0;c->warm_reset_stage=1;
+ c->dma_prepared=c->firmware_running=c->mac_initialized=c->associated=0;c->h2c_box=0;
+ if((e=reset_mcu(c))||(e=rtw_r12au_write(c,REG_MCUFW_CTRL,1,0)))goto fail;
+ c->warm_reset_stage=2;
+ if((e=rtw_r12au_update(c,REG_FPGA0_XCD_RF_PARA,4,BIT(6),BIT(6)))||
+    (e=rtw_r12au_update(c,REG_SYS_FUNC_EN,1,BIT(0)|BIT(1),0))||
+    (e=rtw_r12au_write(c,REG_RF_CTRL,1,0))||(e=rtw_r12au_write(c,REG_CR,2,0)))goto fail;
+ c->warm_reset_stage=3;
+ if((e=rtw_r12au_update(c,REG_APS_FSMCO+1,1,APS_FSMCO_MAC_OFF>>8,APS_FSMCO_MAC_OFF>>8))||
+    (e=poll(c,REG_APS_FSMCO+1,1,APS_FSMCO_MAC_OFF>>8,0,5000,1)))goto fail;
+ c->warm_reset_stage=4;
+ if((e=rtw_r12au_update(c,REG_APS_FSMCO+1,1,APS_FSMCO_MAC_ENABLE>>8,APS_FSMCO_MAC_ENABLE>>8))||
+    (e=rtw_r12au_update(c,REG_SYS_FUNC_EN+1,1,BIT(4)|BIT(7),0))||
+    (e=rtw_r12au_update(c,REG_SYS_FUNC_EN+1,1,BIT(4)|BIT(7),BIT(4)|BIT(7))))goto fail;
+ c->warm_reset_stage=5;return 0;
+fail:
+ c->warm_reset_error=e;return e;
 }
 /* Checksum is write-one-to-clear; unrelated MCU control writes must not
  * accidentally acknowledge a freshly completed checksum status. */
@@ -147,8 +173,8 @@ int rtw_r12au_h2c(rtw_r12au_boot*c,const uint8_t command[8]){
  uint8_t box=c->h2c_box;if((e=poll(c,REG_HMETFR,1,BIT(box),0,31,100)))return e;
  if((e=rtw_r12au_write(c,(uint16_t)(0x1f0+box*4),4,le32(command+4)))||(e=rtw_r12au_write(c,(uint16_t)(0x1d0+box*4),4,le32(command))))return e;c->h2c_box=(uint8_t)((box+1)&3);return 0;
 }
-int rtw_r12au_power_off(rtw_r12au_boot*c){
- if(!valid(c)||!c->identified)return EINVAL;int first=c->io_error,e;uint32_t fsm=0,status=0;c->powered=0;c->dma_prepared=0;c->firmware_running=0;c->mac_initialized=0;c->associated=0;c->h2c_box=0;c->firmware_version=0;c->firmware_subversion=0;c->cleanup=1;
+int rtw_r12au_power_off_checked(rtw_r12au_boot*c){
+ if(!valid(c)||!c->identified)return EINVAL;int original=c->io_error,first=0,e;uint32_t fsm=0,status=0;c->io_error=0;c->powered=0;c->dma_prepared=0;c->firmware_running=0;c->mac_initialized=0;c->associated=0;c->h2c_box=0;c->firmware_version=0;c->firmware_subversion=0;c->cleanup=1;
  #define TRY(expr) do{e=(expr);if(e&&!first)first=e;}while(0)
  TRY(rtw_r12au_write(c,REG_TXPAUSE,1,0xff));TRY(rtw_r12au_read(c,REG_APS_FSMCO,2,&fsm));
  TRY(rtw_r12au_update(c,REG_APS_FSMCO,2,APS_FSMCO_HW_POWERDOWN,0));
@@ -162,5 +188,7 @@ int rtw_r12au_power_off(rtw_r12au_boot*c){
  if(c->chip==RTW_R12AU_CHIP_8812AU)TRY(power_flow(c,au_8812a_disable,ARRAY_SIZE(au_8812a_disable)));else TRY(power_flow(c,au_8821a_disable,ARRAY_SIZE(au_8821a_disable)));
  if(fsm&APS_FSMCO_HW_POWERDOWN)TRY(rtw_r12au_update(c,REG_APS_FSMCO,2,APS_FSMCO_HW_POWERDOWN,APS_FSMCO_HW_POWERDOWN));
  #undef TRY
- c->cleanup=0;return first;
+ c->cleanup=0;if(original)c->io_error=original;if(!c->cleanup_error)c->cleanup_error=first;return c->cleanup_error;
 }
+int rtw_r12au_power_off(rtw_r12au_boot*c){int original=c?c->io_error:0;int cleanup=rtw_r12au_power_off_checked(c);return original?original:cleanup;}
+

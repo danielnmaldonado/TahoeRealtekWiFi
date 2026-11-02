@@ -2,8 +2,9 @@
 """Run actual AU controller methods; independent fake host/RF/USB boundaries."""
 from host_cpp import compiler,sanitizer_flags
 from pathlib import Path
+from family_control_host import augment_control
 import argparse,re,subprocess,tempfile
-r=Path(__file__).resolve().parents[1];p=argparse.ArgumentParser();p.add_argument('--out',type=Path);a=p.parse_args()
+r=Path(__file__).resolve().parents[1];p=argparse.ArgumentParser();p.add_argument('--control',action='store_true');p.add_argument('--out',type=Path);a=p.parse_args()
 s=(r/'kext/RTW8812Backend.inc').read_text()
 def method(marker):
  start=s.index(marker);brace=s.index('{',start);depth=1;end=brace+1
@@ -25,9 +26,9 @@ with tempfile.TemporaryDirectory(prefix='r12au-backend-') as temp:
   records=dict(re.findall(r'\[EDCA_AC_(BK|BE|VI|VO)\]\s*=\s*(\{[^}]+\})',block));assert len(records)==4
   tables.append('{'+','.join(records[ac] for ac in ['BE','BK','VI','VO'])+'}')
  h=h.replace('/* ACTUAL_DEFAULT_EDCA */','static const ieee80211_edca_ac_params ieee80211_edca_table[4][4]={{},'+','.join(tables)+'};')
- source.write_text(h)
+ source.write_text(augment_control(h,r,'8812') if a.control else h)
  output=(a.out or d/'tests').resolve();output.parent.mkdir(parents=True,exist_ok=True)
- flags=['-O1','-g','-Wall','-Wextra','-Werror',*sanitizer_flags(),'-I'+str(r/'include')]
+ flags=['-O1','-g','-Wall','-Wextra','-Werror',*sanitizer_flags(),'-I'+str(r/'include'),'-I'+str(r/'tests')]
  objects=[]
  for name in ['RTL8812AURuntime','RTL8812AUDataPath','RTL8812AUMAC','RTL8821AUCoex','USBPackets','USBWiFiProfiles']:
   obj=d/(name+'.o');objects.append(str(obj));subprocess.run([*compiler('c'),'-std=c11',*flags,'-c',str(r/'src'/(name+'.c')),'-o',str(obj)],check=True)

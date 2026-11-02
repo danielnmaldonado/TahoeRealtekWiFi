@@ -26,12 +26,18 @@
 #define IEEE80211_CHAN_PASSIVE 0x0200
 #define IEEE80211_CHAN_DYN 0x0400
 #define IEEE80211_CHAN_HT20 0x00010000
+#define IEEE80211_CHAN_HT40U 0x00020000
+#define IEEE80211_CHAN_HT40D 0x00040000
 #define IEEE80211_CHAN_VHT20 0x01000000
+#define IEEE80211_CHAN_VHT40U 0x02000000
+#define IEEE80211_CHAN_VHT40D 0x04000000
+#define IEEE80211_CHAN_VHT80 0x08000000
 #define IEEE80211_IS_CHAN_2GHZ(c) (((c)->ic_flags & IEEE80211_CHAN_2GHZ) != 0)
 #define IEEE80211_IS_CHAN_5GHZ(c) (((c)->ic_flags & IEEE80211_CHAN_5GHZ) != 0)
 #define IEEE80211_C_SHSLOT 0x00000080
 #define IEEE80211_C_SHPREAMBLE 0x00000100
 #define IEEE80211_C_QOS 0x00000800
+#define IEEE80211_C_TX_AMPDU 0x00010000
 #define IEEE80211_C_RSN 0x00001000
 #define IEEE80211_C_SCANALLBAND 0x00008000
 #define IEEE80211_F_ASCAN 0x00000001
@@ -86,6 +92,7 @@ struct ieee80211com {
     ieee80211_node *ic_bss=nullptr;
     ieee80211_tree ic_tree{};
     void (*ic_event_handler)(ieee80211com *,int,void *)=nullptr;
+    int (*ic_scan_done)(ieee80211com *)=nullptr;
     int (*ic_node_checkrssi)(ieee80211com *,const ieee80211_node *)=nullptr;
     void *test_context=nullptr;
 };

@@ -15,7 +15,7 @@
 struct BUModel {
  std::array<uint8_t,65536>reg{};std::array<uint8_t,512>otp{};std::array<uint32_t,128>syson{};std::array<uint32_t,256>rf{};
  std::vector<uint8_t>firmware;unsigned calls=0,fail=0,writes=0,otp_reads=0,firmware_max_chunk=0,firmware_last_chunk=0;
- bool ambiguous=false,firmware_ready=true,power_ready=true,llt_ready=true,cam_ready=true,indirect_ready=true,iqk_fail=false,zero_coefficients=false,lck_ready=true;
+ bool ambiguous=false,firmware_ready=true,power_ready=true,fifo_idle=true,llt_ready=true,cam_ready=true,indirect_ready=true,iqk_fail=false,zero_coefficients=false,lck_ready=true;
  uint32_t read(unsigned a,unsigned n=4)const{uint32_t v=0;for(unsigned i=0;i<n;++i)v|=uint32_t(reg[a+i])<<(8*i);return v;}
  void set(unsigned a,uint32_t v,unsigned n=4){for(unsigned i=0;i<n;++i)reg[a+i]=uint8_t(v>>(8*i));}
  BUModel(uint8_t vendor=RTW_R10BU_SMIC){otp.fill(255);syson[0x1f0/4]=uint32_t(vendor)<<6;syson[0x1f8/4]=1;syson[0xe0/4]=32;set(0x284,2U<<17);}
@@ -35,7 +35,7 @@ struct BUModel {
   if(s->w_value==0x8020&&m.power_ready)m.reg[0x8020]&=~3U;
   if(s->w_value==0x224&&m.llt_ready)m.set(0x224,m.read(0x224)&~(1U<<16));
   if(s->w_value==0x670&&m.cam_ready)m.set(0x670,m.read(0x670)&~(1U<<31));
-  if(s->w_value==0x284)m.set(0x284,m.read(0x284)|(1U<<17));
+  if(s->w_value==0x284)m.set(0x284,m.fifo_idle?m.read(0x284)|(1U<<17):m.read(0x284)&~(1U<<17));
   if(s->w_value==0xe94||s->w_value==0xea4)m.set(s->w_value,m.zero_coefficients?0:0x100U<<16);
   if(s->w_value==0xe9c)m.set(s->w_value,0);
   if(s->w_value==0xeac)m.set(s->w_value,m.iqk_fail?0x18000000:0);

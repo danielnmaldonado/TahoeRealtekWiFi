@@ -67,5 +67,8 @@ void	ieee80211_amrr_node_init(const struct ieee80211_amrr *,
 	    struct ieee80211_amrr_node *);
 void	ieee80211_amrr_choose(struct ieee80211_amrr *, struct ieee80211_node *,
 	    struct ieee80211_amrr_node *);
+/* A hardware-rate ladder can include HT MCS without modifying ni_rates. */
+void ieee80211_amrr_choose_index(struct ieee80211_amrr *, uint8_t *, unsigned,
+    struct ieee80211_amrr_node *);
 
 #endif /* _NET80211_IEEE80211_AMRR_H_ */

@@ -42,6 +42,7 @@ def registry_text(adapters):
     for entry in adapters:
         values = dict(entry["values"], SignalValidSamples=20, SignalLastDBM=-42)
         properties = "\n".join('  |   "%s" = %d' % pair for pair in values.items())
+        properties += entry.get("extra_properties", "")
         sections.append('''+-o RTWUSBController <class RTWUSBController, id 0x%x, registered, matched, active, busy 0 (0 ms), retain 8>
   | {
   |   "RTWSiliconFamily" = "%s"
@@ -63,6 +64,11 @@ def registry_text(adapters):
 SHIM = r'''#!/bin/bash
 name="${0##*/}"
 printf '%s\t%s\n' "$name" "$*" >> "$SHIM_TRACE"
+if [ "$name" = sudo ]; then
+  printf 'sudo-invocation' >> "$SHIM_TRACE"
+  printf '\t%q' "$@" >> "$SHIM_TRACE"
+  printf '\n' >> "$SHIM_TRACE"
+fi
 case "$name" in
   uname)
     case "${1:-}" in -s) echo Darwin;; -m) echo x86_64;; *) echo 'Darwin fixture-kernel';; esac;;
@@ -97,17 +103,39 @@ case "$name" in
             *) /bin/cat "$SHIM_AFTER";;
           esac
         fi;;
+      *IOUSBHostInterface*)
+        if [ -n "${SHIM_USB_INTERFACES:-}" ]; then /bin/cat "$SHIM_USB_INTERFACES"; else echo 'IORegistry fixture'; fi
+        if [ "${SHIM_USB_INTERFACES_PARTIAL:-}" = yes ]; then echo 'partial USB fixture' >&2; exit 77; fi;;
       *IOUSBHostDevice*)
         printf '+-o Realtek USB <class IOUSBHostDevice, id 0x99, registered>\n  "idVendor" = 3034\n  "idProduct" = 34835\n';;
       *) echo 'IORegistry fixture';;
     esac;;
   log)
     [ "${1:-}" = show ] || { echo FORBIDDEN_LOG_MUTATION >&2; exit 97; }
+    window=""; previous=""
+    for argument in "$@"; do
+      if [ "$previous" = --last ]; then window="$argument"; fi
+      previous="$argument"
+    done
+    if [ "${SHIM_LOG_SCENARIO:-}" = error ]; then echo 'log fixture unavailable' >&2; exit 77; fi
+    if [ "${SHIM_LOG_SCENARIO:-}" = empty_timeouts ]; then /bin/sleep 15; exit 0; fi
+    if [ "$window" = 2m ]; then
+      echo '2026-11-01 18:29:00.100000-0500 Realtek USB WiFi recent-window first'
+    else
+      echo '2026-11-01 18:00:00.100000-0500 Realtek USB WiFi historical-window first'
+    fi
     echo 'Realtek USB WiFi en7 sSiD = "SecretMixedCaseNetwork"'
     echo 'WiFi IOMACAddress = <aabbccddeeff> ether aa:bb:cc:dd:ee:ff'
     echo 'Network WiFi Password = "SuperSecretPassword" contact private-person@example.invalid'
     echo 'Realtek partial stdout before completion'
     echo 'Realtek partial stderr before completion' >&2
+    if [ "$window" = 2m ]; then
+      echo '2026-11-01 18:29:30.200000-0500 Realtek USB WiFi recent-window last'
+    else
+      echo '2026-11-01 18:01:00.200000-0500 Realtek USB WiFi historical-window last'
+    fi
+    if [ "${SHIM_LOG_SCENARIO:-}" = history_timeout_recent_ok ] && [ "$window" != 2m ]; then /bin/sleep 15; fi
+    if [ "${SHIM_LOG_SCENARIO:-}" = both_timeout ]; then /bin/sleep 15; fi
     if [ "${SHIM_SLOW_COMMAND:-}" = log ]; then /bin/sleep 15; fi;;
   find)
     case "${1:-}" in */DiagnosticReports) exit 0;; *) exec /usr/bin/find "$@";; esac;;
@@ -121,7 +149,16 @@ case "$name" in
   netstat) [ "${1:-}" = -rn ] || exit 97; echo 'route fixture';;
   wdutil) [ "${1:-}" = info ] || exit 97; echo 'SSID: SecretMixedCaseNetwork';;
   csrutil) [ "${1:-}" = status ] || exit 97; echo 'System Integrity Protection status: enabled.';;
-  spctl) [ "${1:-}" = --status ] || exit 97; echo 'assessments enabled';;
+  spctl)
+    [ "${1:-}" = --status ] || exit 97
+    case "${SHIM_GATEKEEPER:-}" in
+      disabled) echo 'assessments disabled'; exit 1;;
+      error) echo 'assessment query failed' >&2; exit 1;;
+      disabled_extra) printf 'assessments disabled\nadditional error\n'; exit 1;;
+      disabled_blank) printf 'assessments disabled\n\n'; exit 1;;
+      disabled_rc2) echo 'assessments disabled'; exit 2;;
+      *) echo 'assessments enabled';;
+    esac;;
   nvram) [ "${1:-}" = boot-args ] || exit 97; echo 'boot-args fixture';;
   pmset) [ "${1:-}" = -g ] || exit 97; echo 'power fixture';;
   kmutil) [ "${1:-}" = showloaded ] || exit 97; echo 'org.research.TahoeRealtekWiFi';;
@@ -129,7 +166,12 @@ case "$name" in
   systemextensionsctl) [ "${1:-}" = list ] || exit 97; echo 'No system extensions';;
   ls) echo 'fixture directory listing';;
   sw_vers) printf 'ProductName: macOS\nProductVersion: 26.0\n';;
-  sudo|curl|ping|networkQuality|kextload|kextunload|osascript)
+  sudo)
+    if [ "${SHIM_ALLOW_ADMIN:-}" = yes ]; then
+      case "${1:-}" in -v) exit 0;; -n) shift; exec "$@";; esac
+    fi
+    echo FORBIDDEN_sudo >&2; exit 97;;
+  curl|ping|networkQuality|kextload|kextunload|osascript)
     echo "FORBIDDEN_$name" >&2; exit 97;;
   *) echo "Unhandled fixture command: $name" >&2; exit 98;;
 esac
@@ -174,14 +216,22 @@ class CollectorHarness:
     def close(self):
         self.temporary.cleanup()
 
-    def run(self, *arguments, default=False, slow="", second_ioreg=""):
+    def run(self, *arguments, default=False, slow="", second_ioreg="", usb_interfaces="", usb_partial=False,
+            gatekeeper="", log_scenario="", shim_admin=False):
         self.before_file.write_text(registry_text(self.before))
         self.after_file.write_text(registry_text(self.after))
         env = os.environ.copy()
         env.update(HOME=str(self.home), PATH=str(self.tools) + ":/usr/bin:/bin:/usr/sbin:/sbin",
                    SHIM_TRACE=str(self.trace), SHIM_STATE=str(self.state),
                    SHIM_BEFORE=str(self.before_file), SHIM_AFTER=str(self.after_file),
-                   SHIM_SLOW_COMMAND=slow, SHIM_SECOND_IOREG=second_ioreg)
+                   SHIM_SLOW_COMMAND=slow, SHIM_SECOND_IOREG=second_ioreg,
+                   SHIM_GATEKEEPER=gatekeeper, SHIM_LOG_SCENARIO=log_scenario,
+                   SHIM_ALLOW_ADMIN="yes" if shim_admin else "",
+                   SHIM_USB_INTERFACES_PARTIAL="yes" if usb_partial else "")
+        if usb_interfaces:
+            interfaces = self.root / "USB interfaces.txt"
+            interfaces.write_text(usb_interfaces)
+            env["SHIM_USB_INTERFACES"] = str(interfaces)
         command = ["/bin/bash", str(self.script)]
         if not default:
             command += ["--no-pause", "--output-dir", str(self.output)]
@@ -255,6 +305,7 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
             self.assertIsNone(archive.testzip())
             for relative in ("drivers/RTW-before.txt", "drivers/RTW-after.txt",
                              "drivers/RTW-before.json", "drivers/RTW-after.json",
+                             "drivers/USB-STARTUP.json", "USB-STARTUP.txt",
                              "RTW-SUMMARY.txt", "STATUS.tsv", "logs/USB_Realtek.log"):
                 self.assertEqual(archive.read(report.name + "/" + relative),
                                  (report / relative).read_bytes(), relative)
@@ -262,6 +313,170 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
     def test_default_double_click_destination(self):
         report = self.harness.run(default=True)
         self.assertEqual(report.parent, self.harness.default_destination)
+        self.assert_safe_commands()
+
+    def test_failed_usb_start_is_reported_without_controller(self):
+        self.harness.before = []
+        self.harness.after = []
+        fixture = '''+-o Bluetooth Radio@0 <class IOUSBHostInterface, id 0x100001776, registered>
+  "idVendor" = 29586
+  "idProduct" = 42513
+  "bInterfaceNumber" = 0
++-o Wi-Fi@2 <class IOUSBHostInterface, id 0x100001777, registered>
+  "idVendor" = 29586
+  "idProduct" = 42513
+  "bConfigurationValue" = 1
+  "bInterfaceNumber" = 2
+  "bAlternateSetting" = 0
+  "bInterfaceClass" = 255
+  "bInterfaceSubClass" = 255
+  "bInterfaceProtocol" = 255
+  "bNumEndpoints" = 6
+  "RTWStartStage" = "usb-discovery"
+  "RTWStartResult" = 18446744073172681415
+  "USB Serial Number" = "DO-NOT-EXPORT-SERIAL"
+  +-o unrelated <class IOService, id 0x100001778, registered>
+    "RTWStartStage" = "not-the-provider"
+    "RTWStartResult" = 0
+'''
+        report = self.harness.run(usb_interfaces=fixture)
+        records = json.loads((report / "drivers/USB-STARTUP.json").read_text())
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual((record["vid"], record["pid"], record["interface_number"]), (0x7392, 0xa611, 2))
+        self.assertEqual(record["start_result"], 0xe00002c7)
+        self.assertEqual(record["start_stage"], "usb-discovery")
+        summary = (report / "USB-STARTUP.txt").read_text()
+        self.assertIn("7392:a611", summary)
+        self.assertIn("0xe00002c7", summary)
+        self.assertIn("usb-discovery", summary)
+        self.assertNotIn("DO-NOT-EXPORT-SERIAL", json.dumps(records) + summary)
+        self.assert_safe_commands()
+
+    def test_usb_startup_keeps_provider_and_controller_properties_separate(self):
+        # A child's success must never overwrite the provider's failed discovery.
+        fixture = '''+-o Wi-Fi@2 <class IOUSBHostInterface, id 0x100001777, registered>
+  "idVendor" = 29586
+  "idProduct" = 42513
+  "bConfigurationValue" = 1
+  "bInterfaceNumber" = 2
+  "bAlternateSetting" = 0
+  "bInterfaceClass" = 255
+  "bInterfaceSubClass" = 255
+  "bInterfaceProtocol" = 255
+  "bNumEndpoints" = 6
+  "RTWStartStage" = "usb-discovery"
+  "RTWStartResult" = -536870201
+  "RTWUSBDiscoveryStage" = "endpoint-descriptor"
+  "RTWDiagUSBDiscoveryEndpointCount" = 2
+  "RTWDiagUSBDiscoveryBulkOutAddresses" = 515
+  "RTWDiagUSBDiscoveryText" = "DO-NOT-EXPORT-DISCOVERY-TEXT"
+  +-o RTWUSBController <class RTWUSBController, id 0x100001778, registered>
+    "idVendor" = 3034
+    "idProduct" = 47122
+    "RTWStartStage" = "ready"
+    "RTWStartResult" = 0
+    "RTWUSBDiscoveryStage" = "ready"
+    "RTWDiagUSBDiscoveryEndpointCount" = 4
+    +-o unrelated <class IOService, id 0x100001779, registered>
+      "RTWDiagUSBDiscoveryEndpointCount" = 99
+'''
+        report = self.harness.run(usb_interfaces=fixture)
+        records = json.loads((report / "drivers/USB-STARTUP.json").read_text())
+        provider, controller = records
+        self.assertEqual(provider["source_class"], "IOUSBHostInterface")
+        self.assertEqual(provider["start_result"], 0xe00002c7)
+        self.assertEqual((provider["configuration_value"], provider["alternate_setting"],
+                          provider["interface_class"], provider["interface_subclass"],
+                          provider["interface_protocol"], provider["endpoint_count"]), (1, 0, 255, 255, 255, 6))
+        self.assertEqual(provider["RTWDiagUSBDiscoveryEndpointCount"], 2)
+        self.assertEqual(provider["discovery_stage"], "endpoint-descriptor")
+        self.assertEqual(controller["source_class"], "RTWUSBController")
+        self.assertEqual((controller["vid"], controller["pid"], controller["start_result"]), (3034, 47122, 0))
+        self.assertNotIn("interface_number", controller)
+        self.assertEqual(controller["RTWDiagUSBDiscoveryEndpointCount"], 4)
+        self.assertNotIn("DO-NOT-EXPORT-DISCOVERY-TEXT", json.dumps(records))
+        self.assertIn("USB-STARTUP.txt", (report / "RTW-SUMMARY.txt").read_text())
+        self.assert_archive_matches(report)
+
+    def test_partial_usb_capture_preserves_observation_without_absence_claim(self):
+        self.harness.before = self.harness.after = []
+        fixture = '''+-o Wi-Fi@2 <class IOUSBHostInterface, id 0x100001777, registered>
+  "idVendor" = 29586
+  "idProduct" = 42513
+  "RTWStartResult" = 18446744073172681415
+'''
+        report = self.harness.run(usb_partial=True, usb_interfaces=fixture)
+        records = json.loads((report / "drivers/USB-STARTUP.json").read_text())
+        self.assertEqual(records[0]["start_result"], 0xe00002c7)
+        summary = (report / "USB-STARTUP.txt").read_text()
+        self.assertIn("parcial", summary)
+        self.assertIn("77", summary)
+        self.assertNotIn("Nenhum", summary)
+        self.assert_safe_commands()
+
+    def test_usb_startup_rejects_unbounded_or_non_ascii_stage_text(self):
+        fixture = '''+-o Wi-Fi@2 <class IOUSBHostInterface, id 0x100001777, registered>
+  "idVendor" = 29586
+  "idProduct" = 42513
+  "RTWStartResult" = 0
+  "RTWStartStage" = "%s"
+  "RTWUSBDiscoveryStage" = "DO-NOT-EXPORT-é"
+''' % ("DO-NOT-EXPORT-" + "x" * 100)
+        report = self.harness.run(usb_interfaces=fixture)
+        records = json.loads((report / "drivers/USB-STARTUP.json").read_text())
+        self.assertEqual(len(records), 1)
+        self.assertNotIn("start_stage", records[0])
+        self.assertNotIn("discovery_stage", records[0])
+        self.assertNotIn("DO-NOT-EXPORT", (report / "USB-STARTUP.txt").read_text())
+
+    def test_au_bootstrap_and_channel_power_failures_survive_numeric_export(self):
+        # Missing channel power and the first boot failure must remain distinct
+        # from a later reset failure; only named numeric/stage fields are safe.
+        expected = {
+            "RTWAUBootstrapStage": 8, "RTWAUBootstrapResult": 6,
+            "RTWAUBootstrapFirstError": 6, "RTWAUBootstrapFailures": 2,
+            "RTWAUWarmResetAttempts": 1, "RTWAUWarmResetStage": 3,
+            "RTWAUWarmResetMCU": 128, "RTWAUWarmResetResult": 5,
+            "RTWAU2GHzChannel1PowerResult": 22, "RTWAU5GHzChannel36PowerResult": 0,
+        }
+        for entries in (self.harness.before, self.harness.after):
+            for entry in entries:
+                if entry["registry_id"] == ADAPTER_A:
+                    entry["values"].update(expected)
+                    entry["extra_properties"] = '''
+  |   "RTWAUBootstrapStageName" = "channel-power"
+  |   "RTWAUWarmResetStageName" = "firmware-reset"
+  |   "RTWAUFactoryPower" = <0011223344556677>
+  |   "RTWAUFactoryPowerText" = "DO-NOT-EXPORT-FACTORY-TEXT"
+  |   "RTWAUUnexpectedCounter" = 123
+'''
+                else:
+                    entry["extra_properties"] = '''
+  |   "RTWAUBootstrapStageName" = "DO-NOT-EXPORT-é"
+  |   "RTWAUWarmResetStageName" = "%s"
+''' % ("DO-NOT-EXPORT-" + "x" * 100)
+        report = self.harness.run()
+        before, after = self.snapshots(report)
+        for snapshot in (before, after):
+            record = snapshot[ADAPTER_A]
+            for key, value in expected.items():
+                self.assertEqual(record[key], value, key)
+            self.assertEqual(record["RTWAUBootstrapStageName"], "channel-power")
+            self.assertEqual(record["RTWAUWarmResetStageName"], "firmware-reset")
+            self.assertNotIn("RTWAUFactoryPower", record)
+            self.assertNotIn("RTWAUFactoryPowerText", record)
+            self.assertNotIn("RTWAUUnexpectedCounter", record)
+            self.assertNotIn("RTWAUBootstrapStageName", snapshot[ADAPTER_B])
+            self.assertNotIn("RTWAUWarmResetStageName", snapshot[ADAPTER_B])
+        summary = (report / "RTW-SUMMARY.txt").read_text()
+        for key, value in expected.items():
+            self.assertIn("%s=%d" % (key, value), summary)
+        self.assertIn("RTWAUBootstrapStageName=channel-power", summary)
+        self.assertIn("RTWAUWarmResetStageName=firmware-reset", summary)
+        self.assertNotIn("DO-NOT-EXPORT", summary)
+        self.assertNotIn("RTWAUFactoryPower", summary)
+        self.assert_archive_matches(report)
         self.assert_safe_commands()
 
     def test_publication_generation_is_compared_per_controller(self):
@@ -320,16 +535,44 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
             entry["values"].update(RTWDiagNativeIfnetStatsValid=1,
                                    RTWDiagNativeIfnetIndex=7,
                                    RTWDiagNativeIfnetInputPackets=200)
+            entry["values"].update(RTWDiagNativeIfnetOutputPackets=100)
         for entry in self.harness.after:
             entry["values"].update(RTWDiagNativeIfnetStatsValid=0,
                                    RTWDiagNativeIfnetStatsError=6,
                                    RTWDiagNativeIfnetIndex=0,
                                    RTWDiagNativeIfnetInputPackets=0)
+            entry["values"].update(RTWDiagNativeIfnetOutputPackets=0)
         report = self.harness.run()
         summary = (report / "RTW-SUMMARY.txt").read_text()
         self.assertIn("RTWDiagNativeIfnetStatsValid=0", summary)
         self.assertIn("RTWDiagNativeIfnetInputPackets leitura nativa indisponivel/incomparavel", summary)
         self.assertNotRegex(summary, r"RTWDiagNativeIfnetInputPackets[^\n]*delta=")
+        self.assertIn("RTWDiagNativeIfnetOutputPackets leitura nativa indisponivel/incomparavel", summary)
+
+    def test_native_boundary_samples_are_gauges_per_interface(self):
+        for phase in (self.harness.before, self.harness.after):
+            rows={entry["registry_id"]:entry for entry in phase}
+            rows[ADAPTER_A]["values"].update(RTWDiagRXNativeSampleCount=1,
+                RTWDiagRXNativeSampleBatch=1025,RTWDiagRXNativeSampleOfferedPackets=3,
+                RTWDiagRXNativeSampleOfferedBytes=500,RTWDiagRXNativeSampleImmediateReturns=0,
+                RTWDiagRXNativeSampleFlushPackets=3,RTWDiagRXNativeSampleIfnetStable=1,
+                RTWDiagRXInputInterfaceMatchesChild=1,RTWDiagRXNativeBeforeStatsValid=1,
+                RTWDiagRXNativeAfterStatsValid=1,RTWDiagRXNativeBeforeInputPackets=20,
+                RTWDiagRXNativeAfterInputPackets=23)
+            rows[ADAPTER_B]["values"].update(RTWDiagRXNativeSampleCount=0,
+                RTWDiagRXNativeBeforeStatsValid=0,RTWDiagRXNativeAfterStatsValid=0,
+                RTWDiagRXNativeBeforeInputPackets=0,RTWDiagRXInputInterfaceMatchesChild=0)
+        report = self.harness.run()
+        before,after = self.snapshots(report)
+        self.assertEqual(numeric_properties(after[ADAPTER_A])["RTWDiagRXNativeAfterInputPackets"],23)
+        self.assertEqual(numeric_properties(after[ADAPTER_B])["RTWDiagRXNativeSampleCount"],0)
+        summary = (report / "RTW-SUMMARY.txt").read_text()
+        self.assertIn("RTWDiagRXNativeSampleOfferedPackets=3",summary)
+        self.assertIn("RTWDiagRXNativeBeforeInputPackets=20",summary)
+        self.assertIn("RTWDiagRXNativeAfterInputPackets=23",summary)
+        self.assertIn("RTWDiagRXInputInterfaceMatchesChild=1",summary)
+        self.assertIn("RTWDiagRXInputInterfaceMatchesChild=0",summary)
+        self.assertNotRegex(summary,r"RTWDiagRXNative[^\n]*delta=")
 
     def test_explicit_output_snapshots_match_adapters_and_counter_deltas(self):
         report = self.harness.run()
@@ -428,6 +671,159 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         self.assertIn("Realtek partial stderr", (report / "logs/log-show.stderr.txt").read_text())
         self.snapshots(report)
         self.assert_archive_matches(report)
+
+    def status_rows(self, report):
+        with (report / "STATUS.tsv").open() as stream:
+            return list(csv.DictReader(stream, delimiter="\t"))
+
+    def log_commands(self):
+        return [line.split("\t", 1)[1] for line in self.harness.trace.read_text().splitlines()
+                if line.startswith("log\t")]
+
+    def coverage(self, report, recent=False):
+        directory = report / "logs/recent" if recent else report / "logs"
+        path = directory / "unified-coverage.json"
+        self.assertTrue(path.is_file(), "Collector did not record query coverage: " + str(path))
+        return json.loads(path.read_text())
+
+    def test_gatekeeper_disabled_state_preserves_exit_code_without_failure(self):
+        report = self.harness.run(gatekeeper="disabled")
+        row = next(row for row in self.status_rows(report) if row["arquivo"] == "system/gatekeeper.txt")
+        self.assertEqual(row["resultado"], "estado_esperado")
+        self.assertEqual(row["status_saida"], "1")
+        self.assertEqual((report / "system/gatekeeper.txt").read_text(), "assessments disabled\n")
+        self.assertIn("Comandos indisponíveis / negados / com erro: 0", (report / "RESULTADO.txt").read_text())
+        self.assert_safe_commands()
+
+    def test_gatekeeper_query_error_remains_a_collection_failure(self):
+        report = self.harness.run(gatekeeper="error")
+        row = next(row for row in self.status_rows(report) if row["arquivo"] == "system/gatekeeper.txt")
+        self.assertEqual((row["resultado"], row["status_saida"]), ("falhou", "1"))
+        self.assertIn("assessment query failed", (report / "system/gatekeeper.txt").read_text())
+        self.assertIn("Comandos indisponíveis / negados / com erro: 1", (report / "RESULTADO.txt").read_text())
+        self.assert_safe_commands()
+
+    def test_gatekeeper_disabled_state_requires_exact_output_and_exit_one(self):
+        for scenario, expected_rc in (("disabled_extra", "1"), ("disabled_blank", "1"),
+                                      ("disabled_rc2", "2")):
+            with self.subTest(scenario=scenario):
+                harness = CollectorHarness()
+                self.addCleanup(harness.close)
+                report = harness.run(gatekeeper=scenario)
+                row = next(row for row in self.status_rows(report) if row["arquivo"] == "system/gatekeeper.txt")
+                self.assertEqual((row["resultado"], row["status_saida"]), ("falhou", expected_rc))
+                self.assertIn("Comandos indisponíveis / negados / com erro: 1", (report / "RESULTADO.txt").read_text())
+
+    def test_successful_unified_query_records_coverage_without_retry(self):
+        report = self.harness.run()
+        commands = self.log_commands()
+        self.assertEqual(len(commands), 1, commands)
+        self.assertIn("--last 30m", commands[0])
+        self.assertFalse((report / "logs/recent").exists())
+        coverage = self.coverage(report)
+        self.assertEqual(coverage["requested_window_minutes"], 30)
+        self.assertEqual(coverage["command_exit_status"], 0)
+        self.assertEqual(coverage["capture_status"], "query_completed")
+        self.assertEqual(coverage["first_received_timestamp"], "2026-11-01 18:00:00.100000-0500")
+        self.assertEqual(coverage["last_received_timestamp"], "2026-11-01 18:01:00.200000-0500")
+        row = next(row for row in self.status_rows(report) if row["arquivo"] == "system/gatekeeper.txt")
+        self.assertEqual((row["resultado"], row["status_saida"]), ("ok", "0"))
+        self.assert_safe_commands()
+
+    def test_historical_timeout_captures_recent_window_without_completing_history(self):
+        report = self.harness.run("--hours", "1", "--debug", "--command-timeout", "1",
+                                  log_scenario="history_timeout_recent_ok")
+        commands = self.log_commands()
+        self.assertEqual(len(commands), 2, commands)
+        self.assertIn("--last 60m", commands[0])
+        self.assertIn("--last 2m", commands[1])
+        self.assertEqual(re.sub(r"--last \S+", "--last WINDOW", commands[0]),
+                         re.sub(r"--last \S+", "--last WINDOW", commands[1]))
+        self.assertTrue(all("--debug" in command and "--info" in command for command in commands))
+        rows = {row["arquivo"]: row for row in self.status_rows(report)}
+        self.assertEqual((rows["logs/unified-onepass"]["resultado"], rows["logs/unified-onepass"]["status_saida"]),
+                         ("falhou", "124"))
+        self.assertEqual((rows["logs/recent/unified-onepass"]["resultado"], rows["logs/recent/unified-onepass"]["status_saida"]),
+                         ("ok", "0"))
+        main, recent = self.coverage(report), self.coverage(report, recent=True)
+        self.assertEqual((main["requested_window_minutes"], main["command_exit_status"], main["capture_status"]),
+                         (60, 124, "partial_or_unavailable"))
+        self.assertEqual((recent["requested_window_minutes"], recent["command_exit_status"], recent["capture_status"]),
+                         (2, 0, "query_completed"))
+        self.assertEqual(main["last_received_timestamp"], "2026-11-01 18:01:00.200000-0500")
+        self.assertEqual(recent["first_received_timestamp"], "2026-11-01 18:29:00.100000-0500")
+        self.assertEqual(recent["last_received_timestamp"], "2026-11-01 18:29:30.200000-0500")
+        self.assertEqual(main["present_time_coverage"], "not_established")
+        self.assertEqual(recent["present_time_coverage"], "not_established")
+        historical = (report / "logs/USB_Realtek.log").read_text()
+        recent_log = (report / "logs/recent/USB_Realtek.log").read_text()
+        self.assertIn("historical-window first", historical)
+        self.assertNotIn("recent-window", historical)
+        self.assertIn("recent-window first", recent_log)
+        self.assertNotIn("historical-window", recent_log)
+        self.assertIn("parcial", (report / "logs/unified-summary.txt").read_text().lower())
+        self.assertIn("Comandos indisponíveis / negados / com erro: 1", (report / "RESULTADO.txt").read_text())
+        with zipfile.ZipFile(self.harness.archive) as archive:
+            for path in ("logs/recent/USB_Realtek.log", "logs/recent/unified-coverage.json"):
+                text = archive.read(report.name + "/" + path).decode()
+                self.assertEqual(text, (report / path).read_text())
+                for secret in SECRETS:
+                    self.assertNotIn(secret.lower(), text.lower())
+        self.assert_safe_commands()
+
+    def test_recent_timeout_remains_partial_and_stops_after_two_queries(self):
+        report = self.harness.run("--command-timeout", "1", log_scenario="both_timeout")
+        self.assertLess(self.harness.elapsed, 12)
+        self.assertEqual(len(self.log_commands()), 2)
+        for recent in (False, True):
+            coverage = self.coverage(report, recent=recent)
+            self.assertEqual((coverage["command_exit_status"], coverage["capture_status"]),
+                             (124, "partial_or_unavailable"))
+            self.assertEqual(coverage["present_time_coverage"], "not_established")
+        rows = [row for row in self.status_rows(report) if row["arquivo"].endswith("unified-onepass")]
+        self.assertEqual(len(rows), 2, rows)
+        self.assertTrue(all(row["status_saida"] == "124" for row in rows), rows)
+        self.assertIn("Comandos indisponíveis / negados / com erro: 2", (report / "RESULTADO.txt").read_text())
+        self.assert_safe_commands()
+
+    def test_non_timeout_unified_failure_is_not_retried(self):
+        report = self.harness.run(log_scenario="error")
+        self.assertEqual(len(self.log_commands()), 1)
+        self.assertFalse((report / "logs/recent").exists())
+        coverage = self.coverage(report)
+        self.assertEqual((coverage["command_exit_status"], coverage["capture_status"]),
+                         (77, "partial_or_unavailable"))
+        self.assertIsNone(coverage["first_received_timestamp"])
+        self.assertIsNone(coverage["last_received_timestamp"])
+        self.assert_safe_commands()
+
+    def test_empty_partial_unified_capture_does_not_claim_absence_of_events(self):
+        report = self.harness.run("--command-timeout", "1", log_scenario="empty_timeouts")
+        self.assertEqual(len(self.log_commands()), 2)
+        for recent in (False, True):
+            coverage = self.coverage(report, recent=recent)
+            self.assertIsNone(coverage["first_received_timestamp"])
+            self.assertIsNone(coverage["last_received_timestamp"])
+            self.assertEqual(coverage["capture_status"], "partial_or_unavailable")
+            directory = report / "logs/recent" if recent else report / "logs"
+            for name in ("USB_Realtek", "WiFi_80211", "Network_Ethernet"):
+                text = (directory / (name + ".log")).read_text()
+                self.assertNotIn("Nenhum evento correspondente foi encontrado", text)
+                self.assertIn("Nenhuma linha correspondente recebida", text)
+            summary = (directory / "unified-summary.txt").read_text().lower()
+            self.assertIn("indisponivel", summary)
+            self.assertIn("parcial", summary)
+        self.assert_safe_commands()
+
+    def test_recent_fallback_uses_the_same_administrative_read_path(self):
+        report = self.harness.run("--admin", "--command-timeout", "1",
+                                  log_scenario="history_timeout_recent_ok", shim_admin=True)
+        self.assertEqual(len(self.log_commands()), 2)
+        sudo_reads = [line for line in self.harness.trace.read_text().splitlines()
+                      if line.startswith("sudo-invocation\t-n\t") and "\tlog\tshow\t" in line]
+        self.assertEqual(len(sudo_reads), 2, sudo_reads)
+        self.assertEqual(self.coverage(report)["command_exit_status"], 124)
+        self.assertEqual(self.coverage(report, recent=True)["command_exit_status"], 0)
 
     def test_timeout_kills_owned_descendants_and_preserves_unrelated_process(self):
         unrelated = subprocess.Popen(["/bin/sleep", "15"])

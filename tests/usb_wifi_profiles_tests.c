@@ -12,6 +12,15 @@ int main(void) {
     CHECK(rtw_usb_wifi_station_backend(NULL) == RTW_WIFI_UNKNOWN);
     CHECK(rtw_usb_wifi_profile_allowed_bands(NULL) == 0);
     CHECK(rtw_usb_wifi_lookup(0xffff,0xffff,0x0200,1,0) == NULL);
+    /* Edimax WLAN requires its Linux FF/FF/FF tuple; Bluetooth is E0/01/01. */
+    CHECK(rtw_usb_wifi_lookup(0x7392,0xa611,0x0200,1,2)==NULL);
+    p=rtw_usb_wifi_lookup_descriptor(0x7392,0xa611,0x0200,1,2,255,255,255);
+    CHECK(p && rtw_usb_wifi_station_backend(p)==RTW_WIFI_RTL8723BU);
+    CHECK(rtw_usb_wifi_lookup_descriptor(0x7392,0xa611,0x0200,1,0,224,1,1)==NULL);
+    CHECK(rtw_usb_wifi_lookup_descriptor(0x7392,0xa611,0x0200,1,1,224,1,1)==NULL);
+    CHECK(rtw_usb_wifi_lookup_descriptor(0x7392,0xa611,0x0200,1,2,224,1,1)==NULL);
+    CHECK(rtw_usb_wifi_lookup_descriptor(0x7392,0xa611,0x0200,1,2,255,255,1)==NULL);
+
     p=rtw_usb_wifi_lookup(0x2357,0x0108,0x0000,1,0);
     CHECK(p && p->family == RTW_WIFI_RTL8192EU && p->primary_verified);
     CHECK(rtw_usb_wifi_station_backend(p) == RTW_WIFI_RTL8192EU);

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "component": "DNMTechLabs guarded RTL8822B/C chip identity discovery",
+  "component": "MaLd0n guarded RTL8822B/C chip identity discovery",
   "license": "GPL-2.0-only",
   "scope": {
     "vendor": "13b1",

@@ -14,6 +14,7 @@ typedef struct {uint8_t bulk_in,bulk_out[3],bulk_out_count;uint16_t max_packet;}
 typedef struct {
  uint8_t mac[6],rfe,crystal,thermal,channel_plan,cut,vendor,rom_revision;
  uint16_t vid,pid;uint8_t txpower[2][42];
+ uint8_t logical[512]; /* complete immutable OTP identity, including reserved bytes */
 } rtw_r92fu_board;
 typedef struct {uint16_t version,payload_bytes;uint8_t subversion;} rtw_r92fu_firmware;
 typedef struct {
@@ -40,6 +41,9 @@ int rtw_r92fu_resume(rtw_r92fu*);
 int rtw_r92fu_invalidate(rtw_r92fu*);
 void rtw_r92fu_forget(rtw_r92fu*);
 int rtw_r92fu_pause(rtw_r92fu*);
+#define RTW_R92FU_CHECKED_STOP 1
+/* Checked teardown preserves the original error and returns cleanup only. */
+int rtw_r92fu_stop_checked(rtw_r92fu*);
 int rtw_r92fu_stop(rtw_r92fu*);
 int rtw_r92fu_decode_phy(const rtw_r92fu*,uint8_t,const uint8_t*,size_t,int*);
 int rtw_r92fu_make_tx(const rtw_r92fu_tx_options*,const rtw_r92fu_rate*,uint8_t[40]);

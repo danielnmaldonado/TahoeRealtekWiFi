@@ -36,7 +36,7 @@ static IOReturn fromErrno(int error) {
     case 0: return kIOReturnSuccess;
     case EINVAL: return kIOReturnBadArgument;
     case ENOMEM: case ENOBUFS: return kIOReturnNoMemory;
-    case EBUSY: return kIOReturnBusy;
+    case EBUSY: case EAGAIN: return kIOReturnBusy;
     case ENODEV: case ENXIO: return kIOReturnNoDevice;
     case ENETDOWN: return kIOReturnNotReady;
     case ETIMEDOUT: return kIOReturnTimeout;
@@ -88,6 +88,8 @@ bool RTWUSBController::configureInterface(IONetworkInterface *interface) {
     IONetworkData *data = interface->getParameter(kIONetworkStatsKey);
     IOEthernetInterface *ethernet = OSDynamicCast(IOEthernetInterface, interface);
     if (!data || !ethernet || !(stats_ = const_cast<IONetworkStats *>(static_cast<const IONetworkStats *>(data->getBuffer())))) return false;
+    // Interface presentation only; retain the USB provider and BSD identity.
+    ethernet->setProperty(kIOBuiltin, true);
     core_.sc_ic.ic_if.netStat = stats_;
     ether_ifattach(&core_.sc_ic.ic_if, ethernet);
     return true;
@@ -184,34 +186,92 @@ int RTWUSBController::loadFirmware(void*p,u_char **bytes,size_t *length) {
 void RTWUSBController::busMAC(void*p) { auto*s=owner(p);int e=rtw92eu_mac_init(&s->core_);if(e&&!s->core_.core_error)s->core_.core_error=e; }
 void RTWUSBController::busBB(void*p) { auto*s=owner(p);int e=rtw92eu_bb_init(&s->core_);if(e&&!s->core_.core_error)s->core_.core_error=e; }
 void RTWUSBController::busAggregation(void*p) { auto*s=owner(p);int e=rtw92eu_aggr_init(&s->core_,s->rxPipe_->getSpeed()==kUSBHostConnectionSpeedHigh);if(e&&!s->core_.core_error)s->core_.core_error=e; }
-int RTWUSBController::busAllocate(void*p) { return owner(p)->allocateTransfers(); }
+int RTWUSBController::busAllocate(void*p) { auto*s=owner(p);if(s->isLegacyRecoveryFamily()){const int e=s->beginFamilyStart();if(e)return e;}return s->allocateTransfers(); }
 int RTWUSBController::busInitialize(void*p) {
     auto*s=owner(p);
+    const auto* initialBackend=rtw_backend_for_family(s->family_);
+    const bool initialStation=initialBackend&&(initialBackend->capabilities&RTW_BACKEND_CAP_KEXT_STATION);
+    auto cancelled=[&]{return !s->attached_||!s->present_||s->sleeping_||s->stopping_||s->closing_;};
+    if(initialStation&&cancelled())return ENXIO;
     if (!s->core_.sc_ic.ic_if.iface || !s->stats_ || ioError(p)) return ENXIO;
+    if(initialStation&&(s->rxRecovery_.initialDrainMask||s->rxRecovery_.stopDrainMask))return EBUSY;
     if(s->family_==RTW_WIFI_RTL8192EU){write1(p,R92C_ACLK_MON,0);write1(p,R92C_USB_HRPWM,0);}
     if (ioError(p)) return EIO;
     IOInterruptState lock=IOSimpleLockLockDisableInterrupt(s->completionLock_);
     bool restart=rtw_transfer_restart(&s->ledger_);IOSimpleLockUnlockEnableInterrupt(s->completionLock_,lock);
     if(!restart)return EBUSY;
     s->running_=true;
-    for(unsigned i=0;i<RXSlots;i++) if(s->submit(i,s->rxPipe_,rtw_usb_rx_capacity(s->family_))) {s->abortTransfers();return EIO;}
+    int error=0;unsigned attempted=0;
+    for(unsigned i=0;i<RXSlots;i++){
+        attempted=i+1;error=s->submit(i,s->rxPipe_,rtw_usb_rx_capacity(s->family_));if(error)break;
+    }
+    if(initialStation&&cancelled()){s->abortTransfers();return ENXIO;}
+    if(initialStation&&(!error||error==EAGAIN)){
+        /* A callback can precede the return of the final successful io().
+         * Accepted reads with an already-recorded error are not a valid RX
+         * epoch, even though their ownership bits are still pending. */
+        IOReturn completedError=kIOReturnSuccess;
+        lock=IOSimpleLockLockDisableInterrupt(s->completionLock_);
+        const bool fullSet=(s->ledger_.pending&((1U<<RXSlots)-1U))==((1U<<RXSlots)-1U);
+        for(unsigned i=0;i<RXSlots;i++)if(s->ledger_.completed&(1U<<i)){
+            const auto&t=s->transfers_[i];
+            if(t.result!=kIOReturnSuccess||t.actual>t.submitted){
+                completedError=t.result==kIOReturnSuccess?kIOReturnUnderrun:t.result;
+                error=completedError==kIOReturnNotResponding&&!t.actual?EAGAIN:EIO;
+                if(error!=EAGAIN)break;
+            }
+        }
+        IOSimpleLockUnlockEnableInterrupt(s->completionLock_,lock);
+        if(error&&error!=EAGAIN)s->fault(completedError);
+        if(!error&&!fullSet){s->abortTransfers();return EBUSY;}
+    }
+    if(error){
+        if(!initialStation||error!=EAGAIN){s->abortTransfers();return EIO;}
+        auto&r=s->rxRecovery_;
+        ++r.initialErrors;r.initialOriginalError=kIOReturnNotResponding;
+        r.initialDrainMask=(1U<<attempted)-1U;
+        for(unsigned i=0;i<attempted;i++)r.initialDrainGeneration[i]=s->transfers_[i].generation;
+        /* Never wait for workloop callbacks here. Synchronous abort records
+         * what it can, then the ledger proves whether old ownership drained. */
+        s->abortTransfers();
+        lock=IOSimpleLockLockDisableInterrupt(s->completionLock_);
+        const bool drained=rtw_transfer_drained(&s->ledger_);
+        IOSimpleLockUnlockEnableInterrupt(s->completionLock_,lock);
+        if(r.initialDrainError!=kIOReturnSuccess)return EIO;
+        if(!drained||r.initialDrainMask)return EBUSY;
+        if(cancelled())return ENXIO;
+        if(r.initialConsecutive>=3){
+            ++r.initialFailures;++r.initialExhausted;s->fault(r.initialOriginalError);return EIO;
+        }
+        ++r.initialConsecutive;++r.initialClearAttempts;
+        /* advanceRXRecovery uses this same gate-held clear operation. There
+         * is one checked call, no sleep/poll/refill loop and no radio success.
+         * The next explicit start reboots hardware and submits a fresh set. */
+        r.initialClearResult=s->rxPipe_->clearStall(true);
+        if(r.initialClearResult!=kIOReturnSuccess){
+            ++r.initialFailures;s->fault(r.initialClearResult);return EIO;
+        }
+        return cancelled()?ENXIO:EAGAIN;
+    }
     /* rtwn_init already rebuilt DMA and reloaded firmware. Successful RX
      * submission certifies a fresh transport for untagged CCX feedback. */
     if(s->family_==RTW_WIFI_RTL8188EU){
         write1(p,R88E_TX_RPT_CTRL,read1(p,R88E_TX_RPT_CTRL)|R88E_TX_RPT_CTRL_EN);
         if(ioError(p)){s->abortTransfers();return EIO;}
     }
+    if(initialStation)s->rxRecovery_.initialConsecutive=0;
     s->rateTransportFresh_=true;
     s->watchdogTimer_->setTimeoutMS(1000);return 0;
 }
 void RTWUSBController::busStop(void*p) {
-    auto*s=owner(p);s->abortTransfers();
-    if(s->present_&&!s->sleeping_&&s->usbError_==kIOReturnSuccess){
-        write1(p,R92C_RF_CTRL,0);
-        uint16_t control=read2(p,R92C_CR);
-        write2(p,R92C_CR,control&~(R92C_CR_MACTXEN|R92C_CR_MACRXEN));
-    }
-    s->freeTransfers();
+    auto*s=owner(p);s->familyRecovery_.inStop=true;
+    if(s->familyRecovery_.starting&&s->core_.core_error)s->failFamilyStart(s->core_.core_error);
+    s->abortTransfers();
+    if(!s->familyStopDrained())return;
+    int cleanup=ENXIO;
+    if(s->isLegacyRecoveryFamily()&&s->present_&&!s->sleeping_&&s->usbError_==kIOReturnSuccess)
+        cleanup=rtwLegacyPowerOffChecked(&s->core_);
+    s->recordFamilyCleanup(cleanup);s->freeTransfers();
 }
 int RTWUSBController::busBusy(void*p) { return owner(p)->hasFreeTX()?0:1; }
 void RTWUSBController::nextScan(void*p) { auto*s=owner(p);if(s->running_&&!s->stopping_)s->scanTimer_->setTimeoutMS(200); }
@@ -250,11 +310,32 @@ int RTWUSBController::stateTransition(ieee80211com *ic,ieee80211_state state,int
     return result;
 }
 void RTWUSBController::observeScanTransition(ieee80211_state previous,ieee80211_state requested,unsigned channel,int result) {
+    if(requested==IEEE80211_S_SCAN)browseScanComplete_=false;
     const auto transition=requested==IEEE80211_S_SCAN?rtw::ScanDiagnosticTransition::Scan:
         requested==IEEE80211_S_AUTH?rtw::ScanDiagnosticTransition::Auth:
         requested==IEEE80211_S_INIT?rtw::ScanDiagnosticTransition::Init:rtw::ScanDiagnosticTransition::Other;
     rtw::scanDiagnosticsTransition(scanDiag_,previous==IEEE80211_S_SCAN,transition,channel,result);
     publishScanDiagnostics();
+}
+int RTWUSBController::scanComplete(ieee80211com*ic) {
+    if(!ic||!ic->ic_softc)return 0;
+    auto*core=static_cast<rtwn_softc*>(ic->ic_softc);
+    auto*s=owner(core->sc_ops.cookie);
+    if(!s||core!=&s->core_||ic!=&s->core_.sc_ic||!s->attached_||!s->running_||
+       !s->present_||s->sleeping_||s->stopping_||s->closing_||s->joinRequested_||
+       s->usbError_!=kIOReturnSuccess||core->core_error||
+       s->scanDiag_.state!=rtw::ScanDiagnosticState::Active||s->scanDiag_.lastError||
+       ic->ic_opmode!=IEEE80211_M_STA||ic->ic_state!=IEEE80211_S_SCAN||
+       (ic->ic_flags&IEEE80211_F_BGSCAN))return 0;
+    // INIT tears down the scan cache. Keep the receive state and cached BSS
+    // records, but consume this completed browse sweep before JOIN retries.
+    if(s->scanTimer_)s->scanTimer_->cancelTimeout();
+    ic->ic_flags&=~IEEE80211_F_ASCAN;
+    s->browseScanComplete_=true;
+    s->scanDiag_.state=rtw::ScanDiagnosticState::Complete;
+    s->scanDiag_.lastError=0;
+    s->publishScanDiagnostics();
+    return 1;
 }
 
 bool RTWUSBController::read88IdentityDescriptor(rtw_chip_identity_descriptor*out) const {
@@ -321,43 +402,80 @@ int RTWUSBController::publish88Identity() {
     setProperty("RTWChipIdentityVerified",true);return 0;
 }
 bool RTWUSBController::discoverUSB() {
+    IOUSBHostInterface *const discoveryProvider=usb_;
+    if(!discoveryProvider)return false;
+    struct ProviderReference {
+        IOUSBHostInterface *const provider;
+        explicit ProviderReference(IOUSBHostInterface *value):provider(value){provider->retain();}
+        ~ProviderReference(){provider->release();}
+    } providerReference(discoveryProvider);
+    /* The interface outlives a failed Controller start. Keep discovery evidence
+     * there as well so diagnostics do not require a surviving network service.
+     * A callback can revoke usb_; evidence belongs to the retained original. */
+    const auto stage=[&,discoveryProvider](const char *value)->bool {
+        setProperty("RTWUSBDiscoveryStage",value);discoveryProvider->setProperty("RTWUSBDiscoveryStage",value);return false;
+    };
+    const auto fact=[&,discoveryProvider](const char *name,uint64_t value,unsigned bits=32) {
+        setProperty(name,(unsigned long long)value,bits);discoveryProvider->setProperty(name,(unsigned long long)value,bits);
+    };
+    stage("descriptors");
+    fact("RTWDiagUSBDiscoveryFailureEndpoint",0,8);
     IOUSBHostDevice *device=usb_->getDevice();
     const auto*d=device?device->getDeviceDescriptor():nullptr;
     const auto*i=usb_->getInterfaceDescriptor();const auto*c=usb_->getConfigurationDescriptor();
-    if(!d||!i||!c)return false;
+    if(!d||!i||!c)return stage("descriptors-unavailable");
+    fact("RTWDiagUSBDiscoveryInterface",i->bInterfaceNumber,8);
+    fact("RTWDiagUSBDiscoveryAlternate",i->bAlternateSetting,8);
+    fact("RTWDiagUSBDiscoveryDeclaredEndpoints",i->bNumEndpoints,8);
     profile_=rtw_usb_wifi_lookup_descriptor(USBToHost16(d->idVendor),USBToHost16(d->idProduct),
         USBToHost16(d->bcdDevice),c->bConfigurationValue,i->bInterfaceNumber,
         i->bInterfaceClass,i->bInterfaceSubClass,i->bInterfaceProtocol);
     r88DiscoveryProfile_=profile_;family_=rtw_usb_wifi_station_backend(profile_);
     if(family_==RTW_WIFI_UNKNOWN){
         rtw_chip_identity_descriptor descriptor{};
-        if(!read88IdentityDescriptor(&descriptor)||!rtw_chip_identity_candidate(profile_,&descriptor))return false;
+        if(!read88IdentityDescriptor(&descriptor)||!rtw_chip_identity_candidate(profile_,&descriptor))return stage("identity-unverified");
         const rtw88_fw_bus bus{this,r88Read,r88Write,r88Bulk,delayUS,nullptr,nullptr};
         r88DiscoveryProvider_=usb_;
         int e=rtw_chip_identity_init(r88IdentityStorage_,sizeof(r88IdentityStorage_),profile_,&descriptor,&bus,&r88ResolvedIdentity_);
-        if(e||usb_!=r88DiscoveryProvider_){clear88Discovery(true);return false;}
+        if(e||usb_!=r88DiscoveryProvider_){clear88Discovery(true);return stage("silicon-identity");}
         profile_=rtw_chip_identity_profile(r88ResolvedIdentity_);
-        if(!profile_)return false;family_=profile_->family;
-        if(!matches88Discovery()){clear88Discovery(true);return false;}
+        if(!profile_)return stage("silicon-profile");family_=profile_->family;
+        if(!matches88Discovery()){clear88Discovery(true);return stage("silicon-descriptor");}
     }
     /* Shared family registry covers every catalog chipset, but only backends
      * with an integrated station HAL may bind to an IOEthernetInterface.
      * A validated USB identity is not authorization to transmit. */
     const rtw_family_backend *backend=rtw_backend_for_family(family_);
     if(family_==RTW_WIFI_UNKNOWN||!backend||
-       !(backend->capabilities&RTW_BACKEND_CAP_KEXT_STATION))return false;
+       !(backend->capabilities&RTW_BACKEND_CAP_KEXT_STATION))return stage("station-backend");
     size_t length=USBToHost16(c->wTotalLength);
-    if(length<9||length>4096||rtw_find_usb_bulk_endpoints((const uint8_t*)c,length,i->bInterfaceNumber,i->bAlternateSetting,&endpoints_)!=RTW_DESC_OK||endpoints_.num_bulk_in!=1||endpoints_.num_bulk_out<1||endpoints_.num_bulk_out>(family_==RTW_WIFI_RTL8814AU||is8812Family()||is88Family()?4:3))return false;
-    if((family_==RTW_WIFI_RTL8814AU||is8812Family()||is88Family())&&endpoints_.num_bulk_out<2)return false;
-    rxPipe_=usb_->copyPipe(endpoints_.bulk_in[0]);if(!rxPipe_)return false;
+    fact("RTWDiagUSBDiscoveryConfigurationLength",length);
+    if(length<9||length>4096)return stage("configuration-length");
+    const auto parsed=rtw_find_usb_bulk_endpoints((const uint8_t*)c,length,i->bInterfaceNumber,i->bAlternateSetting,&endpoints_);
+    fact("RTWDiagUSBDiscoveryDescriptorResult",parsed);
+    fact("RTWDiagUSBDiscoveryEndpointCount",endpoints_.num_endpoints,8);
+    fact("RTWDiagUSBDiscoveryBulkInCount",endpoints_.num_bulk_in,8);
+    fact("RTWDiagUSBDiscoveryBulkOutCount",endpoints_.num_bulk_out,8);
+    uint64_t addresses=0;
+    for(unsigned p=0;p<endpoints_.num_bulk_out&&p<8;++p)addresses|=(uint64_t)endpoints_.bulk_out[p]<<(8*p);
+    fact("RTWDiagUSBDiscoveryBulkOutAddresses",addresses,64);
+    if(parsed!=RTW_DESC_OK)return stage("endpoint-descriptor");
+    if(endpoints_.num_bulk_in!=1)return stage("bulk-in-count");
+    if(endpoints_.num_bulk_out<1||endpoints_.num_bulk_out>(family_==RTW_WIFI_RTL8814AU||family_==RTW_WIFI_RTL8723BU||is8812Family()||is88Family()?4:3))return stage("bulk-out-count");
+    if((family_==RTW_WIFI_RTL8814AU||is8812Family()||is88Family())&&endpoints_.num_bulk_out<2)return stage("bulk-out-minimum");
+    fact("RTWDiagUSBDiscoveryFailureEndpoint",endpoints_.bulk_in[0],8);
+    rxPipe_=usb_->copyPipe(endpoints_.bulk_in[0]);if(!rxPipe_)return stage("bulk-in-pipe");
     for(unsigned p=0;p<endpoints_.num_bulk_out;p++) {
-        txPipes_[p]=usb_->copyPipe(endpoints_.bulk_out[p]);if(!txPipes_[p])return false;
-        const auto*e=txPipes_[p]->getEndpointDescriptor();if(!e)return false;
+        fact("RTWDiagUSBDiscoveryFailureEndpoint",endpoints_.bulk_out[p],8);
+        txPipes_[p]=usb_->copyPipe(endpoints_.bulk_out[p]);if(!txPipes_[p])return stage("bulk-out-pipe");
+        const auto*e=txPipes_[p]->getEndpointDescriptor();if(!e)return stage("bulk-out-descriptor");
         txMPS_[p]=USBToHost16(e->wMaxPacketSize)&0x7ff;
-        if(txMPS_[p]!=64&&txMPS_[p]!=512&&!((family_==RTW_WIFI_RTL8814AU||is8812Family()||is88Family())&&txMPS_[p]==1024))return false;
+        fact("RTWDiagUSBDiscoveryMaxPacket",txMPS_[p],16);
+        if(txMPS_[p]!=64&&txMPS_[p]!=512&&!((family_==RTW_WIFI_RTL8814AU||is8812Family()||is88Family())&&txMPS_[p]==1024))return stage("bulk-out-max-packet");
     }
     core_.ac2idx[EDCA_AC_BK]=core_.ac2idx[EDCA_AC_BE]=endpoints_.num_bulk_out>=3?2:endpoints_.num_bulk_out==2?1:0;
     core_.ac2idx[EDCA_AC_VI]=endpoints_.num_bulk_out>=3?1:0;core_.ac2idx[EDCA_AC_VO]=0;
+    fact("RTWDiagUSBDiscoveryFailureEndpoint",0,8);stage("ready");
     return true;
 }
 IOReturn RTWUSBController::initializePlatform() {
@@ -380,10 +498,12 @@ IOReturn RTWUSBController::initializePlatform() {
     int result=is8723Family()?attach8723():is8710BUFamily()?attach8710BU():is8192FUFamily()?attach8192FU():family_==RTW_WIFI_RTL8192DU?attach8192DU():is88Family()?attach88():is8812Family()?attach8812():family_==RTW_WIFI_RTL8814AU?attach8814():rtwn_attach(&device_,&core_,this);
     if(result){reportStartStage("rtwn-attach",fromErrno(result));return fromErrno(result);}
     attached_=true;
+    const int recoveryIdentity=captureFamilyRecoveryIdentity();
+    if(recoveryIdentity)return fromErrno(recoveryIdentity);
     bool nonzero=false;for(unsigned n=0;n<6;n++)nonzero|=core_.sc_ic.ic_myaddr[n]!=0;
     if(!nonzero||(core_.sc_ic.ic_myaddr[0]&1)||rtwn_io_error(&core_)){reportStartStage("efuse-mac",kIOReturnIOError);return kIOReturnIOError;}
     memcpy(mac_.bytes,core_.sc_ic.ic_myaddr,6);macReady_=true;
-    core_.sc_ic.ic_newstate=stateTransition;core_.sc_ic.ic_max_rssi=100;
+    core_.sc_ic.ic_newstate=stateTransition;core_.sc_ic.ic_scan_done=scanComplete;core_.sc_ic.ic_max_rssi=100;
     core_.sc_ic.ic_ampdu_rx_start=family_==RTW_WIFI_RTL8192DU?ampdu8192DURXStart:ampduRXStart;core_.sc_ic.ic_ampdu_rx_stop=family_==RTW_WIFI_RTL8192DU?ampdu8192DURXStop:ampduRXStop;
     core_.sc_ic.ic_ampdu_tx_start=ampduTXStart;core_.sc_ic.ic_ampdu_tx_stop=ampduTXStop;
     core_.sc_ic.ic_flags&=~IEEE80211_F_AUTO_JOIN;
@@ -524,6 +644,18 @@ void RTWUSBController::advanceRXRecovery() {
 void RTWUSBController::publishRXRecoveryDiagnostics() {
     auto publish=[this](const char*name,uint64_t value){publishDiagnosticCounter(name,value);};
     const auto&r=rxRecovery_;
+    publish("RTWDiagRXInitialErrors",r.initialErrors);
+    publish("RTWDiagRXInitialClearAttempts",r.initialClearAttempts);
+    publish("RTWDiagRXInitialFailures",r.initialFailures);
+    publish("RTWDiagRXInitialExhausted",r.initialExhausted);
+    publish("RTWDiagRXInitialConsecutive",r.initialConsecutive);
+    publish("RTWDiagRXInitialOriginalError",(uint32_t)r.initialOriginalError);
+    publish("RTWDiagRXInitialClearResult",(uint32_t)r.initialClearResult);
+    publish("RTWDiagRXInitialDrainMask",r.initialDrainMask);
+    publish("RTWDiagRXInitialDrainError",(uint32_t)r.initialDrainError);
+    publish("RTWDiagUSBStopDrainMask",r.stopDrainMask);
+    publish("RTWDiagUSBStopDrainError",(uint32_t)r.stopDrainError);
+    publish("RTWDiagUSBStopDrainFailures",r.stopDrainFailures);
     publish("RTWDiagRXRecoveryErrors",r.errors);publish("RTWDiagRXRecoveryAttempts",r.attempts);
     publish("RTWDiagRXRecoveryCompleted",r.completed);publish("RTWDiagRXRecoveryFailures",r.failures);
     publish("RTWDiagRXRecoveryExhausted",r.exhausted);publish("RTWDiagRXRecoveryPending",r.pending?1:0);
@@ -560,6 +692,48 @@ void RTWUSBController::serviceTXOutputQueue() {
 }
 void RTWUSBController::drainCompletions(bool process) {
     retain();bool failure=false,rxRecoveryFatal=false;
+    auto validateStopped=[&](unsigned i)->IOReturn {
+        auto&r=rxRecovery_;const uint32_t bit=1U<<i;const auto&t=transfers_[i];
+        const bool initial=i<RXSlots&&(r.initialDrainMask&bit);
+        const bool stopped=(r.stopDrainMask&bit)!=0;
+        if(!initial&&!stopped)return kIOReturnSuccess;
+        IOReturn error=kIOReturnSuccess;
+        if((initial&&t.generation!=r.initialDrainGeneration[i])||
+           (stopped&&t.generation!=r.stopDrainGeneration[i]))error=kIOReturnIOError;
+        else if(t.actual>t.submitted||(i>=RXSlots&&t.result==kIOReturnSuccess&&t.actual!=t.submitted))error=kIOReturnUnderrun;
+        else if(t.result!=kIOReturnSuccess&&t.result!=kIOReturnAborted&&
+                !(initial&&t.result==kIOReturnNotResponding&&!t.actual))error=t.result;
+        if(initial){
+            r.initialDrainMask&=~bit;
+            if(error!=kIOReturnSuccess&&r.initialDrainError==kIOReturnSuccess){
+                r.initialDrainError=error;++r.initialFailures;
+            }
+        }
+        if(stopped){
+            r.stopDrainMask&=~bit;
+            if(error!=kIOReturnSuccess){
+                if(r.stopDrainError==kIOReturnSuccess)r.stopDrainError=error;
+                ++r.stopDrainFailures;
+            }
+        }
+        if(error!=kIOReturnSuccess){
+            if(i<RXSlots)++rxErrors_;
+            else{++txErrors_;++txUSBTransferErrors_;if(stats_)++stats_->outputErrors;}
+        }
+        return error;
+    };
+    if(rxRecovery_.initialDrainMask||rxRecovery_.stopDrainMask){
+        IOReturn firstFault=kIOReturnSuccess;
+        /* Detect a fatal callback even behind an older payload-order hole.
+         * Lifecycle cancellation cannot erase a real transport failure. */
+        IOInterruptState lock=IOSimpleLockLockDisableInterrupt(completionLock_);
+        for(unsigned i=0;i<RTW_TRANSFER_SLOTS;++i)if(ledger_.completed&(1U<<i)){
+            const auto error=validateStopped(i);
+            if(firstFault==kIOReturnSuccess)firstFault=error;
+        }
+        IOSimpleLockUnlockEnableInterrupt(completionLock_,lock);
+        if(firstFault!=kIOReturnSuccess)fault(firstFault);
+    }
     /* A watchdog-queued common-core reinit also finishes with IFF_RUNNING.
      * This handler cannot interleave with that gate-held initialization. */
     if(running_&&(core_.sc_ic.ic_if.if_flags&IFF_RUNNING)&&!rtwn_io_error(&core_))radioReady_=enabled_=true;
@@ -581,6 +755,10 @@ void RTWUSBController::drainCompletions(bool process) {
     }
     auto reclaim=[&](unsigned i){
         Transfer&t=transfers_[i];
+        /* A completion can arrive after preflight but before take(). Its
+         * slot is stable after take, so validate again before releasing it. */
+        const auto stoppedFault=validateStopped(i);
+        if(stoppedFault!=kIOReturnSuccess)fault(stoppedFault);
         if(t.prepared){t.memory->complete();t.prepared=false;}
         bool success=t.result==kIOReturnSuccess&&t.actual<=t.submitted;
         if(i>=RXSlots)success=success&&t.actual==t.submitted;
@@ -663,6 +841,8 @@ void RTWUSBController::drainCompletions(bool process) {
         ifq_clr_oactive(&core_.sc_ic.ic_if.if_snd);rtwn_start(&core_.sc_ic.ic_if);
         serviceTXOutputQueue();
     }
+    if(family_==RTW_WIFI_RTL8814AU)finish8814StopAfterDrain();
+    else finishFamilyStopAfterDrain();
     scheduleDeferredCleanup();
     release();
 }
@@ -673,7 +853,14 @@ void RTWUSBController::abortTransfers() {
     rxRecovery_.pending=rxRecovery_.cleared=rxRecovery_.refilling=false;
     cancelWpaRecovery();
     if(scanTimer_)scanTimer_->cancelTimeout();if(calibTimer_)calibTimer_->cancelTimeout();if(watchdogTimer_)watchdogTimer_->cancelTimeout();
-    IOInterruptState lock=IOSimpleLockLockDisableInterrupt(completionLock_);rtw_transfer_stop(&ledger_);IOSimpleLockUnlockEnableInterrupt(completionLock_,lock);
+    IOInterruptState lock=IOSimpleLockLockDisableInterrupt(completionLock_);
+    /* Startup rollback owns its eligible zero-byte RX error separately. */
+    const uint32_t stopped=ledger_.pending&~rxRecovery_.initialDrainMask;
+    for(unsigned i=0;i<RTW_TRANSFER_SLOTS;++i)if((stopped&(1U<<i))&&!(rxRecovery_.stopDrainMask&(1U<<i))){
+        rxRecovery_.stopDrainGeneration[i]=transfers_[i].generation;
+        rxRecovery_.stopDrainMask|=1U<<i;
+    }
+    rtw_transfer_stop(&ledger_);IOSimpleLockUnlockEnableInterrupt(completionLock_,lock);
     if(rxPipe_)rxPipe_->abort(IOUSBHostIOSource::kAbortSynchronous);
     for(auto*p:txPipes_)if(p)p->abort(IOUSBHostIOSource::kAbortSynchronous);
     drainCompletions(false);
@@ -689,6 +876,18 @@ void RTWUSBController::resetRateControl() {
     ieee80211_amrr_node_init(&r.policy,&r.node);++r.resets;
     memset(r.bssid,0,sizeof(r.bssid));r.finalRate=0;
     auto*node=core_.sc_ic.ic_bss;
+    r.hostHTCount=r.hostHTIndex=0;memset(r.hostHTRates,0,sizeof(r.hostHTRates));
+    if(family_==RTW_WIFI_RTL8188EU&&usesLegacyHighThroughput()) {
+        /* HT20 long-GI throughput order; SGI moves MCS5 above OFDM54.
+         * Every candidate is intersected with the AP's actual rate mask. */
+        uint8_t order[20]={0,1,2,4,12,5,3,6,13,7,14,8,15,9,16,10,17,11,18,19};
+        if(core_.rate_config.sgi20){order[16]=11;order[17]=17;}
+        bool initial=false;
+        for(auto hw:order)if(core_.rate_config.rate_mask&(1U<<hw)) {
+            if(!initial&&hw>=12){r.hostHTIndex=r.hostHTCount;initial=true;}
+            r.hostHTRates[r.hostHTCount++]=hw;
+        }
+    }
     if(node){
         if(family_!=RTW_WIFI_RTL8192CU&&family_!=RTW_WIFI_RTL8814AU&&!is8812Family()&&!is88Family()&&family_!=RTW_WIFI_RTL8192DU&&family_!=RTW_WIFI_RTL8192FU&&family_!=RTW_WIFI_RTL8710BU&&family_!=RTW_WIFI_RTL8723BU)node->ni_txrate=0;
         IEEE80211_ADDR_COPY(r.bssid,node->ni_bssid);
@@ -714,7 +913,7 @@ void RTWUSBController::handleTxReport(const uint8_t*bytes,size_t length) {
     if(family_==RTW_WIFI_RTL8192EU&&r.seenSequence&&r.lastSequence==report.event_sequence)++r.repeatedSequences;
     static const uint8_t values[12]={2,4,11,22,12,18,24,36,48,72,96,108};
     bool negotiated=false;
-    if(usesFirmwareRate())negotiated=(core_.rate_config.rate_mask & (1U<<report.final_rate))!=0;
+    if(usesFirmwareRate()||(family_==RTW_WIFI_RTL8188EU&&usesLegacyHighThroughput()))negotiated=(core_.rate_config.rate_mask & (1U<<report.final_rate))!=0;
     if(report.final_rate<12 && node->ni_rates.rs_nrates<=nitems(node->ni_rates.rs_rates))
         for(unsigned i=0;i<node->ni_rates.rs_nrates;i++)
             if((node->ni_rates.rs_rates[i]&IEEE80211_RATE_VAL)==values[report.final_rate])negotiated=true;
@@ -733,7 +932,13 @@ void RTWUSBController::handleTxReport(const uint8_t*bytes,size_t length) {
 }
 void RTWUSBController::chooseRateControl() {
     auto&r=rateControl_;auto*node=core_.sc_ic.ic_bss;
-    if(!usesFirmwareRate()&&!usesLegacyFirmwareRate()&&!uses8814FirmwareRate()&&!is8812Family()&&!is88Family()&&family_!=RTW_WIFI_RTL8192DU&&family_!=RTW_WIFI_RTL8192FU&&family_!=RTW_WIFI_RTL8710BU&&family_!=RTW_WIFI_RTL8723BU&&running_&&!stopping_&&authorized()&&core_.sc_ic.ic_state==IEEE80211_S_RUN&&
+    if(family_==RTW_WIFI_RTL8188EU&&usesLegacyHighThroughput()&&authorized()&&
+       r.active&&rateTransportFresh_&&IEEE80211_ADDR_EQ(r.bssid,node->ni_bssid)&&
+       r.hostHTCount&&r.hostHTIndex<r.hostHTCount) {
+        uint8_t previous=r.hostHTIndex;
+        ieee80211_amrr_choose_index(&r.policy,&r.hostHTIndex,r.hostHTCount,&r.node);
+        if(previous!=r.hostHTIndex)++r.changes;
+    } else if(!usesLegacyHighThroughput()&&!usesFirmwareRate()&&!usesLegacyFirmwareRate()&&!uses8814FirmwareRate()&&!is8812Family()&&!is88Family()&&family_!=RTW_WIFI_RTL8192DU&&family_!=RTW_WIFI_RTL8192FU&&family_!=RTW_WIFI_RTL8710BU&&family_!=RTW_WIFI_RTL8723BU&&running_&&!stopping_&&authorized()&&core_.sc_ic.ic_state==IEEE80211_S_RUN&&
        node&&r.active&&rateTransportFresh_&&IEEE80211_ADDR_EQ(r.bssid,node->ni_bssid)&&
        node->ni_rates.rs_nrates&&node->ni_rates.rs_nrates<=nitems(node->ni_rates.rs_rates)&&
        node->ni_txrate<node->ni_rates.rs_nrates){
@@ -752,21 +957,31 @@ void RTWUSBController::publishRateControlDiagnostics() {
     if(associated&&node->ni_rates.rs_nrates<=nitems(node->ni_rates.rs_rates)&&node->ni_txrate<node->ni_rates.rs_nrates)
         selected=node->ni_rates.rs_rates[node->ni_txrate]&IEEE80211_RATE_VAL;
     if(usesFirmwareRate()||usesLegacyFirmwareRate()||uses8814FirmwareRate()||uses8812FirmwareRate()||uses88FirmwareRate()||uses8192DUFirmwareRate()||uses8192FUFirmwareRate()||uses8710BUFirmwareRate()||uses8723FirmwareRate())selected=0;
+    const bool legacyHT=usesLegacyHighThroughput();
+    if(legacyHT&&family_==RTW_WIFI_RTL8188EU) {
+        const uint8_t hw=legacyHostHTRate();
+        static const uint8_t legacy[12]={2,4,11,22,12,18,24,36,48,72,96,108};
+        static const uint8_t lgi[8]={13,26,39,52,78,104,117,130};
+        static const uint8_t sgi[8]={14,29,43,58,87,116,130,144};
+        selected=hw<12?legacy[hw]:hw<20?(core_.rate_config.sgi20?sgi[hw-12]:lgi[hw-12]):0;
+    }
     publishDiagnosticCounter("RTWDiagFirmwareRateControl",(uint64_t)(usesFirmwareRate()||usesLegacyFirmwareRate()||uses8814FirmwareRate()||uses8812FirmwareRate()||uses88FirmwareRate()||uses8192DUFirmwareRate()||uses8192FUFirmwareRate()||uses8710BUFirmwareRate()||uses8723FirmwareRate()));
     publishDiagnosticCounter("RTWDiagSiliconFamily",(uint64_t)family_);
     publishDiagnosticCounter("RTWDiagTXRate500Kbps",selected);
-    const auto* hwRate=uses88FirmwareRate()?&r88Rates_.rates:uses8814FirmwareRate()?&acRateConfig_:nullptr;
-    const bool acHT=hwRate&&hwRate->ht,auHT=uses8812HighThroughput();
+    const auto* hwRate=associated&&uses88FirmwareRate()?&r88Rates_.rates:associated&&uses8814FirmwareRate()?&acRateConfig_:nullptr;
+    const bool r88HT=associated&&uses88FirmwareRate()&&r88Rates_.rates.ht;
+    const bool acHT=hwRate&&hwRate->ht,auHT=associated&&uses8812HighThroughput();
     const bool auVHT=auHT&&auRateConfig_.vht;
-    const bool duHT=uses8192DUFirmwareRate()&&duMAC_.rates.ht,fuHT=uses8192FUHighThroughput(),buHT=uses8710BUHighThroughput(),r23HT=uses8723FirmwareRate()&&(r23Rates_.mask&0xff000U);
-    const bool htNegotiated=usesFirmwareRate()||acHT||auHT||duHT||fuHT||buHT||r23HT;
+    const bool r88VHT=r88HT&&r88Rates_.vht;
+    const bool duHT=associated&&uses8192DUFirmwareRate()&&duMAC_.rates.ht,fuHT=associated&&uses8192FUHighThroughput(),buHT=associated&&uses8710BUHighThroughput(),r23HT=associated&&uses8723FirmwareRate()&&(r23Rates_.mask&0xff000U);
+    const bool htNegotiated=usesFirmwareRate()||legacyHT||acHT||auHT||duHT||fuHT||buHT||r23HT;
     publishDiagnosticCounter("RTWDiagHTNegotiated",(uint64_t)htNegotiated);
-    publishDiagnosticCounter("RTWDiagVHTNegotiated",(uint64_t)auVHT);
+    publishDiagnosticCounter("RTWDiagVHTNegotiated",(uint64_t)(auVHT||r88VHT));
     publishDiagnosticCounter("RTWDiagHTRateMask",htNegotiated?(uint64_t)(r23HT?r23Rates_.mask:buHT?buRate_.mask:fuHT?fuRate_.mask:duHT?duMAC_.rates.mask:auHT?auRateConfig_.mask:acHT?hwRate->mask:core_.rate_config.rate_mask):0);
-    publishDiagnosticCounter("RTWDiagHTSGI20Negotiated",(uint64_t)((usesFirmwareRate()&&core_.rate_config.sgi20)||(r23HT&&r23Rates_.sgi)||(buHT&&buRate_.width_mhz==20&&buRate_.sgi)||(fuHT&&fuRate_.width_mhz==20&&fuRate_.sgi)||(duHT&&duMAC_.rates.sgi20)||(acHT&&hwRate->sgi20)||(auHT&&auRateConfig_.bandwidth_mhz==20&&auRateConfig_.short_gi)));
-    publishDiagnosticCounter("RTWDiagHTSGI40Negotiated",(uint64_t)((usesFirmwareRate()&&core_.rate_config.sgi40)||(buHT&&buRate_.width_mhz==40&&buRate_.sgi)||(fuHT&&fuRate_.width_mhz==40&&fuRate_.sgi)||(auHT&&auRateConfig_.bandwidth_mhz==40&&auRateConfig_.short_gi)));
-    publishDiagnosticCounter("RTWDiagVHTSGI80Negotiated",(uint64_t)(auVHT&&auRateConfig_.bandwidth_mhz==80&&auRateConfig_.short_gi));
-    publishDiagnosticCounter("RTWDiagHTChannelWidthMHz",(uint64_t)(r23HT?20:buHT?buRate_.width_mhz:fuHT?fuRate_.width_mhz:duHT?20:auHT?auRateConfig_.bandwidth_mhz:acHT?20:usesFirmwareRate()?(core_.rate_config.bw40?40:20):0));
+    publishDiagnosticCounter("RTWDiagHTSGI20Negotiated",(uint64_t)(((usesFirmwareRate()||legacyHT)&&core_.rate_config.sgi20)||(r23HT&&r23Rates_.sgi)||(buHT&&buRate_.width_mhz==20&&buRate_.sgi)||(fuHT&&fuRate_.width_mhz==20&&fuRate_.sgi)||(duHT&&duMAC_.rates.sgi20)||(acHT&&(!r88HT||r88Rates_.width_mhz==20)&&hwRate->sgi20)||(auHT&&auRateConfig_.bandwidth_mhz==20&&auRateConfig_.short_gi)));
+    publishDiagnosticCounter("RTWDiagHTSGI40Negotiated",(uint64_t)((usesFirmwareRate()&&core_.rate_config.sgi40)||(r88HT&&r88Rates_.width_mhz==40&&hwRate->sgi20)||(buHT&&buRate_.width_mhz==40&&buRate_.sgi)||(fuHT&&fuRate_.width_mhz==40&&fuRate_.sgi)||(auHT&&auRateConfig_.bandwidth_mhz==40&&auRateConfig_.short_gi)));
+    publishDiagnosticCounter("RTWDiagVHTSGI80Negotiated",(uint64_t)((r88VHT&&r88Rates_.width_mhz==80&&hwRate->sgi20)||(auVHT&&auRateConfig_.bandwidth_mhz==80&&auRateConfig_.short_gi)));
+    publishDiagnosticCounter("RTWDiagHTChannelWidthMHz",(uint64_t)(r88HT?r88Rates_.width_mhz:r23HT||legacyHT?20:buHT?buRate_.width_mhz:fuHT?fuRate_.width_mhz:duHT?20:auHT?auRateConfig_.bandwidth_mhz:acHT?20:usesFirmwareRate()?(core_.rate_config.bw40?40:20):0));
     publishDiagnosticCounter("RTWDiagHTTXStreams",htNegotiated?(uint64_t)(r23HT||buHT?1:fuHT?((fuRate_.mask&0x0ff00000U)?2:1):duHT?((duMAC_.rates.mask&0x0ff00000U)?2:1):auHT?auRateConfig_.streams:acHT?hwRate->tx_streams:core_.rate_config.tx_streams):0);
     publishDiagnosticCounter("RTWDiagHTRAID",htNegotiated?(uint64_t)(r23HT?r23Rates_.raid:buHT?buRate_.rate_id:fuHT?fuRate_.rate_id:duHT?duMAC_.rates.raid:auHT?auRateConfig_.rate_id:acHT?hwRate->rate_id:core_.rate_config.raid):0);
     publishDiagnosticCounter("RTWDiagHTFWRateSubmitted",txHTPackets_);
@@ -804,7 +1019,7 @@ int RTWUSBController::sendFrame(mbuf_t packet,ieee80211_node*node) {
     const bool data=(header.i_fc[0]&IEEE80211_FC0_TYPE_MASK)==IEEE80211_FC0_TYPE_DATA;
     const bool multicast=(header.i_addr1[0]&1)!=0;
     const bool qos=data&&(header.i_fc[0]&IEEE80211_FC0_SUBTYPE_QOS);
-    if(family_!=RTW_WIFI_RTL8192EU&&family_!=RTW_WIFI_RTL8814AU&&qos){mbuf_freem(packet);return EINVAL;}
+    if(family_!=RTW_WIFI_RTL8192EU&&family_!=RTW_WIFI_RTL8814AU&&qos&&!usesLegacyHighThroughput()){mbuf_freem(packet);return EINVAL;}
     const size_t headerLength=qos?sizeof(header)+2:sizeof(header);
     uint8_t qosBytes[2]{},llc[8]{};
     if((header.i_fc[1]&IEEE80211_FC1_DIR_MASK)==IEEE80211_FC1_DIR_DSTODS ||
@@ -828,7 +1043,8 @@ int RTWUSBController::sendFrame(mbuf_t packet,ieee80211_node*node) {
     IOSimpleLockUnlockEnableInterrupt(completionLock_,lock);
     if(index==RTW_TRANSFER_SLOTS||length>4096){mbuf_freem(packet);return ENOBUFS;}
     const bool firmware=qos&&!multicast&&!eapol&&node==ic.ic_bss&&usesFirmwareRate();
-    const bool legacyFirmware=data&&!multicast&&!eapol&&node==ic.ic_bss&&usesLegacyFirmwareRate();
+    const bool legacyHT=qos&&!multicast&&!eapol&&node==ic.ic_bss&&usesLegacyHighThroughput();
+    const bool legacyFirmware=data&&!multicast&&!eapol&&node==ic.ic_bss&&usesLegacyFirmwareRate()&&(!usesLegacyHighThroughput()||qos);
     const bool gen2=family_==RTW_WIFI_RTL8192EU;
     const bool ac8814=family_==RTW_WIFI_RTL8814AU;
     const bool acFirmware=data&&!multicast&&!eapol&&node==ic.ic_bss&&uses8814FirmwareRate()&&(!acRateConfig_.ht||qos);
@@ -874,13 +1090,21 @@ int RTWUSBController::sendFrame(mbuf_t packet,ieee80211_node*node) {
         options.short_gi=options.bw40?core_.rate_config.sgi40:core_.rate_config.sgi20;
     }
     if(!gen2)options.raid=raid==6?4:raid==7?5:6;
+    if(legacyHT) {
+        options.rate=legacyFirmware?core_.rate_config.initial_rate:legacyHostHTRate();
+        if(!(core_.rate_config.rate_mask&(1U<<options.rate))){mbuf_freem(packet);return EINVAL;}
+        if(options.rate>=12){options.raid=core_.rate_config.raid;options.short_gi=core_.rate_config.sgi20;}
+    }
     /* Preserve header TID and its sequence, while honoring ACM queue downgrade. */
     static const uint8_t queues[4]={0,2,5,7};
     const unsigned nativeAC=(tid==1||tid==2)?EDCA_AC_BK:(tid==4||tid==5)?EDCA_AC_VI:tid>=6?EDCA_AC_VO:EDCA_AC_BE;
     options.qsel=options.data?(qos&&ac==nativeAC?(uint8_t)tid:queues[ac]):0x12;
     options.sequence=((uint16_t)header.i_seq[0]|(uint16_t)header.i_seq[1]<<8)>>4;
     options.short_preamble=(ic.ic_flags&IEEE80211_F_SHPREAMBLE)&&options.rate>=1&&options.rate<=3&&!firmware;
-    if(firmware&&qos&&(qosBytes[0]&IEEE80211_QOS_ACK_POLICY_MASK)==IEEE80211_QOS_ACK_POLICY_NORMAL&&
+    if((firmware||(legacyHT&&options.rate>=12&&authorized()&&options.qsel==tid&&
+       !(ic.ic_tid_noack&(1U<<tid))&&!(header.i_fc[0]&IEEE80211_FC0_SUBTYPE_NODATA)&&
+       !(header.i_fc[1]&IEEE80211_FC1_MORE_FRAG)&&!(header.i_seq[0]&15U)&&
+       node->ni_tx_ba[tid].ba_winsize>=1&&node->ni_tx_ba[tid].ba_winsize<=IEEE80211_BA_MAX_WINSZ))&&qos&&(qosBytes[0]&IEEE80211_QOS_ACK_POLICY_MASK)==IEEE80211_QOS_ACK_POLICY_NORMAL&&
        node->ni_tx_ba[tid].ba_state==IEEE80211_BA_AGREED){
         options.ampdu=1;options.density=(node->ni_ampdu_param&IEEE80211_AMPDU_PARAM_SS)>>2;
         options.max_agg=(uint8_t)MIN(16,node->ni_tx_ba[tid].ba_winsize);
@@ -889,7 +1113,7 @@ int RTWUSBController::sendFrame(mbuf_t packet,ieee80211_node*node) {
     if(rtw_tx_total_transfer_size_for_descriptor(descriptorLength,length,txMPS_[pipeIndex],&total)!=RTW_PACKETS_OK||total>TXCapacity){mbuf_freem(packet);return EINVAL;}
     auto*t=&transfers_[index];auto*bytes=static_cast<uint8_t*>(t->memory->getBytesNoCopy());
     bzero(bytes,total);
-    if(!ac8814&&!(gen2?rtw_92e_make_tx_descriptor_ex(length,&options,bytes):rtw_92c_make_tx_descriptor(length,&options,bytes))){mbuf_freem(packet);return EINVAL;}
+    if(!ac8814&&!(gen2?rtw_92e_make_tx_descriptor_ex(length,&options,bytes):rtw_92c_make_tx_descriptor_ex(length,family_==RTW_WIFI_RTL8188EU,qos,&options,bytes))){mbuf_freem(packet);return EINVAL;}
     unsigned protection=0;
     if(options.data){
         unsigned htprotection=node->ni_htop1&IEEE80211_HTOP1_PROT_MASK;
@@ -897,7 +1121,7 @@ int RTWUSBController::sendFrame(mbuf_t packet,ieee80211_node*node) {
          * Honor the RTS threshold, mixed HT protection and 20MHz-only
          * stations when using HT40, as required by the AP operation IE. */
         if(length+4>(unsigned)ic.ic_rtsthreshold||
-           ((firmware||(acFirmware&&acRateConfig_.ht))&&(htprotection==1||htprotection==3||
+           ((firmware||legacyHT||(acFirmware&&acRateConfig_.ht))&&(htprotection==1||htprotection==3||
               (htprotection==2&&core_.rate_config.bw40))))protection=1;
         else if(ic.ic_flags&IEEE80211_F_USEPROT)protection=ic.ic_protmode==IEEE80211_PROT_CTSONLY?2:ic.ic_protmode==IEEE80211_PROT_RTSCTS?1:0;
     }
@@ -942,7 +1166,7 @@ int RTWUSBController::sendFrame(mbuf_t packet,ieee80211_node*node) {
     int error=submit(index,txPipes_[pipeIndex],(uint32_t)total);
     if(!error){
         if(requestReport){++rateControl_.requests;++rateControl_.pendingReports;rateControl_.requestedSinceReset=true;}
-        if(firmware||(acFirmware&&acRateConfig_.ht))++txHTPackets_;
+        if(firmware||(legacyHT&&options.rate>=12)||(acFirmware&&acRateConfig_.ht))++txHTPackets_;
         if(options.ampdu){++txAMPDUPackets_;auto&ba=node->ni_tx_ba[tid];if(ba.ba_timeout_val)timeout_add_usec(&ba.ba_to,ba.ba_timeout_val);}
         ieee80211_release_node(&ic,node);
     }
@@ -990,11 +1214,11 @@ void RTWUSBController::receive(const uint8_t*bytes,size_t length) {
         const auto&p=frame.payload;
         if(reportType){++rxDiag_.c2h;if(reportType==7)handle8723C2H(p.mpdu,p.mpdu_length);else if(reportType==6)handle88C2H(p.mpdu,p.mpdu_length);else if(reportType==5){if(is8192FUFamily())handle8192FUC2H(p.mpdu,p.mpdu_length);else if(is8710BUFamily())handle8710BUC2H(p.mpdu,p.mpdu_length);else handle8812C2H(p.mpdu,p.mpdu_length);}else if(reportType==4)handle8814C2H(p.mpdu,p.mpdu_length);else if(reportType==1)handleTxReport(p.mpdu,p.mpdu_length);continue;}
         uint64_t*drop=nullptr;
-        if((is8723Family()&&(p.rate_index>=20||(p.rate_index>=12&&(!uses8723FirmwareRate()||!(r23Rates_.mask&0xff000U)||p.bandwidth_code))))||(is8710BUFamily()&&!accepts8710BUReceiveRate(p))||(is8192FUFamily()&&!accepts8192FUReceiveRate(p))||(family_==RTW_WIFI_RTL8192DU&&p.rate_index>=12U+8U*core_.nrxchains)||(is8812Family()&&!accepts8812ReceiveRate(p))||(is88Family()&&p.rate_index>=12U+8U*core_.nrxchains)||(family_==RTW_WIFI_RTL8814AU&&p.rate_index>27)||
-           (family_!=RTW_WIFI_RTL8192EU&&family_!=RTW_WIFI_RTL8814AU&&!is88Family()&&!is8812Family()&&family_!=RTW_WIFI_RTL8192DU&&family_!=RTW_WIFI_RTL8192FU&&family_!=RTW_WIFI_RTL8710BU&&family_!=RTW_WIFI_RTL8723BU&&p.rate_index>=12))drop=&rxDiag_.invalidFrameDrops;
+        if(((family_==RTW_WIFI_RTL8192CU||family_==RTW_WIFI_RTL8188EU)&&!acceptsLegacyReceiveRate(p))||(is8723Family()&&(p.rate_index>=20||(p.rate_index>=12&&(!uses8723FirmwareRate()||!(r23Rates_.mask&0xff000U)||p.bandwidth_code))))||(is8710BUFamily()&&!accepts8710BUReceiveRate(p))||(is8192FUFamily()&&!accepts8192FUReceiveRate(p))||(family_==RTW_WIFI_RTL8192DU&&p.rate_index>=12U+8U*core_.nrxchains)||(is8812Family()&&!accepts8812ReceiveRate(p))||(is88Family()&&!accepts88ReceiveRate(p))||(family_==RTW_WIFI_RTL8814AU&&p.rate_index>27)||
+           (family_!=RTW_WIFI_RTL8192CU&&family_!=RTW_WIFI_RTL8188EU&&family_!=RTW_WIFI_RTL8192EU&&family_!=RTW_WIFI_RTL8814AU&&!is88Family()&&!is8812Family()&&family_!=RTW_WIFI_RTL8192DU&&family_!=RTW_WIFI_RTL8192FU&&family_!=RTW_WIFI_RTL8710BU&&family_!=RTW_WIFI_RTL8723BU&&p.rate_index>=12))drop=&rxDiag_.invalidFrameDrops;
         else if(p.crc_error)drop=&rxDiag_.crcDrops;
         else if(p.icv_error)drop=&rxDiag_.icvDrops;
-        else if(!rtw_92e_rx_frame_allowed(p.mpdu,p.mpdu_length,authorized()&&(usesFirmwareRate()||(uses8814FirmwareRate()&&acRateConfig_.ht)||(uses88FirmwareRate()&&r88Rates_.rates.ht)||uses8812HighThroughput()||uses8192FUHighThroughput()||uses8710BUHighThroughput()||(uses8723FirmwareRate()&&(r23Rates_.mask&0xff000U))||(uses8192DUFirmwareRate()&&duMAC_.rates.ht)),
+        else if(!rtw_92e_rx_frame_allowed(p.mpdu,p.mpdu_length,authorized()&&(usesFirmwareRate()||usesLegacyHighThroughput()||(uses8814FirmwareRate()&&acRateConfig_.ht)||uses88HighThroughput()||uses8812HighThroughput()||uses8192FUHighThroughput()||uses8710BUHighThroughput()||(uses8723FirmwareRate()&&(r23Rates_.mask&0xff000U))||(uses8192DUFirmwareRate()&&duMAC_.rates.ht)),
                 core_.sc_ic.ic_myaddr,core_.sc_ic.ic_bss?core_.sc_ic.ic_bss->ni_bssid:nullptr))drop=&rxDiag_.invalidFrameDrops;
         else if(frame.security_code&&!frame.sw_decrypt_required)drop=&rxDiag_.hardwareDecryptDrops;
         if(drop){++*drop;rxErrors_++;stats_->inputErrors++;continue;}
@@ -1134,7 +1358,7 @@ void RTWUSBController::calibAction(OSObject*o,IOTimerEventSource*) {
     if(s->family_==RTW_WIFI_RTL8814AU){
         int e=rtw_8814au_phy_tick(&s->acCore_);uint8_t command[8]{};
         if(!e&&s->uses8814FirmwareRate()&&rtw_8814au_make_rssi_monitor(s->acRSSI_,command))e=rtw_8814au_h2c_mailbox(&s->acCore_,command);
-        if(e){s->core_.core_error=e;s->quiesce(false);}else s->calibTimer_->setTimeoutMS(2000);
+        if(e){s->record8814Failure(AUThermal,e);s->core_.core_error=e;s->quiesce(false);}else s->calibTimer_->setTimeoutMS(2000);
         return;
     }
     auto&d=s->calibDiag_;
@@ -1298,7 +1522,7 @@ void RTWUSBController::publishWpaRecoveryDiagnostics() {
 void RTWUSBController::eraseProfile() {
     resetDFSStation();
     resetWpaRecovery();
-    joinRequested_=false;auto&ic=core_.sc_ic;
+    joinRequested_=false;browseScanComplete_=false;auto&ic=core_.sc_ic;
     explicit_bzero(ic.ic_psk,sizeof(ic.ic_psk));explicit_bzero(ic.ic_des_essid,sizeof(ic.ic_des_essid));ic.ic_des_esslen=0;
     ic.ic_flags&=~(IEEE80211_F_PSK|IEEE80211_F_RSNON|IEEE80211_F_AUTO_JOIN);
 }
@@ -1325,7 +1549,11 @@ IOReturn RTWUSBController::enableStation() {
     if(enabled_&&running_)return kIOReturnSuccess;
     core_.sc_ic.ic_if.if_flags|=IFF_UP;
     int result=is8723Family()?start8723():is8710BUFamily()?start8710BU():is8192FUFamily()?start8192FU():family_==RTW_WIFI_RTL8192DU?start8192DU():is88Family()?start88():is8812Family()?start8812():family_==RTW_WIFI_RTL8814AU?start8814():rtwn_init(&core_.sc_ic.ic_if);
-    if(result){quiesce(false);return fromErrno(result);}
+    if(result){
+        if(isLegacyRecoveryFamily()){failFamilyStart(result);if(result!=EAGAIN&&result!=EBUSY)core_.core_error=result;}
+        quiesce(false);return fromErrno(result);
+    }
+    if(isLegacyRecoveryFamily())finishFamilyStart();
     enabled_=radioReady_=true;
     /* Sequence completion is not a claim that the physical radio has been
      * validated; the stable register-result chain mask remains observable. */
@@ -1347,7 +1575,7 @@ void RTWUSBController::status(RTWControlStatus*out) {
     if(running_)out->flags|=RTW_CONTROL_RUNNING;
     if(authorized())out->flags|=RTW_CONTROL_AUTHORIZED;
     auto&ic=core_.sc_ic;out->state=ic.ic_state;
-    if(ic.ic_state==IEEE80211_S_SCAN)out->flags|=RTW_CONTROL_SCANNING;
+    if(ic.ic_state==IEEE80211_S_SCAN&&!browseScanComplete_)out->flags|=RTW_CONTROL_SCANNING;
     out->usbError=usbError_;memcpy(out->mac,mac_.bytes,6);
     if(attached_&&ic.ic_bss){
         auto*n=ic.ic_bss;memcpy(out->bssid,n->ni_bssid,6);
@@ -1382,6 +1610,17 @@ void RTWUSBController::publishDiagnostics() {
      * this device's snapshot; registry readers still need bracketing reads
      * before claiming an atomic snapshot. All writers run under our gate. */
     publish("RTWDiagPublicationGeneration",++diagnosticPublicationGeneration_);
+    publish("RTWDiagCoreError",(uint64_t)(unsigned)core_.core_error);
+    publish("RTWDiagAttached",attached_?1:0);
+    publish("RTWDiagPresent",present_?1:0);
+    publish("RTWDiagEnabled",enabled_?1:0);
+    publish("RTWDiagRadioReady",radioReady_?1:0);
+    publish("RTWDiagRunning",running_?1:0);
+    publish("RTWDiagSleeping",sleeping_?1:0);
+    publish("RTWDiagStopping",stopping_?1:0);
+    publish("RTWDiagClosing",closing_?1:0);
+    if(family_==RTW_WIFI_RTL8814AU)publish8814RecoveryDiagnostics();
+    else publishFamilyRecoveryDiagnostics();
     publishRateControlDiagnostics();
     /* No backend currently caches a complete, association-fresh effective
      * TX PHY tuple (rate, bandwidth and GI). Negotiated capability and RX MCS
@@ -1439,6 +1678,43 @@ void RTWUSBController::publishDiagnostics() {
     publish("RTWDiagRXInputFlushPackets",input.flushPackets);
     publish("RTWDiagRXInputSubmissionMismatches",input.submissionMismatches);
     publish("RTWDiagRXInputNoIfnetCalls",input.noIfnetCalls);
+    publish("RTWDiagRXInputInterfaceMatchesChild",attached_&&!closing_&&netif_&&core_.sc_ic.ic_if.iface==netif_?1:0);
+    publish("RTWDiagRXNativeSampleCount",input.nativeSampleCount);
+    publish("RTWDiagRXNativeSampleBatch",input.nativeSampleBatch);
+    publish("RTWDiagRXNativeSampleOfferedPackets",input.nativeSampleOfferedPackets);
+    publish("RTWDiagRXNativeSampleOfferedBytes",input.nativeSampleOfferedBytes);
+    publish("RTWDiagRXNativeSampleImmediateReturns",input.nativeSampleImmediateReturns);
+    publish("RTWDiagRXNativeSampleFlushPackets",input.nativeSampleFlushPackets);
+    publish("RTWDiagRXNativeSampleIfnetStable",input.nativeSampleIfnetStable);
+    /* These cumulative snapshots surround a sampled nonempty handoff. Keep
+     * them separate from the later native KPI read below: DLIL may defer its
+     * accounting. No counter is repaired or inferred from the offered batch. */
+    const auto&before=input.nativeBefore;
+    const auto&after=input.nativeAfter;
+    const bool beforeValid=input.nativeSampleCount&&before.statsError==0;
+    const bool afterValid=input.nativeSampleCount&&after.statsError==0;
+    publish("RTWDiagRXNativeBeforeStatsValid",beforeValid?1:0);
+    publish("RTWDiagRXNativeBeforeStatsError",(uint64_t)(uint32_t)before.statsError);
+    publish("RTWDiagRXNativeBeforeIndex",before.index);
+    publish("RTWDiagRXNativeBeforeSupportedCapabilities",before.supportedCapabilities);
+    publish("RTWDiagRXNativeBeforeEnabledCapabilities",before.enabledCapabilities);
+    publish("RTWDiagRXNativeBeforeInputPackets",beforeValid?before.packetsIn:0);
+    publish("RTWDiagRXNativeBeforeInputBytes",beforeValid?before.bytesIn:0);
+    publish("RTWDiagRXNativeBeforeInputErrors",beforeValid?before.errorsIn:0);
+    publish("RTWDiagRXNativeBeforeOutputPackets",beforeValid?before.packetsOut:0);
+    publish("RTWDiagRXNativeBeforeOutputBytes",beforeValid?before.bytesOut:0);
+    publish("RTWDiagRXNativeBeforeOutputErrors",beforeValid?before.errorsOut:0);
+    publish("RTWDiagRXNativeAfterStatsValid",afterValid?1:0);
+    publish("RTWDiagRXNativeAfterStatsError",(uint64_t)(uint32_t)after.statsError);
+    publish("RTWDiagRXNativeAfterIndex",after.index);
+    publish("RTWDiagRXNativeAfterSupportedCapabilities",after.supportedCapabilities);
+    publish("RTWDiagRXNativeAfterEnabledCapabilities",after.enabledCapabilities);
+    publish("RTWDiagRXNativeAfterInputPackets",afterValid?after.packetsIn:0);
+    publish("RTWDiagRXNativeAfterInputBytes",afterValid?after.bytesIn:0);
+    publish("RTWDiagRXNativeAfterInputErrors",afterValid?after.errorsIn:0);
+    publish("RTWDiagRXNativeAfterOutputPackets",afterValid?after.packetsOut:0);
+    publish("RTWDiagRXNativeAfterOutputBytes",afterValid?after.bytesOut:0);
+    publish("RTWDiagRXNativeAfterOutputErrors",afterValid?after.errorsOut:0);
     /* The IOKit statistics buffer and the BSD interface counters are distinct
      * observations. Read the interface KPI; never adjust either counter to
      * make the two agree. getIfnet() is valid only while the child is attached. */
@@ -1447,11 +1723,19 @@ void RTWUSBController::publishDiagnostics() {
     const int nativeStatsError=nativeIfnet?ifnet_stat(nativeIfnet,&nativeStats):ENXIO;
     const bool nativeStatsValid=nativeStatsError==0;
     publish("RTWDiagNativeIfnetIndex",nativeIfnet?ifnet_index(nativeIfnet):0);
+    const uint32_t nativeSupported=nativeIfnet?ifnet_capabilities_supported(nativeIfnet):0;
+    const uint32_t nativeEnabled=nativeIfnet?ifnet_capabilities_enabled(nativeIfnet):0;
+    publish("RTWDiagNativeIfnetSupportedCapabilities",nativeSupported);
+    publish("RTWDiagNativeIfnetEnabledCapabilities",nativeEnabled);
+    publish("RTWDiagNativeIfnetSkywalkEnabled",(nativeEnabled&IFCAP_SKYWALK)?1:0);
     publish("RTWDiagNativeIfnetStatsValid",nativeStatsValid?1:0);
     publish("RTWDiagNativeIfnetStatsError",(uint64_t)nativeStatsError);
     publish("RTWDiagNativeIfnetInputPackets",nativeStatsValid?nativeStats.packets_in:0);
     publish("RTWDiagNativeIfnetInputBytes",nativeStatsValid?nativeStats.bytes_in:0);
     publish("RTWDiagNativeIfnetInputErrors",nativeStatsValid?nativeStats.errors_in:0);
+    publish("RTWDiagNativeIfnetOutputPackets",nativeStatsValid?nativeStats.packets_out:0);
+    publish("RTWDiagNativeIfnetOutputBytes",nativeStatsValid?nativeStats.bytes_out:0);
+    publish("RTWDiagNativeIfnetOutputErrors",nativeStatsValid?nativeStats.errors_out:0);
     const auto&s=core_.sc_ic.ic_stats;
     publish("RTWDiagNet80211TooShort",s.is_rx_tooshort);
     publish("RTWDiagNet80211NoBuffer",s.is_rx_nombuf);
@@ -1580,7 +1864,16 @@ IOReturn RTWUSBController::handleControl(ControlCall*call) {
     if(call->selector==RTW_CONTROL_CHANNEL_MAP){channelMap(static_cast<RTWControlChannelMap*>(call->output));return kIOReturnSuccess;}
     auto*reply=static_cast<RTWControlReply*>(call->output);reply->version=RTW_CONTROL_VERSION;
     if(call->selector==RTW_CONTROL_LEAVE){quiesce(true);return kIOReturnSuccess;}
-    if(!attached_||!present_||sleeping_||usbError_!=kIOReturnSuccess||core_.core_error)return kIOReturnNotReady;
+    if(!attached_||!present_||sleeping_||usbError_!=kIOReturnSuccess)return kIOReturnNotReady;
+    if(family_==RTW_WIFI_RTL8814AU&&
+       (call->selector==RTW_CONTROL_SCAN||call->selector==RTW_CONTROL_JOIN)){
+        const int recovery=recover8814ForControl();if(recovery)return fromErrno(recovery);
+    }
+    if(family_!=RTW_WIFI_RTL8814AU&&
+       (call->selector==RTW_CONTROL_SCAN||call->selector==RTW_CONTROL_JOIN)){
+        const int recovery=recoverFamilyForControl();if(recovery)return fromErrno(recovery);
+    }
+    if(core_.core_error)return kIOReturnNotReady;
     if(call->selector==RTW_CONTROL_JOIN){
         const auto*join=static_cast<const RTWControlJoin*>(call->input);
         quiesce(true);
@@ -1705,6 +1998,29 @@ IOReturn RTWUSBController::message(UInt32 type,IOService*provider,void*argument)
 IOReturn RTWUSBController::setPowerState(unsigned long state,IOService*) {
     IOWorkLoop*lease=nullptr;auto*gate=copyGate(&lease);if(gate){gate->runAction(gated,(void*)(state?Wake:Sleep));gate->release();lease->release();}return kIOPMAckImplied;
 }
+IOReturn RTWUSBController::registerWithPolicyMaker(IOService*policyMaker) {
+    if(!policyMaker)return kIOReturnBadArgument;
+    if(powerRegistrationAttempted_)return powerManaged_?kIOReturnSuccess:powerRegistrationResult_;
+    powerRegistrationAttempted_=true;
+    // IONetworkController initializes and joins PM in super::start(), then
+    // invokes this hook from attachInterface(). Its default hook stops PM.
+    // Fully initialize once: two adapters may register concurrently.
+    static IOPMPowerState states[2]={
+        {1,0,0,0,0,0,0,0,0,0,0,0},
+        {1,kIOPMPowerOn|kIOPMDeviceUsable,kIOPMPowerOn,kIOPMPowerOn,0,0,0,0,0,0,0,0}
+    };
+    powerRegistrationResult_=policyMaker->registerPowerDriver(this,states,2);
+    if(powerRegistrationResult_!=kIOReturnSuccess)return powerRegistrationResult_;
+    powerManaged_=true;
+    powerRegistrationResult_=policyMaker->changePowerStateTo(1);
+    // Once registered, callbacks may already be waiting for our workloop.
+    // Return success to prepare(), which otherwise calls PMstop under that
+    // same gate. start() handles a failed power request after attachment.
+    return kIOReturnSuccess;
+}
+void RTWUSBController::stopPowerManagement() {
+    if(powerManaged_){PMstop();powerManaged_=false;}
+}
 void RTWUSBController::reportStartStage(const char *stage, IOReturn result) {
     // Preserve the last start stage on the USB provider even if start fails
     // and IOKit destroys this controller. No SSID or key material is logged.
@@ -1714,7 +2030,7 @@ void RTWUSBController::reportStartStage(const char *stage, IOReturn result) {
         provider->setProperty("RTWStartStage",stage);
         provider->setProperty("RTWStartResult",(unsigned long long)(uint32_t)result,32);
     }
-    IOLog("[TahoeRealtekWiFi 0.14.8] start stage=%s result=0x%08x\n",stage,(unsigned)result);
+    IOLog("[TahoeRealtekWiFi 0.14.9] start stage=%s result=0x%08x\n",stage,(unsigned)result);
 }
 bool RTWUSBController::start(IOService*provider) {
     reportStartStage("entry");
@@ -1739,12 +2055,10 @@ bool RTWUSBController::start(IOService*provider) {
     bool mediumOK=media&&automatic&&IONetworkMedium::addMedium(media,automatic)&&publishMediumDictionary(media)&&setSelectedMedium(automatic);
     if(automatic)automatic->release();if(media)media->release();
     IONetworkInterface*interface=nullptr;
-    if(!mediumOK||!attachInterface(&interface,false)){reportStartStage("ethernet-attach",kIOReturnError);gate_->runAction(gated,(void*)Shutdown);releasePlatform();super::stop(provider);markTeardownReady();return false;}
+    if(!mediumOK||!attachInterface(&interface,false)){stopPowerManagement();reportStartStage("ethernet-attach",kIOReturnError);gate_->runAction(gated,(void*)Shutdown);releasePlatform();super::stop(provider);markTeardownReady();return false;}
     netif_=OSDynamicCast(IOEthernetInterface,interface);
-    if(!netif_){reportStartStage("ethernet-type",kIOReturnUnsupported);detachInterface(interface,true);interface->release();gate_->runAction(gated,(void*)Shutdown);releasePlatform();super::stop(provider);markTeardownReady();return false;}
-    static IOPMPowerState states[2]{};states[0].version=1;states[1].version=1;states[1].capabilityFlags=kIOPMPowerOn|kIOPMDeviceUsable;states[1].inputPowerRequirement=kIOPMPowerOn;states[1].outputPowerCharacter=kIOPMPowerOn;
-    PMinit();powerManaged_=true;provider->joinPMtree(this);
-    if(registerPowerDriver(this,states,2)!=kIOReturnSuccess){reportStartStage("power-register",kIOReturnError);PMstop();powerManaged_=false;gate_->runAction(gated,(void*)Shutdown);releasePlatform();super::stop(provider);markTeardownReady();return false;}
+    if(!netif_){stopPowerManagement();reportStartStage("ethernet-type",kIOReturnUnsupported);detachInterface(interface,true);interface->release();gate_->runAction(gated,(void*)Shutdown);releasePlatform();super::stop(provider);markTeardownReady();return false;}
+    if(!powerManaged_||powerRegistrationResult_!=kIOReturnSuccess){const IOReturn error=powerRegistrationResult_==kIOReturnSuccess?kIOReturnNotReady:powerRegistrationResult_;stopPowerManagement();reportStartStage("power-register",error);gate_->runAction(gated,(void*)Shutdown);releasePlatform();super::stop(provider);markTeardownReady();return false;}
     super::setLinkStatus(kIONetworkLinkValid);reportStartStage("ready");registerService();netif_->registerService();return true;
 }
 void RTWUSBController::shutdownPlatform() {
@@ -1787,30 +2101,34 @@ void RTWUSBController::releasePlatform() {
     usb_=nullptr;usbOpened_=present_=false;
     if(lifecycleLock_)IOLockUnlock(lifecycleLock_);
     if(completionLock_){IOSimpleLockFree(completionLock_);completionLock_=nullptr;}
+    // The optional coexistence timer is retained by the shared WorkLoop.
+    // Remove it while this controller still holds its WorkLoop reference.
+    release88Storage();
     if(loop_){loop_->release();loop_=nullptr;}
     if(acPHYStorage_){IOFree(acPHYStorage_,acPHYSize_);acPHYStorage_=nullptr;acPHYSize_=0;acCore_.phy=nullptr;}
     release8723Storage();
     release8710BUStorage();
     release8192FUStorage();
     release8192DUStorage();
-    release88Storage();
     release8812Storage();
     if(runtimeLease_){runtimeLease_=false;RTWNet80211Release();}
 }
 void RTWUSBController::stop(IOService*provider) {
-    if(powerManaged_){PMstop();powerManaged_=false;}
+    stopPowerManagement();
     if(gate_)gate_->runAction(gated,(void*)Shutdown);
     releasePlatform();super::stop(provider);markTeardownReady();
 }
 void RTWUSBController::free() {releasePlatform();if(lifecycleLock_){IOLockFree(lifecycleLock_);lifecycleLock_=nullptr;}super::free();}
 #include "RTW8814Bus.inc"
 #include "RTW8814Backend.inc"
+#include "RTW8814Recovery.inc"
 #include "RTW8812Backend.inc"
 #include "RTW88Backend.inc"
 #include "RTW8192DUBackend.inc"
 #include "RTW8192FUBackend.inc"
 #include "RTW8710BUBackend.inc"
 #include "RTW8723BUBackend.inc"
+#include "RTWFamilyRecovery.inc"
 
 // Called while the shared WorkLoop is gated. Never free a WorkLoop, an
 // Ethernet child or a USB descriptor from its own completion callback.

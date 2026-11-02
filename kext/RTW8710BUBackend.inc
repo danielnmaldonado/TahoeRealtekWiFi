@@ -47,7 +47,7 @@ int RTWUSBController::initialize8710BUCore()
     if(usb.max_packet!=(speed==kUSBHostConnectionSpeedHigh?512:64))return EINVAL;
     for(unsigned i=0;i<usb.bulk_out_count;++i){if(!txPipes_[i]||txMPS_[i]!=usb.max_packet)return EINVAL;usb.bulk_out[i]=endpoints_.bulk_out[i];}
     const rtw_usb_rw_transport bus{this,buControlIn,buControlOut};const rtw_waiter wait{this,buWait};int e=rtw_r10bu_init(buStorage_,buSize_,&bus,&wait,&usb,&bu_);
-    if(!e)e=rtw_r10bu_identify(bu_);if(!e)e=rtw_r10bu_board_info(bu_,&buBoard_);return e;
+    if(!e)e=rtw_r10bu_identify(bu_);if(!e)e=rtw_r10bu_board_info(bu_,&buBoard_);if(!e&&!validateFamilyRecoveryBoard())e=ENODEV;return e;
 }
 uint32_t RTWUSBController::channel8710BUModes(uint8_t channel) const
 {
@@ -79,19 +79,27 @@ int RTWUSBController::attach8710BU()
 }
 int RTWUSBController::start8710BU()
 {
+    const int lifecycle=beginFamilyStart();if(lifecycle)return lifecycle;
+
     auto&ic=core_.sc_ic;auto&ifp=ic.ic_if;if(!is8710BUFamily()||!buStorage_||!bu_||!ic.ic_bss||ic.ic_opmode!=IEEE80211_M_STA||ioError(this))return ENXIO;rtw_r10bu_status status{};rtw_r10bu_status_read(bu_,&status);if(status.powered||status.firmware)return EBUSY;
     radioReady_=false;core_.core_error=0;buMedia_=buRateReady_=buRSSIValid_=false;buRate_={};buChannel_=buRSSI_=0;buOperating_={};refresh8710BUModes();
     int e=initialize8710BUCore();if(e)goto fail;e=allocateTransfers();if(e)goto fail;e=buBoard_.vendor==RTW_R10BU_SMIC?rtw_r10bu_boot(bu_,RTW8710BUSMICFirmware,sizeof(RTW8710BUSMICFirmware),RTW_R10BU_SMIC):buBoard_.vendor==RTW_R10BU_UMC?rtw_r10bu_boot(bu_,RTW8710BUUMCFirmware,sizeof(RTW8710BUUMCFirmware),RTW_R10BU_UMC):ENOTSUP;if(e)goto fail;
     rtw_r10bu_status_read(bu_,&status);if(status.max_bw<40){ic.ic_htcaps&=~(uint32_t)(IEEE80211_HTCAP_CBW20_40|IEEE80211_HTCAP_SGI40);for(unsigned ch=1;ch<=11;++ch)ic.ic_channels[ch].ic_flags&=~(uint32_t)IEEE80211_CHAN_HT40;}
-    ic.ic_bss->ni_chan=ic.ic_ibss_chan;e=set8710BUChannel((uint8_t)ieee80211_chan2ieee(&ic,ic.ic_ibss_chan));if(e)goto fail;e=busInitialize(this);if(e)goto fail;ifq_clr_oactive(&ifp.if_snd);ifp.if_flags|=IFF_RUNNING;
-    e=ic.ic_newstate(&ic,IEEE80211_S_SCAN,-1);if(e)goto fail;radioReady_=true;return 0;
-fail:stop8710BU();core_.core_error=e;return e;
+    ic.ic_bss->ni_chan=ic.ic_ibss_chan;e=set8710BUChannel((uint8_t)ieee80211_chan2ieee(&ic,ic.ic_ibss_chan));if(e)goto fail;familyRecovery_.diag.stage=rtw::StationRecovery::RX;e=busInitialize(this);if(e)goto fail;familyRecovery_.diag.stage=rtw::StationRecovery::Start;ifq_clr_oactive(&ifp.if_snd);ifp.if_flags|=IFF_RUNNING;
+    e=ic.ic_newstate(&ic,IEEE80211_S_SCAN,-1);if(e)goto fail;radioReady_=true;finishFamilyStart();return 0;
+fail:failFamilyStart(e);stop8710BU();if(!familyRecovery_.transient(e))core_.core_error=e;return e;
 }
 void RTWUSBController::stop8710BU()
 {
+    familyRecovery_.inStop=true;
     auto&ifp=core_.sc_ic.ic_if;radioReady_=false;core_.sc_tx_timer=0;ifp.if_timer=0;ifp.if_flags&=~IFF_RUNNING;ifq_clr_oactive(&ifp.if_snd);
-    if(core_.sc_newstate)(void)state8710BU(&core_.sc_ic,IEEE80211_S_INIT,-1);cancelScan(this);cancelCalibration(this);task_del(systq,&core_.init_task);abortTransfers();
-    if(bu_){if(present_&&!sleeping_&&usbError_==kIOReturnSuccess)(void)rtw_r10bu_stop(bu_);else rtw_r10bu_forget(bu_);}buMedia_=buRateReady_=buRSSIValid_=false;buRate_={};buOperating_={};buChannel_=buRSSI_=0;freeTransfers();
+    if(core_.sc_newstate)(void)core_.sc_newstate(&core_.sc_ic,IEEE80211_S_INIT,-1);
+    cancelScan(this);cancelCalibration(this);task_del(systq,&core_.init_task);abortTransfers();
+    buMedia_=buRateReady_=buRSSIValid_=false;buRate_={};buOperating_={};buChannel_=buRSSI_=0;
+    if(!familyStopDrained())return;
+    int cleanup=0;
+    if(bu_){if(present_&&!sleeping_&&usbError_==kIOReturnSuccess)cleanup=rtw_r10bu_stop_checked(bu_);else{rtw_r10bu_forget(bu_);cleanup=ENXIO;}}
+    recordFamilyCleanup(cleanup);freeTransfers();
 }
 void RTWUSBController::release8710BUStorage(){if(buStorage_){IOFree(buStorage_,buSize_);buStorage_=nullptr;}buSize_=0;bu_=nullptr;}
 uint16_t RTWUSBController::station8710BURates(bool basic) const
@@ -240,7 +248,7 @@ void RTWUSBController::watchdog8710BU(_ifnet*ifp)
 void RTWUSBController::initTask8710BU(void*p)
 {
     auto*s=owner(p);auto&core=s->core_;auto&ifp=core.sc_ic.ic_if;if(core.sc_flags&RTWN_FLAG_BUSY)return;
-    core.sc_flags|=RTWN_FLAG_BUSY;s->stop8710BU();if(ifp.if_flags&IFF_UP){int e=s->start8710BU();if(e)core.core_error=e;}core.sc_flags&=~(uint32_t)RTWN_FLAG_BUSY;
+    core.sc_flags|=RTWN_FLAG_BUSY;s->stop8710BU();if(ifp.if_flags&IFF_UP){int e=s->start8710BU();if(e&&!s->familyRecovery_.transient(e))core.core_error=e;}core.sc_flags&=~(uint32_t)RTWN_FLAG_BUSY;
 }
 int RTWUSBController::ioctl8710BU(_ifnet*ifp,u_long command,caddr_t data)
 {

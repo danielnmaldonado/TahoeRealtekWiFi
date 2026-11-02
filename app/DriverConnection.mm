@@ -2,6 +2,7 @@
 #import "DriverConnection.h"
 #import "ServiceProtocol.h"
 #import "CodeIdentity.h"
+#import "ControlDiagnostics.h"
 #import <ServiceManagement/ServiceManagement.h>
 #include "Transport.hpp"
 #include "Model.hpp"
@@ -43,6 +44,17 @@ struct ResponseState {
 }
 - (void)dealloc {[_connection invalidate];}
 - (uint32_t)exchangeRegistryID:(uint64_t)registryID selector:(uint32_t)selector
+                        input:(const void*)input length:(size_t)length
+                       output:(void*)output capacity:(size_t)capacity {
+    RTWLogControlExchange(registryID,selector,0,0,YES);
+    const double started=NSProcessInfo.processInfo.systemUptime;
+    const uint32_t result=[self performExchangeRegistryID:registryID selector:selector
+        input:input length:length output:output capacity:capacity];
+    RTWLogControlExchange(registryID,selector,result,
+        (NSProcessInfo.processInfo.systemUptime-started)*1000.0,NO);
+    return result;
+}
+- (uint32_t)performExchangeRegistryID:(uint64_t)registryID selector:(uint32_t)selector
                         input:(const void*)input length:(size_t)length
                        output:(void*)output capacity:(size_t)capacity {
     if(capacity!=rtwui::outputSize(selector)||!output)

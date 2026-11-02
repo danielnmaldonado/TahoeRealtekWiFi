@@ -10,11 +10,12 @@
 static unsigned checks;
 #define CHECK(x) do{++checks;if(!(x)){std::fprintf(stderr,"FAIL%u: %s\n",__LINE__,#x);std::exit(1);}}while(0)
 struct fake_8723 {
- unsigned calls=0,fail_at=0;std::array<uint8_t,65536> memory{};std::array<uint32_t,256> rf{};std::array<uint8_t,512> otp{};struct write_event{uint16_t address;unsigned width;uint32_t value;};std::vector<write_event> writes;std::vector<std::array<uint8_t,8>> h2c;uint64_t delayed=0;unsigned rf_address=0,fw_bytes=0;bool simulate=false,power_ready=true,fw_ready=true,iqk_success=true,mailbox_busy=false;
+ unsigned calls=0,fail_at=0;std::array<uint8_t,65536> memory{};std::array<uint32_t,256> rf{};std::array<uint8_t,512> otp{};struct write_event{uint16_t address;unsigned width;uint32_t value;};std::vector<write_event> writes;std::vector<std::array<uint8_t,8>> h2c;uint64_t delayed=0;unsigned rf_address=0,fw_bytes=0;bool simulate=false,power_ready=true,fifo_idle=true,mac_off_ready=true,fw_ready=true,iqk_success=true,mailbox_busy=false;
  static int read(void*p,uint16_t a,unsigned w,uint32_t*v){auto&f=*(fake_8723*)p;++f.calls;if(f.calls==f.fail_at)return EIO;*v=0;for(unsigned i=0;i<w;i++)*v|=uint32_t(f.memory[a+i])<<(8*i);
   if(f.simulate){
    if(a==4&&w==4&&f.power_ready)*v=(*v|(1U<<17))&~0x300U;
-   if(a==5&&w==1)*v&=~3U;
+   if(a==5&&w==1){*v&=~1U;if(f.mac_off_ready)*v&=~2U;}
+   if(a==0x284&&w==4){if(f.fifo_idle)*v|=1U<<17;else *v&=~(1U<<17);}
    if(a==0x224&&w==4)*v&=~(1U<<16);
    if(a==0x80&&f.fw_ready&&f.fw_bytes)*v|=4U|64U|128U;
    if(a==0x1cc&&w==1&&!f.mailbox_busy)*v=0;
@@ -71,8 +72,8 @@ static void boot_hardware_boundary(){
  CHECK(rtw_8723bu_station_state(&c,0,nullptr)==0&&!c.associated&&f.memory[0x6a2]==0&&f.memory[0x6a3]==0);
  uint8_t endpoint=0;CHECK(rtw_8723bu_tx_endpoint(&c,0,&endpoint)==0&&endpoint==3);CHECK(rtw_8723bu_tx_endpoint(&c,7,&endpoint)==0&&endpoint==2);CHECK(rtw_8723bu_tx_endpoint(&c,0x12,&endpoint)==0&&endpoint==2);
  unsigned before=f.calls;const uint8_t command[]={0x42,0,0,50,0,0,0,0};CHECK(rtw_8723bu_h2c(&c,command,sizeof(command))==0);CHECK(f.calls==before+3);
- f.mailbox_busy=true;before=f.calls;CHECK(rtw_8723bu_h2c(&c,command,2)==EBUSY);CHECK(f.calls==before+100);CHECK(!c.calibrated);
- CHECK(rtw_8723bu_stop(&c)==EBUSY&&!c.powered&&!c.firmware_running&&!c.calibrated);
+ f.mailbox_busy=true;before=f.calls;CHECK(rtw_8723bu_h2c(&c,command,2)==ETIMEDOUT);CHECK(f.calls==before+100);CHECK(!c.calibrated);
+ CHECK(rtw_8723bu_stop(&c)==ETIMEDOUT&&!c.powered&&!c.firmware_running&&!c.calibrated);
 }
 static void identity_factory(){
  fake_8723 f;rtw_8723bu c{};auto bus=f.bus();rtw_8723bu_usb usb{0x81,{2,3,0},2,1,512};std::vector<uint64_t> storage((rtw_8723bu_private_size()+7)/8);
@@ -94,9 +95,32 @@ static void identity_factory(){
 }
 struct core_fixture {
  fake_8723 f;rtw_8723bu c{};std::vector<uint64_t>storage;std::array<uint8_t,512>rom;
- core_fixture(unsigned pipes=2){f.simulate=true;auto bus=f.bus();rtw_8723bu_usb usb{0x81,{2,3,4},uint8_t(pipes),1,512};storage.resize((rtw_8723bu_private_size()+7)/8);CHECK(rtw_8723bu_init(&c,0xbda,0xb720,&bus,&usb,storage.data(),storage.size()*8)==0);fake_8723::write(&f,0xf0,4,2U<<12);fake_8723::write(&f,0x68,4,4U|(1U<<18));CHECK(rtw_8723bu_identify(&c)==0);valid_board_image(rom);encode_otp(rom,f.otp);CHECK(rtw_8723bu_parse_board(&c,rom.data(),rom.size())==0);}
+ core_fixture(unsigned pipes=2){f.simulate=true;auto bus=f.bus();rtw_8723bu_usb usb{0x81,{2,3,4},uint8_t(pipes),1,512};for(unsigned i=0;i<sizeof(usb.bulk_out);++i)usb.bulk_out[i]=uint8_t(2+i);storage.resize((rtw_8723bu_private_size()+7)/8);CHECK(rtw_8723bu_init(&c,pipes==4?0x7392:0xbda,pipes==4?0xa611:0xb720,&bus,&usb,storage.data(),storage.size()*8)==0);fake_8723::write(&f,0xf0,4,2U<<12);fake_8723::write(&f,0x68,4,4U|(1U<<18));CHECK(rtw_8723bu_identify(&c)==0);valid_board_image(rom);encode_otp(rom,f.otp);CHECK(rtw_8723bu_parse_board(&c,rom.data(),rom.size())==0);}
  int boot(){return rtw_8723bu_boot(&c,RTW8723BUFirmware,sizeof(RTW8723BUFirmware));}
 };
+// Four physical USB OUT pipes still feed the three RTL8723B DMA queues.
+// Rejecting the fourth descriptor or comparing physical and logical counts
+// prevents the six-endpoint Edimax layout from ever booting.
+static void four_physical_pipes_use_three_logical_queues(){
+ for(unsigned sie:{0U,0x321U}){
+  core_fixture x(4);fake_8723::write(&x.f,0xfe66,2,sie);
+  CHECK(x.boot()==0);CHECK(rtw_8723bu_set_channel(&x.c,6,20)==0&&rtw_8723bu_calibrate(&x.c)==0);
+  uint8_t ep=0;CHECK(rtw_8723bu_tx_endpoint(&x.c,7,&ep)==0&&ep==2);
+  CHECK(rtw_8723bu_tx_endpoint(&x.c,5,&ep)==0&&ep==3);
+  CHECK(rtw_8723bu_tx_endpoint(&x.c,0,&ep)==0&&ep==4);
+  CHECK(rtw_8723bu_tx_endpoint(&x.c,0x12,&ep)==0&&ep==2);
+ }
+ fake_8723 f;auto bus=f.bus();rtw_8723bu c{};rtw_8723bu_usb invalid{0x81,{2,3,4},5,1,512};
+ std::vector<uint64_t>storage((rtw_8723bu_private_size()+7)/8);
+ CHECK(rtw_8723bu_init(&c,0x7392,0xa611,&bus,&invalid,storage.data(),storage.size()*8)==EINVAL&&f.calls==0);
+ invalid.bulk_out_count=4;
+ for(uint8_t fourth:{uint8_t(0),uint8_t(3),uint8_t(0x85)}){
+  invalid.bulk_out[3]=fourth;
+  CHECK(rtw_8723bu_init(&c,0x7392,0xa611,&bus,&invalid,storage.data(),storage.size()*8)==EINVAL&&f.calls==0);
+ }
+ {core_fixture x(4);fake_8723::write(&x.f,0xfe66,2,1);CHECK(x.boot()==EINVAL&&!x.c.firmware_running&&!x.c.calibrated);}
+
+}
 static void actual_boot_and_otp_failures(){
  unsigned boot_io=0,otp_io=0;
  {core_fixture x(3);CHECK(x.boot()==0);CHECK(rtw_8723bu_set_channel(&x.c,6,20)==0&&rtw_8723bu_calibrate(&x.c)==0);uint8_t ep=0;CHECK(rtw_8723bu_tx_endpoint(&x.c,7,&ep)==0&&ep==2);CHECK(rtw_8723bu_tx_endpoint(&x.c,5,&ep)==0&&ep==3);CHECK(rtw_8723bu_tx_endpoint(&x.c,0,&ep)==0&&ep==4);}
@@ -112,11 +136,13 @@ static void actual_boot_and_otp_failures(){
  {core_fixture x;CHECK(x.boot()==0);x.rom[0x3a+2]=255;CHECK(rtw_8723bu_parse_board(&x.c,x.rom.data(),512)==0);auto before=x.f.calls;CHECK(!rtw_8723bu_channel_supported(&x.c,6,20));CHECK(rtw_8723bu_set_channel(&x.c,6,20)==ENOTSUP&&x.f.calls==before);}
  {core_fixture x;CHECK(x.boot()==0);for(int value:{0,63}){x.rom[0x40]=uint8_t(value);x.rom[0x45]=value?0x77:0x88;CHECK(rtw_8723bu_parse_board(&x.c,x.rom.data(),512)==0);CHECK(rtw_8723bu_set_channel(&x.c,1,20)==0);CHECK(x.f.memory[0xe00]==value&&x.f.memory[0xe10]==value);}}
  {core_fixture x;x.f.fw_ready=false;CHECK(x.boot()==EAGAIN&&!x.c.firmware_running&&!x.c.calibrated);CHECK(x.f.delayed<2000000&&x.f.calls<20000&&!(x.f.memory[0x80]&1U));}
- {core_fixture x;x.f.power_ready=false;CHECK(x.boot()==EBUSY&&!x.c.powered&&!x.c.calibrated);CHECK(x.f.delayed<2000000&&x.f.calls<20000);}
+ {core_fixture x;x.f.power_ready=false;CHECK(x.boot()==ETIMEDOUT&&!x.c.powered&&!x.c.calibrated);CHECK(x.f.delayed<2000000&&x.f.calls<20000);}
  {core_fixture x;CHECK(x.boot()==0&&rtw_8723bu_set_channel(&x.c,1,20)==0&&rtw_8723bu_calibrate(&x.c)==0);rtw_8723bu_station p{};std::memcpy(p.bssid,x.c.board.mac,6);p.bssid[5]=0x42;p.channel=1;p.aid=1;p.beacon_tu=100;p.basic_rates=0x150;p.legacy_rates=0xfff;CHECK(rtw_8723bu_station_state(&x.c,3,&p)==0);CHECK(rtw_8723bu_station_state(&x.c,1,nullptr)==0);CHECK(x.f.memory[0x440]==0xf1&&x.f.memory[0x441]==0xff&&(x.f.memory[0x442]&15U)==15U);}
  std::printf("8723BU: all %u cold-boot and %u OTP I/O failure positions passed\n",boot_io,otp_io);
 }
-int main(){
+static void checked_cleanup(){core_fixture good;CHECK(good.boot()==0);good.c.last_error=ETIMEDOUT;CHECK(rtw_8723bu_stop_checked(&good.c)==0&&good.c.last_error==ETIMEDOUT&&!good.c.powered);core_fixture bad;CHECK(bad.boot()==0);bad.f.fail_at=bad.f.calls+1;CHECK(rtw_8723bu_stop_checked(&bad.c)==EIO);bad.f.fail_at=0;CHECK(rtw_8723bu_stop_checked(&bad.c)==EIO);}
+static void shutdown_polls_are_checked(){for(unsigned mode=0;mode<3;++mode){core_fixture x;CHECK(x.boot()==0);if(mode==0)x.f.mac_off_ready=false;if(mode==1)x.f.fifo_idle=false;if(mode==2)fake_8723::write(&x.f,0x5f8,4,0x100);CHECK(rtw_8723bu_stop_checked(&x.c)==ETIMEDOUT);CHECK(!x.c.powered&&!x.c.firmware_running);}}
+int main(){four_physical_pipes_use_three_logical_queues();shutdown_polls_are_checked();checked_cleanup();
  actual_boot_and_otp_failures();
  read_factory_from_otp();
  boot_hardware_boundary();

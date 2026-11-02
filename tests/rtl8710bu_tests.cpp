@@ -54,7 +54,15 @@ static void failures(){
  }
  printf("8710BU %u I/O faults before/after effects: %u identify,%u firmware+MAC+RFK,%u HT40/RFK\n",total,identified,boot,tune);
 }
-int main(){std::array<uint8_t,512>rom{};rom[0]=0x95;rom[1]=0x81;rom[0x11a]=2;
+#ifndef RTW_R10BU_CHECKED_STOP
+#define rtw_r10bu_stop_checked rtw_r10bu_stop
+#endif
+static void checked_cleanup_separates_original(){BUFixture f;f.identify();assert(!f.boot());uint32_t v=0;f.m.fail=f.m.calls+1;assert(rtw_r10bu_read(f.c,0x80,1,&v)==EIO);f.m.fail=0;assert(rtw_r10bu_stop_checked(f.c)==0);assert(f.status().error==EIO&&!f.status().powered);}
+static void failed_cleanup_stays_failed(){BUFixture f;f.identify();assert(!f.boot());f.m.fail=f.m.calls+1;assert(rtw_r10bu_stop_checked(f.c)==EIO);f.m.fail=0;assert(rtw_r10bu_stop_checked(f.c)==EIO);}
+static void shutdown_polls_are_checked(){for(unsigned mode=0;mode<3;++mode){BUFixture f;f.identify();assert(!f.boot());if(mode==0)f.m.power_ready=false;if(mode==1)f.m.fifo_idle=false;if(mode==2)f.m.set(0x5f8,1);assert(rtw_r10bu_stop_checked(f.c)==ETIMEDOUT);assert(!f.status().powered&&!f.status().firmware);}}
+static void shutdown_preserves_first_io_failure(){BUFixture f;f.identify();assert(!f.boot());f.m.fail=f.m.calls+1;f.m.indirect_ready=false;assert(rtw_r10bu_stop_checked(f.c)==EIO);}
+static void complete_rom_is_identity(){auto first=bu_rom(),changed=first;changed[0xf8]=0x31;rtw_r10bu_board a{},b{};assert(!rtw_r10bu_decode_rom(first.data(),first.size(),&a));assert(!rtw_r10bu_decode_rom(changed.data(),changed.size(),&b));assert(memcmp(&a,&b,sizeof(a))!=0);}
+int main(){complete_rom_is_identity();shutdown_preserves_first_io_failure();shutdown_polls_are_checked();checked_cleanup_separates_original();failed_cleanup_stays_failed();std::array<uint8_t,512>rom{};rom[0]=0x95;rom[1]=0x81;rom[0x11a]=2;
  {
   rtw_r10bu_tx_options o{};o.payload_bytes=64;o.rf_chains=1;o.bandwidth_mhz=20;o.sequence=0x123;
   uint8_t descriptor[40]{};assert(rtw_r10bu_tx_descriptor(&o,descriptor));

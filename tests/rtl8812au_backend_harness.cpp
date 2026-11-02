@@ -1,3 +1,4 @@
+#include "rtw/StationRecovery.hpp"
 #include "rtw/StationChannels.h"
 /* SPDX-License-Identifier: BSD-3-Clause
  * Executes actual controller state/TX/RX methods with isolated USB, RF and
@@ -16,6 +17,8 @@
 #include <cstdio>
 #include <cstddef>
 #include <cstring>
+#include <map>
+#include <string>
 #include <vector>
 #include <sys/types.h>
 #include "../kext/RTL8812AUFirmware.inc"
@@ -93,17 +96,24 @@ extern "C" int rtw_r12au_phy_load_tables(rtw_r12au_phy*p){int e=event(7);p->stat
 extern "C" int rtw_r12au_power_on(rtw_r12au_boot*c){int e=event(2);c->powered=!e;return e;}
 extern "C" int rtw_r12au_fw_inspect(rtw_r12au_chip chip,const uint8_t*image,size_t n,rtw_fw_image*out){assert(n==(chip==RTW_R12AU_CHIP_8812AU?27030U:31898U));assert(image[0]==(chip==RTW_R12AU_CHIP_8812AU?1:1)&&image[1]==(chip==RTW_R12AU_CHIP_8812AU?0x95:0x21));*out={};return 0;}
 extern "C" int rtw_r12au_download_fw(rtw_r12au_boot*c,const uint8_t*image,size_t n,rtw_boot_report*out){assert(c->powered&&c->dma_prepared);rtw_fw_image fw{};assert(!rtw_r12au_fw_inspect(c->chip,image,n,&fw));int e=event(4);c->firmware_running=!e;if(!e)regs[0x80]=0xc6;*out={};return e;}
-extern "C" int rtw_r12au_power_off(rtw_r12au_boot*c){event(91);c->powered=c->firmware_running=c->mac_initialized=c->dma_prepared=0;return c->io_error;}
+extern "C" int rtw_r12au_power_off(rtw_r12au_boot*c){event(91);c->powered=c->firmware_running=c->mac_initialized=c->dma_prepared=c->associated=0;return c->io_error;}
+extern "C" int rtw_r12au_power_off_checked(rtw_r12au_boot*c){int original=c->io_error;c->io_error=0;const int error=rtw_r12au_power_off(c);c->io_error=original;return error;}
 static std::vector<std::array<uint8_t,8>> commands;
 extern "C" int rtw_r12au_h2c(rtw_r12au_boot*c,const uint8_t*b){
  if(c->io_error)return c->io_error;std::array<uint8_t,8> command{};memcpy(command.data(),b,8);commands.push_back(command);
  assert(b[0]==0x40||b[0]==1||b[0]==0x42||b[0]>=0x60);c->h2c_box=(uint8_t)((c->h2c_box+1)%4);int e=event(b[0]>=0x60?36:b[0]==0x40?30:b[0]==1?(b[1]?32:33):34);if(e)c->io_error=e;return e;}
 static uint64_t testClock=1000;
 class RTWUSBController {public:
+
+ void setProperty(const char*n,unsigned long long v,int){numericProperties[n]=v;}
+ void setProperty(const char*n,const char*v){textProperties[n]=v;}
+
  bool permitsDFSChannelByCountry(uint8_t)const{return true;}
 
  static uint64_t nowMS(){return testClock;}
  rtwn_softc core_{};rtw_usb_wifi_profile testProfile_{};const rtw_usb_wifi_profile*profile_=&testProfile_;rtw_wifi_family family_=RTW_WIFI_RTL8812AU;bool running_=true,stopping_=false,present_=true,radioReady_=true,sleeping_=false;int usbError_=0;
+ std::map<std::string,uint64_t> numericProperties;
+ std::map<std::string,std::string> textProperties;
  uint64_t txHTPackets_=0,txAMPDUPackets_=0;void*usb_=nullptr;TestPipe*rxPipe_=nullptr;bool usbOpened_=true;
  void*completionLock_=nullptr;rtw_transfer_ledger ledger_{};rtw_usb_endpoints endpoints_{};uint16_t txMPS_[4]{};TestPipe pipes[4]{};TestPipe*txPipes_[4]{};
  struct Transfer{TestMemory*memory;};Transfer transfers_[16]{};TestMemory memories[16]{};
@@ -119,6 +129,8 @@ class RTWUSBController {public:
  static int busInitialize(void*p){auto*s=owner(p);int e=event(14);s->running_=!e;return e;}
  unsigned submitted=0,submittedPipe=0,submittedIndex=0;std::vector<uint8_t>submittedBytes;int submitError=0;
  int submit(unsigned index,TestPipe*pipe,uint32_t len){++submitted;submittedIndex=index;submittedPipe=pipe->number;submittedBytes.assign(memories[index].b,memories[index].b+len);return submitError;}
+
+#include "family_recovery_backend_host.hpp"
 };
 int RTWUSBController::initialize8812Core(){auCore_.identified=1;auCore_.io_error=0;int e=event(15);if(!e)remember8812Authority();return e;}
 
@@ -188,6 +200,7 @@ static void kernelHealthSurface(){
   const ieee80211_state target[]={IEEE80211_S_INIT,IEEE80211_S_INIT,IEEE80211_S_SCAN,IEEE80211_S_AUTH,IEEE80211_S_ASSOC,IEEE80211_S_RUN};
   int e=0;if(action==0)f.c.stop8812();else if(action==6)RTWUSBController::update8812EDCA(&f.c.core_.sc_ic);else e=f.state(target[action]);
   assert(commands.size()==sent&&f.c.core_.sc_ic.ic_state==IEEE80211_S_INIT&&!f.n.ni_port_valid);
+  if(f.c.auCore_.firmware_running||f.c.auCore_.associated||f.c.auRateReady_||f.c.auMediaConnected_||f.c.radioReady_)std::fprintf(stderr,"health board=%u action=%u fault=%u fw=%u assoc=%u rate=%u media=%u radio=%u cleanup=%u\n",board,action,fault,f.c.auCore_.firmware_running,f.c.auCore_.associated,f.c.auRateReady_,f.c.auMediaConnected_,f.c.radioReady_,f.c.familyRecovery_.diag.cleanup);
   assert(!f.c.auCore_.firmware_running&&!f.c.auCore_.associated&&!f.c.auRateReady_&&!f.c.auMediaConnected_&&!f.c.radioReady_);
   assert(!f.phy.status.calibrated&&!f.phy.status.tx_enabled&&!f.c.authorized());
   int expected=fault==3||fault==4?EIO:ENXIO;if(action&&action!=6)assert(e==expected);assert(f.c.core_.core_error==expected);
@@ -282,7 +295,13 @@ static void profileBandAdmission(){
   f.n.ni_port_valid=1;before=ioCalls;assert(f.c.send8812Frame(packet(true,false),&f.n)==ENETDOWN&&ioCalls==before);
  }
 }
-int main(){shiftedPHYReports();profileBandAdmission();globalOwnerSurface();kernelHealthSurface();healthyEDCA();healthyOwnerRestart();
+static void coexStopWaitsForCallbacks(){
+ for(bool shared:{false,true}){Fixture f(RTW_WIFI_RTL8821AU);f.coex(shared);f.cold();assert(!f.c.start8812());f.run();auto*coex=f.c.auCoex_;auto*phy=f.c.auPHY_;const auto calls=ioCalls;
+  f.c.recoveryDrained_=false;f.c.stop8812();assert(ioCalls==calls&&f.c.auCoex_==coex&&f.c.auPHY_==phy&&f.c.familyRecovery_.pendingStop&&!f.c.running_);
+  f.c.recoveryDrained_=true;f.c.stop8812();assert(!f.c.auCoex_&&!f.c.auPHY_&&!f.c.familyRecovery_.pendingStop&&!f.c.running_&&!f.c.auCore_.powered);
+ }
+}
+int main(){coexStopWaitsForCallbacks();shiftedPHYReports();profileBandAdmission();globalOwnerSurface();kernelHealthSurface();healthyEDCA();healthyOwnerRestart();
  for(bool shared:{false,true}){Fixture f(RTW_WIFI_RTL8821AU);f.coex(shared);f.cold();assert(!f.c.start8812());rtw_r21au_coex_status status{};rtw_r21au_coex_get_status(f.c.auCoex_,&status);assert(status.active&&status.share_ant==shared&&f.phy.status.tx_enabled);events.clear();testClock+=2000;assert(!f.c.tick8812()&&std::find(events.begin(),events.end(),35)==events.end());f.run();assert(f.c.uses8812FirmwareRate()&&!f.n.ni_port_valid);assert(f.c.send8812Frame(packet(true,false),&f.n)==ENETDOWN);assert(!f.c.send8812Frame(packet(true,true),&f.n));f.n.ni_port_valid=true;assert(!f.c.send8812Frame(packet(true,false),&f.n));assert(f.c.auCoexTxFrames_==2&&f.c.auCoexTxBytes_>0);uint8_t btinfo[9]={9,0,1,0x49,0,20,0,0,40};f.c.handle8812C2H(btinfo,9);rtw_r21au_coex_get_status(f.c.auCoex_,&status);assert(status.bt_profiles==1&&status.bt_info_events==1);testClock+=2000;assert(!f.c.tick8812());assert(!f.c.auCoexTxFrames_&&!f.c.auCoexTxBytes_);f.c.stop8812();assert(!f.c.auCoex_&&!f.c.auPHY_&&!f.c.auCore_.firmware_running&&!f.n.ni_port_valid);}
 
  unsigned coexFaults=0;
@@ -317,10 +336,25 @@ int main(){shiftedPHYReports();profileBandAdmission();globalOwnerSurface();kerne
   f.n.ni_port_valid=true;assert(f.c.authorized());assert(!f.state(IEEE80211_S_INIT));assert(!f.n.ni_port_valid&&!f.c.authorized()&&!f.phy.status.tx_enabled);
  }
  for(auto family:{RTW_WIFI_RTL8812AU,RTW_WIFI_RTL8821AU}){Fixture f(family);f.cold();regs[0x806]=1;assert(!f.c.start8812());assert(f.c.auCckHighPower_);assert(f.c.radioReady_&&f.c.running_&&f.c.auCore_.mac_initialized&&f.c.auCore_.firmware_running&&f.c.auPHY_==&f.phy&&f.phy.status.calibrated&&f.phy.status.tx_enabled);
+  assert(f.c.numericProperties.count("RTWAUBootstrapStage")&&f.c.numericProperties.at("RTWAUBootstrapStage")==16);
+  assert(f.c.textProperties.at("RTWAUBootstrapStageName")=="ready"&&!f.c.numericProperties.at("RTWAUBootstrapResult"));
   size_t last=0;for(int stage:{1,2,3,4,5,6,7,10,11,14,61}){auto it=std::find(events.begin()+last,events.end(),stage);assert(it!=events.end());last=(size_t)(it-events.begin())+1;}
   f.c.stop8812();assert(!f.c.radioReady_&&!f.c.running_&&!f.c.auPHY_&&!f.c.auCore_.firmware_running&&!f.c.auCore_.mac_initialized&&f.c.core_.sc_ic.ic_state==IEEE80211_S_INIT);
  }
- for(int stage:{1,2,3,4,5,6,7,10,11,14,61}){Fixture f;f.cold();failEvent=stage;if(stage==61)genericFail=IEEE80211_S_SCAN;assert(f.c.start8812()==(stage==61?EINVAL:EIO));assert(!f.c.auPHY_&&!f.c.running_&&!f.c.radioReady_&&!f.c.auCore_.powered&&!f.c.auCore_.mac_initialized&&!f.c.auCore_.firmware_running&&f.c.core_.sc_ic.ic_state==IEEE80211_S_INIT);}
+ for(int stage:{1,2,3,4,5,6,7,10,11,14,61}){Fixture f;f.cold();failEvent=stage;if(stage==61)genericFail=IEEE80211_S_SCAN;const int expected=stage==61?EINVAL:EIO;assert(f.c.start8812()==expected);assert(!f.c.auPHY_&&!f.c.running_&&!f.c.radioReady_&&!f.c.auCore_.powered&&!f.c.auCore_.mac_initialized&&!f.c.auCore_.firmware_running&&f.c.core_.sc_ic.ic_state==IEEE80211_S_INIT);
+  assert(f.c.numericProperties.at("RTWAUBootstrapResult")==unsigned(expected));
+  assert(f.c.numericProperties.at("RTWAUBootstrapFirstError")==unsigned(expected)&&f.c.numericProperties.at("RTWAUBootstrapFailures")==1);
+  const unsigned actualStage=stage==1?2:stage==2?4:stage==3?5:stage==4?6:stage==5?7:stage==6?8:stage==7?9:stage==10||stage==11?11:stage==14?12:15;
+  assert(f.c.numericProperties.at("RTWAUBootstrapStage")==actualStage);
+ }
+ {Fixture f(RTW_WIFI_RTL8821AU);f.cold();f.c.auCore_.warm_reset_attempts=1;f.c.auCore_.warm_reset_mcu=0xc6;
+  f.c.auCore_.warm_reset_stage=3;f.c.auCore_.warm_reset_error=EIO;failEvent=2;assert(f.c.start8812()==EIO);
+  assert(f.c.numericProperties.at("RTWAUWarmResetResult")==EIO&&f.c.textProperties.at("RTWAUWarmResetStageName")=="mac-off");
+  f.c.auCore_.warm_reset_attempts=f.c.auCore_.warm_reset_stage=f.c.auCore_.warm_reset_mcu=0;f.c.auCore_.warm_reset_error=0;
+  f.c.auCore_.io_error=f.c.core_.core_error=0;failEvent=0;assert(!f.c.start8812());
+  assert(!f.c.numericProperties.at("RTWAUBootstrapResult")&&f.c.numericProperties.at("RTWAUBootstrapFirstError")==EIO);
+  assert(f.c.numericProperties.at("RTWAUWarmResetResult")==EIO&&f.c.numericProperties.at("RTWAUWarmResetStage")==3);
+ }
  {Fixture f;f.run();events.clear();assert(f.state(static_cast<ieee80211_state>(5))==EINVAL);assert(f.c.core_.sc_ic.ic_state==IEEE80211_S_RUN&&events.empty()&&f.c.auRateReady_);}
  for(auto family:{RTW_WIFI_RTL8812AU,RTW_WIFI_RTL8821AU})for(unsigned ch:{52U,56U,60U,64U,100U,104U,108U,112U,116U,120U,124U,128U,132U,136U,140U})for(unsigned width:{20U,40U,80U}){
   Fixture f(family);f.five(ch);f.c.auCore_.board.vht=1;f.c.auHTSupported_=f.c.auVHTSupported_=true;f.n.ni_flags=IEEE80211_NODE_HT|IEEE80211_NODE_VHT;f.n.ni_rxmcs[0]=f.n.ni_rxmcs[1]=255;f.n.ni_chw=width==20?IEEE80211_CHAN_WIDTH_20:width==40?IEEE80211_CHAN_WIDTH_40:IEEE80211_CHAN_WIDTH_80;f.n.ni_vht_chan1=58;f.n.ni_htop0=IEEE80211_HTOP0_SCO_SCA;f.n.ni_vht_mcsinfo.rx_mcs_map=0xfffa;

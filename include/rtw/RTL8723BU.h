@@ -17,7 +17,7 @@ typedef struct {
  void (*delay_us)(void*,uint32_t);
 } rtw_8723bu_bus;
 typedef struct {
- uint8_t bulk_in,bulk_out[3],bulk_out_count,high_speed;
+ uint8_t bulk_in,bulk_out[4],bulk_out_count,high_speed;
  uint16_t bulk_max_packet;
 } rtw_8723bu_usb;
 typedef struct {
@@ -32,7 +32,7 @@ typedef struct rtw_8723bu {
  uint8_t firmware_subversion,identified,board_valid,powered,firmware_running;
  uint8_t mac_initialized,phy_loaded,calibrated,channel,associated;
  uint8_t tx_rate,tx_sgi,rssi_valid,rssi_percent,mailbox;
- uint32_t epoch;int last_error;
+ uint32_t epoch;int last_error,cleanup_error;
 } rtw_8723bu;
 size_t rtw_8723bu_private_size(void);
 /* Strict verified USB identities; local initialization never performs I/O.
@@ -52,6 +52,8 @@ int rtw_8723bu_calibrate(rtw_8723bu*);
 int rtw_8723bu_h2c(rtw_8723bu*,const uint8_t*,size_t);
 int rtw_8723bu_c2h(rtw_8723bu*,const uint8_t*,size_t);
 int rtw_8723bu_tick(rtw_8723bu*);
+#define RTW_8723BU_CHECKED_STOP 1
+int rtw_8723bu_stop_checked(rtw_8723bu*);
 int rtw_8723bu_stop(rtw_8723bu*);
 /* Port0 station parameters. No key installation or controlled-port authority. */
 typedef struct {

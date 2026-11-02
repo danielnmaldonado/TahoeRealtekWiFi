@@ -170,6 +170,9 @@ static void testSignalAppearance() {
         return 0;
     }
     assert(registryID==3003&&rtw_control_validate_request(selector,input,length)==RTW_CONTROL_VALID);
+    if(selector==RTW_CONTROL_SCAN) {
+        auto* reply=static_cast<RTWControlReply*>(output);*reply={};reply->version=1;return 0;
+    }
     if(selector==RTW_CONTROL_CHANNEL_MAP) {
         if(!self.channelMapMode)return static_cast<uint32_t>(kIOReturnUnsupported);
         auto* map=static_cast<RTWControlChannelMap*>(output);*map={};map->version=1;
@@ -209,9 +212,11 @@ static NSMenuItem* networkItem(NSMenu* menu,const char* ssid) {
 static void completeBandPoll(WiFiApp* app,bool scan=true) {
     [app setValue:@(scan) forKey:@"forceNetworkCache"];[app poll:nil];
     NSDate* deadline=[NSDate dateWithTimeIntervalSinceNow:5.0];
-    while([[app valueForKey:@"busy"] boolValue]&&deadline.timeIntervalSinceNow>0)
+    while(([[app valueForKey:@"busy"] boolValue]||
+           [[app valueForKey:@"commandPending"] boolValue])&&deadline.timeIntervalSinceNow>0)
         [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
-    assert(![[app valueForKey:@"busy"] boolValue]);[app rebuildMenu];
+    assert(![[app valueForKey:@"busy"] boolValue]&&
+           ![[app valueForKey:@"commandPending"] boolValue]);[app rebuildMenu];
 }
 @interface MapReconnectWiFiApp : RecordingWiFiApp
 @property(nonatomic,assign) NSUInteger automaticRequests;
@@ -376,11 +381,13 @@ static NSModalResponse switchingSSIDModal(id alert,SEL) {
     NSTextField* field=(NSTextField*)[alert accessoryView];field.stringValue=@"HiddenLab";
     [modalTarget useAdapter:2002];return NSAlertFirstButtonReturn;
 }
+#include "automatic-refresh-tests.hpp"
 int main() {
     @autoreleasepool {
         [NSApplication sharedApplication];
         testSignalAppearance();
         testManualNetworkRefresh();
+        testAutomaticNetworkRefresh();
         LifecycleWiFiApp* life=[LifecycleWiFiApp new];
         assert([[life valueForKey:@"instanceLock"] intValue]==-1);
         [life workspaceWillSleep:nil];[life workspaceBecameInactive:nil];

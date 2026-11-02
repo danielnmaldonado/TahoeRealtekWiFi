@@ -17,6 +17,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
+#include <map>
 /* ACTUAL_BOOT_BUS_MODEL */
 extern "C" void rtw88_phy_radio_invalidate(rtw88_phy_context*p){if(p)*p={};}
 extern "C" int rtw88_coex_ready(const rtw88_coex*,const rtw88_phy_context*){assert(false);return 0;}
@@ -32,11 +33,17 @@ struct __attribute__((packed)) EndpointDescriptor{uint8_t bLength,bDescriptorTyp
 struct IOUSBHostPipe{EndpointDescriptor descriptor{};const EndpointDescriptor*getEndpointDescriptor(){return &descriptor;}};
 struct IOUSBHostDevice{DeviceDescriptor descriptor{};const DeviceDescriptor*getDeviceDescriptor(){return &descriptor;}};
 struct IOUSBHostInterface {
- bool missing_device=false,missing_interface=false,missing_configuration=false;std::array<unsigned,9>chip_positions{};IOUSBHostDevice device;std::array<uint8_t,39> config{};IOUSBHostPipe pipes[3]{};Bus bus;
+ unsigned references=0,retainCalls=0,releaseCalls=0;
+ void retain(){++references;++retainCalls;}void release(){assert(references);--references;++releaseCalls;}
+ ~IOUSBHostInterface(){assert(!references&&retainCalls==releaseCalls);}
+ std::map<std::string,std::string>stringProperties;std::map<std::string,uint64_t>numberProperties;
+ void setProperty(const char*n,const char*v){stringProperties[n]=v;}void setProperty(const char*n,unsigned long long v,unsigned){numberProperties[n]=v;}
+ bool missing_device=false,missing_interface=false,missing_configuration=false;std::array<unsigned,9>chip_positions{};IOUSBHostDevice device;std::vector<uint8_t> config=std::vector<uint8_t>(39);size_t interface_offset=9;IOUSBHostPipe pipes[6]{};Bus bus;
  unsigned requests=0,reads=0,writes=0,bulks=0,fail_request=0,chip_reads=0,change_at=0,change_to=0,change_writes=0;bool short_read=false,requested=false;unsigned hook_at=0,hook_writes=0;void(*hook)(void*)=nullptr;void*hook_cookie=nullptr;
  IOUSBHostInterface(unsigned code):bus(code==0x13?RTW_WIFI_RTL8822CU:RTW_WIFI_RTL8822BU){const uint8_t bytes[]={9,2,39,0,1,1,0,0x80,50,9,4,0,0,3,255,255,255,0,7,5,0x81,2,0,2,0,7,5,1,2,0,2,0,7,5,2,2,0,2,0};std::memcpy(config.data(),bytes,sizeof(bytes));for(unsigned i=0;i<3;i++)std::memcpy(&pipes[i].descriptor,bytes+18+7*i,7);put(bus.reg,0xfc,4,code);bus.reg[3]=4;bus.reg[0x1d]=1;bus.reg[9]=0x40;bus.reg[0x1082]=1;}
- IOUSBHostDevice*getDevice(){return missing_device?nullptr:&device;}const InterfaceDescriptor*getInterfaceDescriptor(){if(missing_interface)return nullptr;return reinterpret_cast<const InterfaceDescriptor*>(config.data()+9);}const ConfigDescriptor*getConfigurationDescriptor(){if(missing_configuration)return nullptr;return reinterpret_cast<const ConfigDescriptor*>(config.data());}
- IOUSBHostPipe*copyPipe(uint8_t address){for(auto&pipe:pipes)if(pipe.descriptor.bEndpointAddress==address)return &pipe;return nullptr;}
+ IOUSBHostDevice*getDevice(){return missing_device?nullptr:&device;}const InterfaceDescriptor*getInterfaceDescriptor(){if(missing_interface)return nullptr;return reinterpret_cast<const InterfaceDescriptor*>(config.data()+interface_offset);}const ConfigDescriptor*getConfigurationDescriptor(){if(missing_configuration)return nullptr;return reinterpret_cast<const ConfigDescriptor*>(config.data());}
+ uint8_t missing_pipe=0;
+ IOUSBHostPipe*copyPipe(uint8_t address){if(address==missing_pipe)return nullptr;for(auto&pipe:pipes)if(pipe.descriptor.bEndpointAddress==address)return &pipe;return nullptr;}
  int deviceRequest(const StandardUSB::DeviceRequest&r,uint8_t*b,uint32_t&actual,unsigned){
   ++requests;assert(r.bRequest==5&&!r.wIndex&&r.wLength&&r.wLength<=4);if(fail_request==requests)return 17;actual=r.wLength;
   if(r.bmRequestType==0xc0){++reads;if(r.wValue==0xfc){++chip_reads;assert(chip_reads<chip_positions.size());chip_positions[chip_reads]=requests;if(change_at==chip_reads){bus.reg[0xfc]=(uint8_t)change_to;change_writes=writes+bulks;}}uint32_t value=0;int e=Bus::read(&bus,r.wValue,r.wLength,&value);if(e)return e;for(unsigned i=0;i<r.wLength;i++)b[i]=(uint8_t)(value>>(8*i));if(short_read)actual=0;if(r.wValue==0xfc&&chip_reads==hook_at&&hook){hook_writes=writes+bulks;hook(hook_cookie);}
@@ -67,7 +74,7 @@ class RTWUSBController{public:
  rtw88_mac_context r88MAC_{};rtw88_phy_context r88PHY_{};rtw88_station_context r88Station_{};rtw88_coex*r88Coex_=nullptr;
  rtw88_fw_bus r88AuthorityBus_{},r88AuthorityRaw_{};rtw88_board r88AuthorityBoard_{};uint32_t r88AuthorityEpoch_=0;bool r88AuthorityBound_=false,r88AuthorityComplete_=false;
  std::vector<uint64_t> storage=std::vector<uint64_t>((RTW88_PHY_RADIO_SCRATCH_BYTES+RTW88_FW_SCRATCH_BYTES+RTW88_EFUSE_SCRATCH_BYTES+7)/8);void*r88Storage_=storage.data();bool r88BoardKnown_=false;uint8_t r88MACAddress_[6]{};uint16_t r88PacketSequence_=0;
- int bootstrap88(bool);void remember88Authority(bool);bool owns88Authority(bool)const;void coex88Stop(){}
+ int bootstrap88(bool);void remember88Authority(bool);bool owns88Authority(bool,bool recovery=false)const;bool validateFamilyRecoveryBoard()const{return true;}void coex88Stop(){}
  bool verified=false;unsigned hardwareCode=0;std::string publishedFamily;
  static RTWUSBController*owner(void*p){return static_cast<RTWUSBController*>(p);}static int ioError(void*p){return owner(p)->usbError_==kIOReturnSuccess?0:EIO;}static void delayUS(void*,uint32_t){}
  void fault(IOReturn);
@@ -85,6 +92,63 @@ static void swapProvider(void*p){auto*s=static_cast<ProviderSwap*>(p);s->c->usb_
 static void changeDescriptor(void*p){static_cast<RTWUSBController*>(p)->usb_->config[14]=0;}
 int main(){
  unsigned cases=0,faults=0;
+ // A revoked provider cannot redirect diagnostic writes. The original
+ // interface stays retained until its failure evidence has been recorded.
+ for(unsigned code:{0x0aU,0x13U})for(bool removed:{false,true}){
+  IOUSBHostInterface original(code),foreign(code);RTWUSBController checked;checked.usb_=&original;
+  ProviderSwap swap{&checked,removed?nullptr:&foreign};original.hook_at=1;original.hook=swapProvider;original.hook_cookie=&swap;
+  assert(!checked.discoverUSB()&&!checked.verified&&!checked.hardwareCode&&!checked.owns88Authority(false));
+  assert(original.stringProperties["RTWUSBDiscoveryStage"]=="silicon-identity");
+  assert(foreign.stringProperties.empty()&&foreign.numberProperties.empty()&&!foreign.requests&&!foreign.retainCalls);
+  assert(original.retainCalls==1&&original.releaseCalls==1&&!original.references);
+  assert(!original.writes&&!original.bulks);++cases;
+ }
+ {RTWUSBController absent;assert(!absent.discoverUSB());++cases;}
+ // Linux rtl8xxxu maps four physical OUT endpoints to three DMA queues.
+ // This is a supported synthetic topology, not a capture of the attached USB.
+ {
+  IOUSBHostInterface usb(0x0a);usb.device.descriptor.idVendor=0x7392;usb.device.descriptor.idProduct=0xa611;
+  const uint8_t bytes[]={9,2,78,0,3,1,0,0x80,50,
+   9,4,0,0,0,0xe0,1,1,0,9,4,1,0,0,0xe0,1,1,0,
+   9,4,2,0,6,255,255,255,0,
+   7,5,0x81,2,0,2,0,7,5,2,2,0,2,0,7,5,3,2,0,2,0,
+   7,5,4,2,0,2,0,7,5,5,2,0,2,0,7,5,0x86,3,16,0,1};
+  usb.config.assign(bytes,bytes+sizeof(bytes));usb.interface_offset=27;
+  for(unsigned i=0;i<6;i++)std::memcpy(&usb.pipes[i].descriptor,bytes+36+7*i,7);
+  RTWUSBController c;c.usb_=&usb;assert(c.discoverUSB());
+  assert(c.family_==RTW_WIFI_RTL8723BU&&c.endpoints_.num_bulk_in==1&&c.endpoints_.num_bulk_out==4);
+  assert(c.rxPipe_==&usb.pipes[0]&&c.txPipes_[3]==&usb.pipes[4]&&!usb.requests);++cases;
+  assert(usb.stringProperties["RTWUSBDiscoveryStage"]=="ready");
+  assert(usb.numberProperties["RTWDiagUSBDiscoveryEndpointCount"]==6&&usb.numberProperties["RTWDiagUSBDiscoveryBulkOutCount"]==4);
+  for(unsigned index=0;index<5;++index){
+   usb.missing_pipe=index?uint8_t(index+1):0x81;RTWUSBController absent;absent.usb_=&usb;
+   assert(!absent.discoverUSB()&&!usb.requests);
+   assert(usb.stringProperties["RTWUSBDiscoveryStage"]==(index?"bulk-out-pipe":"bulk-in-pipe"));
+   assert(usb.numberProperties["RTWDiagUSBDiscoveryFailureEndpoint"]==usb.missing_pipe);++cases;
+  }
+  usb.missing_pipe=0;
+  for(size_t offset:{size_t(9),size_t(18)}){usb.interface_offset=offset;RTWUSBController bt;bt.usb_=&usb;assert(!bt.discoverUSB()&&!usb.requests);++cases;}
+  // A fifth OUT pipe remains outside the bounded native Controller transport.
+  usb.interface_offset=27;usb.config[73]=6;usb.config[74]=2;
+  RTWUSBController excessive;excessive.usb_=&usb;assert(!excessive.discoverUSB()&&!usb.requests);++cases;
+ }
+
+ // The fourth OUT endpoint is bounded independently for all fourteen
+ // catalog families, including the RTL8814BU inventory-only family.
+ unsigned familyLimits=0;
+ for(unsigned value=1;value<=14;++value){
+  auto family=static_cast<rtw_wifi_family>(value);const rtw_usb_wifi_profile*p=nullptr;
+  for(size_t i=0;i<rtw_usb_wifi_profile_count();++i){auto*candidate=rtw_usb_wifi_profile_at(i);if(candidate->family==family&&candidate->primary_verified){p=candidate;break;}}
+  assert(p);IOUSBHostInterface usb(0x0a);usb.device.descriptor={p->vendor,p->product,p->bcd_device};
+  const uint8_t bytes[]={9,2,60,0,1,p->configuration,0,0x80,50,9,4,p->interface_number,0,6,255,255,255,0,
+   7,5,0x81,2,0,2,0,7,5,2,2,0,2,0,7,5,3,2,0,2,0,
+   7,5,4,2,0,2,0,7,5,5,2,0,2,0,7,5,0x86,3,16,0,1};
+  usb.config.assign(bytes,bytes+sizeof(bytes));for(unsigned i=0;i<6;++i)std::memcpy(&usb.pipes[i].descriptor,bytes+18+7*i,7);
+  RTWUSBController c;c.usb_=&usb;
+  const bool allow=family==RTW_WIFI_RTL8723BU||family==RTW_WIFI_RTL8812AU||family==RTW_WIFI_RTL8814AU||family==RTW_WIFI_RTL8821AU||family==RTW_WIFI_RTL8821CU||family==RTW_WIFI_RTL8822BU||family==RTW_WIFI_RTL8822CU;
+  assert(c.discoverUSB()==allow&&!usb.requests);++familyLimits;++cases;
+ }
+ assert(familyLimits==14);
  // Ordinary immutable B/C profiles perform no added control request at match.
  for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU}){
   IOUSBHostInterface usb(0x0a);RTWUSBController c;c.usb_=&usb;const auto*p=profile(family);assert(p);

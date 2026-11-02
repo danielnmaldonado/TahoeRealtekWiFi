@@ -1,5 +1,34 @@
 #include "rtwn_ht_host.hpp"
 int main() {
+    for(unsigned smps=0;smps<4;++smps) {
+        rtwn_softc cu;ieee80211_node peer;cu.chip=RTWN_CHIP_92C;cu.ntxchains=cu.nrxchains=2;cu.sc_ic.ic_bss=&peer;
+        peer.ni_flags=IEEE80211_NODE_HT;peer.ni_htcaps=uint16_t(smps<<IEEE80211_HTCAP_SMPS_SHIFT);
+        peer.ni_rates={4,{0x82,0x84,0x8b,0x96}};peer.ni_rxmcs[0]=peer.ni_rxmcs[1]=0xff;
+        rtwn_ht_capabilities(&cu);
+        require(rtwn_ra_init(&cu)==0,"CU SMPS peer installs actual firmware rate mask");
+        require(cu.rate_config.tx_streams==(smps==IEEE80211_HTCAP_SMPS_DIS?2:1),"CU caps static/dynamic/reserved SMPS peers to one TX stream");
+        require(cu.rate_config.rate_mask==(smps==IEEE80211_HTCAP_SMPS_DIS?0xffff00fU:0xff00fU),"CU firmware mask never requests unprotected SMPS MIMO");
+        require(cu.sc_ic.ic_sup_mcs[1]==0xff&&cu.nrxchains==2,"peer SMPS limit preserves local two-stream receive capability");
+    }
+    for(auto chip:{RTWN_CHIP_92C,RTWN_CHIP_88E}) {
+        rtwn_softc legacy;ieee80211_node peer;legacy.chip=chip;legacy.sc_ic.ic_bss=&peer;
+        legacy.ntxchains=legacy.nrxchains=chip==RTWN_CHIP_88E?1:2;
+        peer.ni_rates={4,{0x82,0x84,0x8b,0x96}};peer.ni_rxmcs[0]=0x81;peer.ni_rxmcs[1]=0xff;
+        peer.ni_flags=IEEE80211_NODE_HT|IEEE80211_NODE_HT_SGI20;
+        peer.ni_htcaps=IEEE80211_HTCAP_SMPS_DIS<<IEEE80211_HTCAP_SMPS_SHIFT;
+        rtwn_ht_capabilities(&legacy);
+        require(legacy.sc_ic.ic_htcaps&IEEE80211_HTCAP_SGI20,"legacy advertises implemented HT20 SGI");
+        require(!(legacy.sc_ic.ic_htcaps&(IEEE80211_HTCAP_CBW20_40|IEEE80211_HTCAP_SGI40)),"legacy does not claim unvalidated HT40");
+        require(legacy.sc_ic.ic_sup_mcs[0]==0xff&&legacy.sc_ic.ic_sup_mcs[1]==(chip==RTWN_CHIP_88E?0:0xff),"receive MCS follows actual chains");
+        require(rtwn_ra_init(&legacy)==0,"legacy HT20 station configuration succeeds");
+        require(legacy.rate_config.ht&&legacy.rate_config.sgi20&&!legacy.rate_config.bw40&&
+            legacy.rate_config.rate_mask==(chip==RTWN_CHIP_88E?0x8100fU:0xff8100fU),"gen1 applies actual peer MCS and stream count");
+        require((legacy.rrsr&0xfffU)==15&&!(legacy.rrsr&0xfffff000U),"HT MCS never leaks into legacy response rates");
+        require(!legacy.fw_station_connected,"gen1 does not fabricate gen2 firmware media state");
+        if(chip==RTWN_CHIP_92C)require(legacy.commands.size()==2&&legacy.commands[1].id==6&&legacy.commands[1].payload==std::vector<uint8_t>({0xf8,0x0f,0xa0,0x0f,0x10}),"CU H2C carries negotiated MCS and SGI in gen1 wire layout");
+        else require(legacy.commands.empty(),"88E uses host rate control with no fake firmware command");
+        legacy.io_error=EIO;require(rtwn_ra_init(&legacy)==EIO&&!legacy.rate_config.rate_mask,"failed HT setup clears all published rates");
+    }
     rtwn_softc s; ieee80211_node ni; s.sc_ic.ic_bss=&ni;
     static const uint8_t rates[]={0x82,0x84,0x8b,0x96,12,18,24,36,48,72,96,108};
     ni.ni_rates.rs_nrates=sizeof(rates); std::memcpy(ni.ni_rates.rs_rates,rates,sizeof(rates));

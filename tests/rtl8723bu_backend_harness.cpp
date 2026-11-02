@@ -1,3 +1,4 @@
+#include "rtw/StationRecovery.hpp"
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Actual8723 controller + actual typed core. Only OS/net80211 and USB/device
  * execution boundaries are modeled; no success boot/PHY/firmware stubs. */
@@ -49,6 +50,7 @@ static void*IOMalloc(size_t n){return std::calloc(1,n);}static void IOFree(void*
 static std::vector<int>events;static int genericFail=-1;static unsigned initFail=0;
 constexpr unsigned kUSBHostConnectionSpeedHigh=3,kUSBHostConnectionSpeedFull=2;
 class RTWUSBController{public:
+
  fake_8723 hw;rtwn_softc core_{};rtw_wifi_family family_=RTW_WIFI_RTL8723BU;const rtw_usb_wifi_profile*profile_=nullptr;
  bool running_=false,stopping_=false,present_=true,radioReady_=false,sleeping_=false;int usbError_=0;
  void*completionLock_=nullptr;rtw_transfer_ledger ledger_{};rtw_usb_endpoints endpoints_{};uint16_t txMPS_[4]{};TestPipe pipes[4]{};TestPipe*txPipes_[4]{};TestPipe*rxPipe_=&pipes[0];
@@ -67,6 +69,8 @@ class RTWUSBController{public:
  static int busInitialize(void*p){auto*s=owner(p);events.push_back(14);s->running_=initFail!=14;return initFail==14?EIO:0;}
  unsigned submitted=0,submittedPipe=0;std::vector<uint8_t>submittedBytes;int submitError=0;
  int submit(unsigned index,TestPipe*pipe,uint32_t length){++submitted;submittedPipe=pipe->number;submittedBytes.assign(memories[index].b,memories[index].b+length);return submitError;}
+
+#include "family_recovery_backend_host.hpp"
 };
 static RTWUSBController*from_ic(ieee80211com*ic){return static_cast<RTWUSBController*>(static_cast<rtwn_softc*>(ic->ic_softc)->sc_ops.cookie);}
 static int generic(ieee80211com*ic,ieee80211_state state,int){events.push_back(60+state);if(genericFail==state)return EINVAL;auto*s=from_ic(ic);if(state==IEEE80211_S_RUN)CHECK(!s->r23RateReady_&&!s->authorized());else if(ic->ic_bss)ic->ic_bss->ni_port_valid=false;ic->ic_state=state;return 0;}
@@ -74,10 +78,10 @@ static int route(ieee80211com*ic,ieee80211_state state,int arg){return from_ic(i
 /* ACTUAL_BACKEND_METHODS */
 struct Fixture{
  RTWUSBController c;ieee80211_channel channel{6,0};ieee80211_node peer{};ieee80211_edca_ac_params edca[4]{};
- Fixture(){memcpy(edca,ieee80211_edca_table[IEEE80211_MODE_11G],sizeof(edca));events.clear();genericFail=-1;initFail=0;c.hw.simulate=true;
-  for(size_t i=0;i<rtw_usb_wifi_profile_count();i++){auto*p=rtw_usb_wifi_profile_at(i);if(p->family==RTW_WIFI_RTL8723BU&&p->primary_verified&&p->vendor==0xbda&&p->product==0xb720){c.profile_=p;break;}}CHECK(c.profile_);
-  c.endpoints_.num_bulk_in=1;c.endpoints_.bulk_in[0]=0x81;c.endpoints_.num_bulk_out=2;c.endpoints_.bulk_out[0]=2;c.endpoints_.bulk_out[1]=3;
-  for(unsigned i=0;i<2;i++){c.pipes[i].number=i;c.txPipes_[i]=&c.pipes[i];c.txMPS_[i]=512;}for(unsigned i=0;i<16;i++)c.transfers_[i].memory=&c.memories[i];
+ Fixture(unsigned pipes=2){memcpy(edca,ieee80211_edca_table[IEEE80211_MODE_11G],sizeof(edca));events.clear();genericFail=-1;initFail=0;c.hw.simulate=true;
+  for(size_t i=0;i<rtw_usb_wifi_profile_count();i++){auto*p=rtw_usb_wifi_profile_at(i);if(p->family==RTW_WIFI_RTL8723BU&&p->primary_verified&&p->vendor==(pipes==4?0x7392:0xbda)&&p->product==(pipes==4?0xa611:0xb720)){c.profile_=p;break;}}CHECK(c.profile_);
+  c.endpoints_.num_bulk_in=1;c.endpoints_.bulk_in[0]=0x81;c.endpoints_.num_bulk_out=uint8_t(pipes);for(unsigned i=0;i<pipes&&i<4;++i)c.endpoints_.bulk_out[i]=uint8_t(2+i);
+  for(unsigned i=0;i<pipes&&i<4;i++){c.pipes[i].number=i;c.txPipes_[i]=&c.pipes[i];c.txMPS_[i]=512;}for(unsigned i=0;i<16;i++)c.transfers_[i].memory=&c.memories[i];
   fake_8723::write(&c.hw,0xf0,4,2U<<12);fake_8723::write(&c.hw,0x68,4,4U|(1U<<18));std::array<uint8_t,512>rom;valid_board_image(rom);encode_otp(rom,c.hw.otp);
   c.r23PrivateSize_=rtw_8723bu_private_size();c.r23Storage_=IOMalloc(c.r23PrivateSize_);CHECK(c.r23Storage_&&c.bootstrap8723(false)==0);
   peer.ni_chan=&channel;peer.ni_associd=0xc001;peer.ni_intval=100;peer.ni_bssid[0]=2;peer.ni_bssid[5]=1;peer.ni_rates={3,{0x82,12,108}};peer.ni_flags=IEEE80211_NODE_HT;peer.ni_htcaps=IEEE80211_HTCAP_SGI20;peer.ni_rxmcs[0]=255;
@@ -118,7 +122,27 @@ static void sparse_peer_rates(){
   f.peer.ni_port_valid=true;CHECK(f.c.send8723Frame(packet(true,false,true),&f.peer)==0);unsigned rate=f.c.submittedBytes[16]&127U;CHECK(rate>=12&&rate<=19&&(mcs&(1U<<(rate-12))));
  }
 }
+// Catches a fourth physical pipe being dropped at bootstrap or used as
+// an unprogrammed DMA queue. Exercises the production state and TX methods.
+static void four_pipe_station_and_rollback(){
+ {Fixture f(4);f.run();f.peer.ni_port_valid=true;
+  const unsigned tids[]={7,5,0};const unsigned pipes[]={0,1,2};
+  for(unsigned i=0;i<3;++i){auto*p=packet(true,false,true);p->bytes[24]=uint8_t(tids[i]);CHECK(f.c.send8723Frame(p,&f.peer)==0&&f.c.submittedPipe==pipes[i]);}
+  CHECK(f.c.send8723Frame(packet(false,false),&f.peer)==0&&f.c.submittedPipe==0);
+  f.c.stop8723();CHECK(!f.c.running_&&!f.c.authorized()&&!f.c.r23Core_.firmware_running&&!f.peer.ni_port_valid);f.start();
+ }
+ for(unsigned bad=0;bad<3;++bad){Fixture f(4);auto before=f.c.hw.calls;
+  if(bad==0)f.c.txPipes_[3]=nullptr;if(bad==1)f.c.txMPS_[3]=64;if(bad==2)f.c.endpoints_.num_bulk_out=5;
+  CHECK(f.c.bootstrap8723(false)==(bad==2?ENXIO:EINVAL)&&f.c.hw.calls==before);
+ }
+ unsigned start_io=0;{Fixture f(4);auto before=f.c.hw.calls;f.start();start_io=f.c.hw.calls-before;}
+ for(unsigned cut=1;cut<=start_io;++cut){Fixture f(4);f.c.hw.fail_at=f.c.hw.calls+cut;
+  CHECK(f.c.start8723()==EIO);CHECK(!f.c.authorized()&&!f.c.running_&&!f.c.r23RateReady_&&!f.c.r23Core_.calibrated&&!f.c.r23Core_.firmware_running);
+ }
+ std::printf("8723BU four physical pipes: three DMA queue TX routes, restart and all %u startup I/O failures passed\n",start_io);
+}
 int main(){
+ four_pipe_station_and_rollback();
  edca_policy();
  firmware_health();
  sparse_peer_rates();

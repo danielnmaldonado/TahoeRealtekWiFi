@@ -265,7 +265,7 @@ static __attribute__((unused)) int rtl8xxxu_flush_fifo(struct rtw_8723bu_private
 static __attribute__((unused)) int rtl8xxxu_active_to_lps(struct rtw_8723bu_private *priv)
 {
 	u8 val8;
-	u8 val32;
+	u32 val32;
 	int count, ret = 0;
 
 	rtl8xxxu_write8(priv, REG_TXPAUSE, 0xff);
@@ -408,7 +408,7 @@ static __attribute__((unused)) void rtl8723bu_power_off(struct rtw_8723bu_privat
 	u8 val8;
 	u16 val16;
 
-	rtl8xxxu_flush_fifo(priv);
+	shutdown_result(priv,rtl8xxxu_flush_fifo(priv));
 
 	/*
 	 * Disable TX report timer
@@ -419,7 +419,7 @@ static __attribute__((unused)) void rtl8723bu_power_off(struct rtw_8723bu_privat
 
 	rtl8xxxu_write8(priv, REG_CR, 0x0000);
 
-	rtl8xxxu_active_to_lps(priv);
+	shutdown_result(priv,rtl8xxxu_active_to_lps(priv));
 
 	/* Reset Firmware if running in RAM */
 	if (rtl8xxxu_read8(priv, REG_MCU_FW_DL) & MCU_FW_RAM_SEL)
@@ -433,7 +433,7 @@ static __attribute__((unused)) void rtl8723bu_power_off(struct rtw_8723bu_privat
 	/* Reset MCU ready status */
 	rtl8xxxu_write8(priv, REG_MCU_FW_DL, 0x00);
 
-	rtl8723bu_active_to_emu(priv);
+	shutdown_result(priv,rtl8723bu_active_to_emu(priv));
 
 	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
 	val8 |= BIT(3); /* APS_FSMCO_HW_SUSPEND */

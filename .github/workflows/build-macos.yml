@@ -211,7 +211,7 @@ jobs:
             exit 1
           fi
           cat > release-notes.md <<EOF
-          Experimental Realtek USB Wi-Fi support for **macOS Tahoe on Intel Macs (x86_64)**.
+          Experimental Realtek USB Wi-Fi support for **Intel Macs (x86_64) running macOS Ventura (13), Sonoma (14), Sequoia (15) and Tahoe (26)**. Hardware validation on each system is still pending.
 
           - **Driver:** ${KEXT_VERSION}, build ${KEXT_BUILD}
           - **Menu-bar application:** ${APP_VERSION}, build ${APP_BUILD}
@@ -230,5 +230,5 @@ jobs:
             release-assets/SHA256SUMS.txt \
             --target "$GITHUB_SHA" \
             --prerelease \
-            --title "Tahoe Wi-Fi USB — Realtek USB Wi-Fi for macOS Tahoe ($tag)" \
+            --title "Tahoe Wi-Fi USB — Realtek USB Wi-Fi for Ventura, Sonoma, Sequoia and Tahoe ($tag)" \
             --notes-file release-notes.md

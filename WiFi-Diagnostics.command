@@ -7,6 +7,7 @@ set -o pipefail
 umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+COLLECTOR_REVISION=2
 MINUTES=30
 INCLUDE_DEBUG=0
 RAW=0
@@ -17,12 +18,14 @@ COMMAND_TIMEOUT=30
 NO_PAUSE=0
 
 usage() {
+    printf 'Revisão do coletor: %s\n\n' "$COLLECTOR_REVISION"
     cat <<'HELP'
 TahoeRealtekWiFi — WiFi-Diagnostics.command
 
 Duplo clique: coleta detalhada dos últimos 30 minutos, com mascaramento básico de dados
 pessoais. Salva uma pasta e um ZIP em ~/Library/Logs/Tahoe-WiFi-USB/Diagnostics/.
 Inclui duas leituras por adaptador e diferenças dos contadores USB/RX/TX.
+Se a consulta principal de logs exceder o prazo, tenta uma janela recente de 2min.
 
 Opções no Terminal:
   --minutes N       Janela de logs: 30 ou 60 minutos (padrão: 30)
@@ -186,11 +189,36 @@ run_admin_capture() {
     fi
 }
 
+# spctl usa exit1 para o estado desabilitado. Aceitar somente essa resposta
+# exata; mensagens adicionais, outros erros ou códigos continuam sendo falha.
+capture_gatekeeper_state() {
+    local rc
+    echo '  • system/gatekeeper.txt'
+    if run_bounded spctl --status > "$RUN_DIR/system/gatekeeper.txt" 2>&1; then
+        printf 'system/gatekeeper.txt\tok\t0\tspctl --status\n' >> "$STATUS"
+        SUCCESS=$((SUCCESS + 1))
+    else
+        rc=$?
+        if [ "$rc" -eq 1 ] && /usr/bin/perl -0777 -e '
+            my $text=<>;
+            exit(defined($text) && ($text eq "assessments disabled\n" ||
+                $text eq "assessments disabled")?0:1);
+        ' "$RUN_DIR/system/gatekeeper.txt"; then
+            printf 'system/gatekeeper.txt\testado_esperado\t1\tspctl --status\n' >> "$STATUS"
+            SUCCESS=$((SUCCESS + 1))
+        else
+            printf 'system/gatekeeper.txt\tfalhou\t%s\tspctl --status\n' "$rc" >> "$STATUS"
+            FAILURE=$((FAILURE + 1))
+        fi
+    fi
+}
+
 cat <<EOM
 
 ========================================================
  TahoeRealtekWiFi — diagnóstico USB / Wi-Fi do macOS
 ========================================================
+Revisão do coletor: ${COLLECTOR_REVISION}
 Janela dos logs: ${MINUTES} minutos
 Privacidade: $(if [ "$RAW" -eq 1 ]; then echo 'dados originais (SENSÍVEL)'; else echo 'mascaramento básico'; fi)
 Coleta: somente leitura de sistema; cria apenas arquivos de relatório.
@@ -215,13 +243,19 @@ if [ -f "/Applications/Tahoe Wi-Fi USB.app/Contents/Info.plist" ]; then
     run_capture drivers/installed-app-Info.txt plutil -p "/Applications/Tahoe Wi-Fi USB.app/Contents/Info.plist"
 fi
 
+# Numeric request/result metadata written by app48; no credential payloads.
+app_control_log="$HOME/Library/Logs/Tahoe-WiFi-USB/control.jsonl"
+if [ -f "$app_control_log" ] && [ ! -L "$app_control_log" ]; then
+    run_capture logs/app-control.jsonl tail -c 2097152 "$app_control_log"
+fi
+
 # Inventário de sistema: sem exportação de NVRAM completo, senhas ou perfis Wi-Fi.
 echo '[1/7] Sistema e estado de segurança'
 run_capture system/macOS.txt sw_vers
 run_capture system/kernel.txt uname -sr
 run_capture system/architecture.txt uname -m
 run_capture system/sip.txt csrutil status
-run_capture system/gatekeeper.txt spctl --status
+capture_gatekeeper_state
 run_capture system/boot_args.txt nvram boot-args
 run_capture system/hardware.txt system_profiler SPHardwareDataType
 run_capture system/software.txt system_profiler SPSoftwareDataType
@@ -339,34 +373,29 @@ run_capture drivers/network_interfaces.txt ioreg -r -c IONetworkInterface -l -w0
 run_capture drivers/installed_kexts.txt ls -la /Library/Extensions
 run_capture drivers/installed_systemextensions.txt ls -la /Library/SystemExtensions
 
-# UMA consulta ao log unificado, para evitar tres leituras caras da base do macOS.
+# Uma consulta principal ao log unificado; apenas timeout124 permite uma
+# segunda consulta independente dos ultimos 2min. Historico parcial e preservado.
 # O filtro prioriza USB e mensagens de Wi-Fi/Ethernet; evita coletar todos os
 # eventos de configd/networkd por 24h. INFO e mensagens padrao por default;
 # DEBUG somente com --debug para nao inflar os arquivos desnecessariamente.
-echo "[5/7] Logs unificados (${MINUTES} minutos, consulta única; DEBUG=$(if [ "$INCLUDE_DEBUG" -eq 1 ]; then echo sim; else echo nao; fi))"
+echo "[5/7] Logs unificados (${MINUTES} minutos, consulta principal; DEBUG=$(if [ "$INCLUDE_DEBUG" -eq 1 ]; then echo sim; else echo nao; fi))"
 USB_PRED='(subsystem CONTAINS[c] "usb" OR eventMessage CONTAINS[c] "Realtek" OR eventMessage CONTAINS[c] "RtWlan" OR eventMessage CONTAINS[c] "rtl8192" OR eventMessage CONTAINS[c] "2357" OR eventMessage CONTAINS[c] "TahoeRealtekWiFi")'
 WIFI_PRED='(subsystem CONTAINS[c] "wifi" OR subsystem CONTAINS[c] "80211" OR eventMessage CONTAINS[c] "AirPort" OR eventMessage CONTAINS[c] "itlwm")'
 NET_PRED='(eventMessage CONTAINS[c] "IOEthernet" OR eventMessage CONTAINS[c] "IONetwork" OR subsystem CONTAINS[c] "network")'
 UNIFIED_PRED="($USB_PRED OR $WIFI_PRED OR $NET_PRED)"
-LOG_ARGS=(show --last "${MINUTES}m" --style syslog --info --no-pager --predicate "$UNIFIED_PRED")
-if [ "$INCLUDE_DEBUG" -eq 1 ]; then LOG_ARGS+=(--debug); fi
-if [ "$ADMIN_READY" -eq 1 ]; then
-    LOG_CMD=(run_admin_bounded log "${LOG_ARGS[@]}")
-else
-    LOG_CMD=(run_bounded log "${LOG_ARGS[@]}")
-fi
-
-# O conversor recebe um fluxo e guarda SOMENTE as linhas mais recentes por
-# categoria, com teto de 6 MiB em cada uma. Nao armazena o fluxo completo.
-# O Perl eh fornecido pelo macOS e ja eh dependencia do mascaramento padrao.
-# Se log show exceder o prazo, seu grupo é encerrado; o conversor recebe EOF,
-# preserva as linhas já recebidas e pipefail mantém o status124 no relatório.
-if "${LOG_CMD[@]}" 2>"$RUN_DIR/logs/log-show.stderr.txt" | perl -e '
+# Cada consulta usa o mesmo conversor: ate 6MiB por categoria, mantendo as
+# ultimas linhas RECEBIDAS. Um timeout pode parar antes de chegar ao presente.
+# A cobertura registra os timestamps efetivamente recebidos, inclusive quando
+# nenhuma linha tem timestamp reconhecivel; isso nao confirma ausencia de eventos.
+UNIFIED_CONVERTER=$(cat <<'PERL_UNIFIED'
     use strict;
     use warnings;
-    my ($outdir, $max) = @ARGV;
+    use JSON::PP;
+    my ($outdir, $max, $minutes) = @ARGV;
     my @names = ("USB_Realtek", "WiFi_80211", "Network_Ethernet");
     my (%queue, %size, %count, %dropped);
+    my ($first_timestamp,$last_timestamp);
+    my $received_lines=0;
     for my $n (@names) {
         $queue{$n} = [];
         $size{$n} = 0;
@@ -375,6 +404,11 @@ if "${LOG_CMD[@]}" 2>"$RUN_DIR/logs/log-show.stderr.txt" | perl -e '
     }
     my @previous_tags;
     while (my $line = <STDIN>) {
+        $received_lines++;
+        if ($line =~ /^(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)(?=\s|$)/) {
+            $first_timestamp=$1 unless defined $first_timestamp;
+            $last_timestamp=$1;
+        }
         my @tags;
         push @tags, "USB_Realtek" if $line =~ /usb|realtek|rtwlan|rtl8192|2357|0108|IOUSBHost|TahoeRealtekWiFi/i;
         push @tags, "WiFi_80211" if $line =~ /wi-?fi|802\.11|80211|airport|wifid|itlwm|corewlan/i;
@@ -393,14 +427,14 @@ if "${LOG_CMD[@]}" 2>"$RUN_DIR/logs/log-show.stderr.txt" | perl -e '
         }
     }
     open my $summary, ">", "$outdir/unified-summary.txt" or die "$outdir: $!";
-    print $summary "Coleta única de logs unificados; janela solicitada no README-DIAGNOSTICO.txt\n";
-    print $summary "Limite de conteudo por categoria: $max bytes, mantendo as mensagens MAIS RECENTES.\n";
+    print $summary "Consulta de logs unificados; janela solicitada: ultimos ${minutes}min.\n";
+    print $summary "Limite de conteudo por categoria: $max bytes, mantendo as ultimas mensagens RECEBIDAS.\n";
     for my $n (@names) {
         open my $fh, ">", "$outdir/$n.log" or die "$n: $!";
-        print $fh "# $n: mensagens recentes preservadas, eventualmente truncadas por tamanho.\n";
+        print $fh "# $n: mensagens recebidas nesta consulta, eventualmente truncadas por tamanho.\n";
         print $fh "# Mensagens antigas descartadas pelo limite: $dropped{$n}\n";
         if (!@{$queue{$n}}) {
-            print $fh "# Nenhum evento correspondente foi encontrado.\n";
+            print $fh "# Nenhuma linha correspondente recebida nesta consulta; confira cobertura e status.\n";
         } else {
             print $fh $_ for @{$queue{$n}};
         }
@@ -409,18 +443,106 @@ if "${LOG_CMD[@]}" 2>"$RUN_DIR/logs/log-show.stderr.txt" | perl -e '
             $n, $count{$n}, scalar(@{$queue{$n}}), $dropped{$n}, $size{$n};
     }
     close $summary or die "close summary: $!";
-' "$RUN_DIR/logs" 6291456; then
-    printf 'logs/unified-onepass\tok\t0\tlog show --last %sm (consulta unica)\n' "$MINUTES" >> "$STATUS"
-    SUCCESS=$((SUCCESS + 1))
-else
-    LOG_RC=$?
-    printf 'logs/unified-onepass\tfalhou\t%s\tlog show --last %sm (consulta unica)\n' "$LOG_RC" "$MINUTES" >> "$STATUS"
-    FAILURE=$((FAILURE + 1))
-    echo "[AVISO] Consulta unica falhou ($LOG_RC): confira logs/log-show.stderr.txt" >&2
+    open my $coverage, ">", "$outdir/unified-coverage.json" or die "coverage: $!";
+    print $coverage JSON::PP->new->canonical->pretty->encode({
+        requested_window_minutes=>0+$minutes,
+        command_exit_status=>undef,
+        capture_status=>"unfinalized",
+        first_received_timestamp=>$first_timestamp,
+        last_received_timestamp=>$last_timestamp,
+        received_lines=>$received_lines,
+        present_time_coverage=>"not_established"
+    });
+    close $coverage or die "close coverage: $!";
+PERL_UNIFIED
+)
+
+capture_unified_query() {
+    local minutes="$1" rel="$2" outdir query_rc converter_rc coverage_rc
+    local -a log_args log_cmd pipeline_rc
+    outdir="$RUN_DIR/$rel"
+    if ! mkdir -p "$outdir"; then
+        printf '%s/unified-onepass\tfalhou\t125\tnao foi possivel criar destino\n' "$rel" >> "$STATUS"
+        FAILURE=$((FAILURE + 1))
+        return 125
+    fi
+    log_args=(show --last "${minutes}m" --style syslog --info --no-pager --predicate "$UNIFIED_PRED")
+    if [ "$INCLUDE_DEBUG" -eq 1 ]; then log_args+=(--debug); fi
+    if [ "$ADMIN_READY" -eq 1 ]; then
+        log_cmd=(run_admin_bounded log "${log_args[@]}")
+    else
+        log_cmd=(run_bounded log "${log_args[@]}")
+    fi
+    # O grupo do log e encerrado no prazo; EOF permite guardar a saida parcial.
+    # Guardar os dois status imediatamente preserva o rc real da consulta,
+    # mesmo se o conversor tambem falhar.
+    if "${log_cmd[@]}" 2>"$outdir/log-show.stderr.txt" | /usr/bin/perl -e "$UNIFIED_CONVERTER" "$outdir" 6291456 "$minutes"; then
+        pipeline_rc=("${PIPESTATUS[@]}")
+    else
+        pipeline_rc=("${PIPESTATUS[@]}")
+    fi
+    query_rc=${pipeline_rc[0]}
+    converter_rc=${pipeline_rc[1]}
+    if [ "$query_rc" -eq 0 ]; then
+        printf '%s/unified-onepass\tok\t0\tlog show --last %sm\n' "$rel" "$minutes" >> "$STATUS"
+        SUCCESS=$((SUCCESS + 1))
+    else
+        printf '%s/unified-onepass\tfalhou\t%s\tlog show --last %sm\n' "$rel" "$query_rc" "$minutes" >> "$STATUS"
+        FAILURE=$((FAILURE + 1))
+        echo "[AVISO] Consulta de ${minutes}min falhou ($query_rc): confira $rel/log-show.stderr.txt" >&2
+    fi
+    if [ "$converter_rc" -ne 0 ]; then
+        printf '%s/unified-converter\tfalhou\t%s\tPerl: categorias recebidas\n' "$rel" "$converter_rc" >> "$STATUS"
+        FAILURE=$((FAILURE + 1))
+    fi
+    if /usr/bin/perl - "$outdir" "$minutes" "$query_rc" "$converter_rc" <<'PERL_COVERAGE'
+use strict;
+use warnings;
+use JSON::PP;
+my ($root,$minutes,$query_rc,$converter_rc)=@ARGV;
+my $path="$root/unified-coverage.json";
+my $coverage={first_received_timestamp=>undef,last_received_timestamp=>undef};
+if (open my $in,"<",$path) {
+    local $/;
+    $coverage=decode_json(<$in>);
+    close $in or die "close coverage input: $!";
+}
+$coverage->{requested_window_minutes}=0+$minutes;
+$coverage->{command_exit_status}=0+$query_rc;
+$coverage->{converter_exit_status}=0+$converter_rc;
+$coverage->{capture_status}=($query_rc==0 && $converter_rc==0)?"query_completed":"partial_or_unavailable";
+$coverage->{present_time_coverage}="not_established";
+open my $out,">",$path or die "coverage output: $!";
+print $out JSON::PP->new->canonical->pretty->encode($coverage);
+close $out or die "close coverage output: $!";
+open my $summary,">>","$root/unified-summary.txt" or die "coverage summary: $!";
+print $summary "\nJanela solicitada: ultimos ${minutes}min; status de saida da consulta: $query_rc.\n";
+print $summary "Captura: ".($coverage->{capture_status} eq "query_completed"?
+    "consulta encerrada sem erro":"parcial ou indisponivel").".\n";
+print $summary "Primeiro timestamp recebido: ".($coverage->{first_received_timestamp}//"indisponivel")."\n";
+print $summary "Ultimo timestamp recebido: ".($coverage->{last_received_timestamp}//"indisponivel")."\n";
+print $summary "Cobertura ate o presente: nao estabelecida; consulte os timestamps recebidos.\n";
+close $summary or die "close coverage summary: $!";
+PERL_COVERAGE
+    then
+        :
+    else
+        coverage_rc=$?
+        printf '%s/unified-coverage\tfalhou\t%s\tPerl: cobertura recebida\n' "$rel" "$coverage_rc" >> "$STATUS"
+        FAILURE=$((FAILURE + 1))
+    fi
+    return "$query_rc"
+}
+
+PRIMARY_LOG_RC=0
+capture_unified_query "$MINUTES" logs || PRIMARY_LOG_RC=$?
+if [ "$PRIMARY_LOG_RC" -eq 124 ]; then
+    echo '[5b/7] Historico parcial; tentativa independente dos ultimos 2min em logs/recent/'
+    capture_unified_query 2 logs/recent || true
 fi
 
-# Arquivos relacionados a Wi-Fi/USB/kernelpanic do período próximo.
-echo '[6/7] Relatórios de falha relevantes (até 20 arquivos, até 10 MB cada)'
+# Relatórios históricos por nome, sem filtro de idade/ordem/dedup.
+echo '[6/7] Relatórios históricos por nome (até 20 arquivos, até 10 MB cada)'
 CRASH_COUNT=0
 for crash_root in "$HOME/Library/Logs/DiagnosticReports" /Library/Logs/DiagnosticReports; do
     [ -d "$crash_root" ] || continue
@@ -462,11 +584,19 @@ my $root=shift;
 my $json=JSON::PP->new->canonical->pretty;
 my %snapshots;
 my %capture_rc;
+my @au_numeric=qw(RTWAUBootstrapStage RTWAUBootstrapResult RTWAUBootstrapFirstError
+    RTWAUBootstrapFailures RTWAUWarmResetAttempts RTWAUWarmResetStage
+    RTWAUWarmResetMCU RTWAUWarmResetResult RTWAU2GHzChannel1PowerResult
+    RTWAU5GHzChannel36PowerResult);
+my %au_numeric=map {$_=>1} @au_numeric;
+my @au_stage_names=qw(RTWAUBootstrapStageName RTWAUWarmResetStageName);
 open my $status,"<","$root/STATUS.tsv" or die "capture status: $!";
 while (my $line=<$status>) {
     my ($path,$result,$rc)=split /\t/,$line;
     if ($path =~ m{^drivers/RTW-(before|after)\.txt$}) {
         $capture_rc{$1}=($result eq "ok" && $rc eq "0")?0:($rc//-1);
+    } elsif ($path eq "usb/ioreg_USBHostInterface.txt") {
+        $capture_rc{usb}=($result eq "ok" && $rc eq "0")?0:($rc//-1);
     }
 }
 close $status;
@@ -484,9 +614,14 @@ for my $phase (qw(before after)) {
             $row->{$1 eq "idVendor"?"vid":"pid"}=0+$2;
         } elsif ($line =~ /"RTWSiliconFamily"\s*=\s*"(RTL[A-Z0-9]+)"/) {
             $row->{family}=$1;
+        } elsif ($line =~ /"(RTWUSBDiscoveryStage|RTWAUBootstrapStageName|RTWAUWarmResetStageName)"\s*=\s*"([A-Za-z0-9_.:-]{1,64})"\s*$/) {
+            $row->{$1}=$2;
         } elsif ($line =~ /"BSD Name"\s*=\s*"(en\d+)"/) {
             $row->{interface}=$1;
         } elsif ($line =~ /"((?:RTWDiag|Signal)[A-Za-z0-9_]+|IOLinkSpeed|IOLinkStatus|RTWStartResult)"\s*=\s*(-?\d+)\s*$/) {
+            $row->{$1}=0+$2;
+        } elsif ($line =~ /"(RTWAU[A-Za-z0-9]+)"\s*=\s*(-?\d{1,20})\s*$/ && exists $au_numeric{$1}) {
+            # Deliberately exclude factory OSData and every unlisted AU field.
             $row->{$1}=0+$2;
         }
     }
@@ -495,6 +630,69 @@ for my $phase (qw(before after)) {
     print $out $json->encode(\@rows);close $out or die "close JSON: $!";
     $snapshots{$phase}={map {$_->{registry_id}=>$_} @rows};
 }
+# Failed start() providers can outlive the controller that failed to attach.
+# Only copy each service's own properties, before its first child header.
+my @usb_rows;
+my %usb_fields=(idVendor=>"vid",idProduct=>"pid",bConfigurationValue=>"configuration_value",
+    bInterfaceNumber=>"interface_number",bAlternateSetting=>"alternate_setting",
+    bInterfaceClass=>"interface_class",bInterfaceSubClass=>"interface_subclass",
+    bInterfaceProtocol=>"interface_protocol",bNumEndpoints=>"endpoint_count");
+if (open my $usb_in,"<","$root/usb/ioreg_USBHostInterface.txt") {
+    my $row;
+    while (my $line=<$usb_in>) {
+        if ($line =~ /^[ |]*\+-o /) {
+            $row=undef;
+            next unless $line =~ /<class ([^,>]+),\s*id\s+(0x[0-9a-f]+),/i;
+            my ($class,$id)=($1,$2);
+            if ($class eq "IOUSBHostInterface" || $class eq "RTWUSBController") {
+                {no warnings "portable";$row={source_class=>$class,registry_id=>hex($id)};}
+                push @usb_rows,$row;
+            }
+            next;
+        }
+        next unless $row;
+        if ($line =~ /"(RTWStartStage|RTWUSBDiscoveryStage)"\s*=\s*"([A-Za-z0-9_.:-]{1,64})"\s*$/) {
+            $row->{$1 eq "RTWStartStage"?"start_stage":"discovery_stage"}=$2;
+        } elsif ($line =~ /"([A-Za-z0-9_]{1,80})"\s*=\s*(-?\d{1,20})\s*$/) {
+            my ($key,$digits)=($1,$2);
+            my $unsigned=$digits;$unsigned=~s/^-//;
+            next if length($unsigned)==20 && $unsigned gt "18446744073709551615";
+            if (exists $usb_fields{$key}) {
+                next if $digits<0 || $digits>65535;
+                $row->{$usb_fields{$key}}=0+$digits;
+            } elsif ($key eq "RTWStartResult") {
+                $row->{start_result}=(0+$digits)&0xffffffff;
+            } elsif ($key =~ /^RTWDiagUSBDiscovery[A-Za-z0-9_]+$/) {
+                $row->{$key}=0+$digits;
+            }
+        }
+    }
+    close $usb_in;
+} else {
+    $capture_rc{usb}=-1;
+}
+@usb_rows=grep {exists $_->{start_result} || exists $_->{start_stage} ||
+    exists $_->{discovery_stage} || grep {/^RTWDiagUSBDiscovery/} keys %$_} @usb_rows;
+open my $usb_json,">","$root/drivers/USB-STARTUP.json" or die "USB startup JSON: $!";
+print $usb_json $json->encode(\@usb_rows);close $usb_json or die "close USB startup JSON: $!";
+open my $usb_summary,">","$root/USB-STARTUP.txt" or die "USB startup summary: $!";
+print $usb_summary "TAHOE WI-FI USB - inicializacao observada no provider/controlador\n";
+print $usb_summary "Fonte: usb/ioreg_USBHostInterface.txt; propriedades proprias de cada Registry ID.\n";
+if (($capture_rc{usb}//-1)!=0) {
+    print $usb_summary "Captura USB indisponivel/parcial; status=".($capture_rc{usb}//"ausente")."; nao conclui ausencia de adaptador ou de falha.\n";
+}
+print $usb_summary "Sem propriedades RTW de inicializacao observadas; isto nao confirma ausencia de adaptador/falha.\n" unless @usb_rows;
+for my $r (@usb_rows) {
+    my $vid=exists $r->{vid}?sprintf("%04x",$r->{vid}):"????";
+    my $pid=exists $r->{pid}?sprintf("%04x",$r->{pid}):"????";
+    print $usb_summary "\n$r->{source_class} $r->{registry_id} | USB $vid:$pid\n";
+    for my $k (sort keys %$r) {
+        next if $k =~ /^(?:source_class|registry_id|vid|pid)$/;
+        if ($k eq "start_result") {printf $usb_summary "start_result=0x%08x\n",$r->{$k};}
+        else {print $usb_summary "$k=$r->{$k}\n";}
+    }
+}
+close $usb_summary or die "close USB startup summary: $!";
 open my $out,">","$root/RTW-SUMMARY.txt" or die "summary: $!";
 print $out "TAHOE WI-FI USB - duas leituras por Registry ID\n";
 print $out "Horários em drivers/RTW-before-time.txt e RTW-after-time.txt.\n";
@@ -503,6 +701,7 @@ print $out "IORegistry contem os ultimos valores publicados; esta leitura nao so
 print $out "Delta0 significa valores publicados iguais, nao ausencia comprovada de erros/trafego novos.\n";
 print $out "Geracao/tempo, quando presentes, pertencem ao controlador; comparacao nao atomica.\n";
 print $out "WPA2 autorizado não confirma DHCP nem acesso à internet.\n";
+print $out "Inicializacao USB, inclusive sem controlador: USB-STARTUP.txt e drivers/USB-STARTUP.json.\n";
 my %ids=map {$_=>1} (keys %{$snapshots{before}},keys %{$snapshots{after}});
 unless (keys %ids) {
     if (($capture_rc{before}//-1)==0 && ($capture_rc{after}//-1)==0) {
@@ -547,12 +746,20 @@ for my $id (sort {$a<=>$b} keys %ids) {
     }
     for my $k (@publication) {print $out "$k=$after->{$k}\n" if exists $after->{$k};}
     for my $k (qw(RTWDiagCurrentChannel RTWDiagWPAPortValid RTWDiagWPAState RTWDiagRXRecoveryStage IOLinkStatus IOLinkSpeed
-        RTWDiagHTNegotiated RTWDiagHTChannelWidthMHz RTWDiagHTTXStreams RTWDiagHTTXBATIDs RTWDiagHTRXBATIDs
+        RTWDiagHTNegotiated RTWDiagVHTNegotiated RTWDiagHTChannelWidthMHz RTWDiagHTTXStreams RTWDiagHTTXBATIDs RTWDiagHTRXBATIDs
         RTWDiagLinkSpeedKnown RTWDiagLinkSpeedBps RTWDiagNativeIfnetIndex RTWDiagNativeIfnetStatsValid RTWDiagNativeIfnetStatsError)) {
         print $out "$k=$after->{$k}\n" if exists $after->{$k};
     }
     for my $k (qw(RTWDiagRXRecoveryLastError RTWDiagRXRecoveryOriginalError)) {
         printf $out "%s=0x%08x\n",$k,$after->{$k}&0xffffffff if exists $after->{$k};
+    }
+    print $out "RTWUSBDiscoveryStage=$after->{RTWUSBDiscoveryStage}\n" if exists $after->{RTWUSBDiscoveryStage};
+    for my $k (sort grep {/^RTWDiagUSBDiscovery/} keys %$after) {print $out "$k=$after->{$k}\n";}
+    for my $k (@au_numeric,@au_stage_names) {print $out "$k=$after->{$k}\n" if exists $after->{$k};}
+    # These are cumulative before/after values around ONE sampled input batch,
+    # not counters spanning the collector's capture interval. Export as gauges.
+    for my $k (sort grep {/^RTWDiagRXNative/ || /^RTWDiagRXInputInterfaceMatchesChild$/} keys %$after) {
+        print $out "$k=$after->{$k}\n";
     }
     for my $k (qw(RTWDiagRXRecoveryErrors RTWDiagRXRecoveryAttempts RTWDiagRXRecoveryFailures RTWDiagRXRecoveryCompleted RTWDiagRXRecoveryExhausted RTWDiagTXUSBTransferErrors RTWDiagTXQueueDrops RTWDiagRXAggregateErrors RTWDiagRXAggregateTruncated RTWDiagRXAggregateMalformed RTWDiagRXAggregateTooMany RTWDiagRXAggregateBadArgument RTWDiagRXBytes RTWDiagRXAggregates RTWDiagRXEthernetQueued
         RTWDiagNet80211InputErrors RTWDiagNet80211RXBABelowWindow RTWDiagNet80211RXBAAboveWindow
@@ -562,9 +769,10 @@ for my $id (sort {$a<=>$b} keys %ids) {
         RTWDiagRXInputCalls RTWDiagRXInputOfferedPackets RTWDiagRXInputOfferedBytes
         RTWDiagRXInputImmediateReturns RTWDiagRXInputFlushCalls RTWDiagRXInputFlushPackets
         RTWDiagRXInputSubmissionMismatches RTWDiagRXInputNoIfnetCalls
-        RTWDiagNativeIfnetInputPackets RTWDiagNativeIfnetInputBytes RTWDiagNativeIfnetInputErrors)) {
+        RTWDiagNativeIfnetInputPackets RTWDiagNativeIfnetInputBytes RTWDiagNativeIfnetInputErrors
+        RTWDiagNativeIfnetOutputPackets RTWDiagNativeIfnetOutputBytes RTWDiagNativeIfnetOutputErrors)) {
         next unless exists $after->{$k};
-        if ($k =~ /^RTWDiagNativeIfnetInput/ &&
+        if ($k =~ /^RTWDiagNativeIfnet(?:Input|Output)/ &&
             (!$before || ($after->{RTWDiagNativeIfnetStatsValid}//0)!=1 ||
              ($before->{RTWDiagNativeIfnetStatsValid}//0)!=1 ||
              !($after->{RTWDiagNativeIfnetIndex}//0) ||
@@ -592,6 +800,7 @@ fi
 
 cat > "$RUN_DIR/README-DIAGNOSTICO.txt" <<EOM
 TAHOEREALTEKWIFI — CAPTURA DE DIAGNÓSTICOS
+Revisão do coletor: ${COLLECTOR_REVISION}
 Data de execução: $(date '+%Y-%m-%d %H:%M:%S %z')
 Intervalo de eventos: últimos ${MINUTES} minutos (logs existentes no macOS)
 Prazo por comando: ${COMMAND_TIMEOUT}s; status124 indica timeout, não sucesso.
@@ -601,6 +810,7 @@ Administrador: $(if [ "$ADMIN_READY" -eq 1 ]; then echo 'somente comandos de lei
 LEIA PRIMEIRO:
   RTW-SUMMARY.txt - família/VID:PID/interface, erro USB e diferenças por adaptador.
   drivers/RTW-before/after.txt e .json - propriedades e contadores de cada controlador.
+  USB-STARTUP.txt / drivers/USB-STARTUP.json - inicializacao, inclusive providers sem controlador.
   drivers/loaded-RTW-kext.txt / installed-app-Info.txt - versões realmente ativas.
   USB-IDENTIFICATION.txt  - todos os USB com VID:PID extraídos do IORegistry.
   USB-WIFI-CANDIDATES.txt - trechos suspeitos (inclusive dispositivos rebatizados).
@@ -611,7 +821,21 @@ LEIA PRIMEIRO:
   network/hardware_ports.txt / ifconfig_all.txt - interface e status.
   logs/USB_Realtek.log / WiFi_80211.log / Network_Ethernet.log - eventos.
   logs/unified-summary.txt - total de linhas mantidas e descartadas por limite.
+  logs/unified-coverage.json - janela solicitada, rc e timestamps recebidos.
+  logs/recent/ - consulta independente de 2min, somente apos timeout124 principal.
   STATUS.tsv - detalhes de comandos que falharam ou foram bloqueados.
+
+LOGS: a consulta principal pede ${MINUTES}min. Se exceder o prazo, preserva a
+saida parcial e tenta UMA consulta adicional de 2min, com o mesmo prazo de
+${COMMAND_TIMEOUT}s por consulta. logs/recent/ nao completa o historico parcial.
+Os timestamps primeiro/ultimo mostram somente eventos efetivamente recebidos;
+quando indisponiveis, nao se conclui ausencia de eventos. Mesmo com dados
+recebidos, cobertura ate o presente nao e garantida; examine os timestamps.
+Gatekeeper desabilitado: resposta exata 'assessments disabled'/exit1 e estado
+esperado; STATUS preserva rc1 sem contar falha. Nenhuma configuracao e alterada.
+CRASHES: relatorios historicos selecionados por nome, sem filtro de idade,
+ordem ou deduplicacao. A contagem de arquivos nao equivale a eventos novos
+nem garante relacao com a janela solicitada para os logs unificados.
 
 FRESCOR: snapshots do IORegistry sao os ultimos valores publicados pelo driver.
 STATUS nao e forcado para os adaptadores; delta0 nao prova ausencia de erros
@@ -673,6 +897,7 @@ fi
 
 cat > "$RUN_DIR/RESULTADO.txt" <<EOM
 TAHOEREALTEKWIFI — RESULTADO DA COLETA
+Revisão do coletor: ${COLLECTOR_REVISION}
 Data: $(date '+%Y-%m-%d %H:%M:%S %z')
 Janela de logs: ${MINUTES} minutos
 Comandos aprovados: $SUCCESS
@@ -682,7 +907,11 @@ Modalidade: $(if [ "$RAW" -eq 1 ]; then echo 'RAW (SENSÍVEL)'; else echo 'masca
 
 Leitura do driver:
   RTW-SUMMARY.txt separa os dois adaptadores e registra quedas/resets.
+  USB-STARTUP.txt registra fases/erros de providers e controladores USB.
   STATUS.tsv registra falhas, inclusive timeout124 e log sem permissão.
+  Gatekeeper: estado_esperado/exit1 preserva assessments disabled sem contar erro.
+  logs/unified-coverage.json registra janela, rc e timestamps recebidos.
+  logs/recent/ e tentativa separada de 2min apos timeout; historico segue parcial.
 
 Para descobrir o USB:
   1. USB-IDENTIFICATION.txt

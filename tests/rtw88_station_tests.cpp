@@ -26,7 +26,25 @@ struct Fixture {
  int init(){auto p=params();return rtw88_station_initialize(&station,&mac,radio_state,this,p.mac);}
 };
 static constexpr rtw_wifi_family families[]={RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU};
+static void negotiated_rates(){
+ unsigned checks=0;const uint8_t mcs[2]={255,255};
+ for(auto family:families)for(unsigned streams=1;streams<=(family==RTW_WIFI_RTL8821CU?1U:2U);++streams)for(unsigned width:{20U,40U,80U})for(unsigned map=0;map<3;++map){
+  rtw88_station_rate rate{};uint16_t peer=(uint16_t)(0xfff0U|map|(map<<2));
+  assert(!rtw88_station_prepare_rate(family,36,streams,0xff0,mcs,peer,1,1,width,1,1,&rate));
+  const unsigned top=map==0?7:map==1||width==20?8:9;
+  const uint32_t chunk=(1U<<(top+1))-1,expected=0xff0U|(chunk<<12)|(streams==2?chunk<<22:0);
+  assert(rate.rates.mask==expected&&rate.rates.initial_rate==44+(streams-1)*10+top&&rate.rates.rate_id==(streams==1?10:9));
+  assert(rate.command[0]==0x40&&rate.command[1]==0&&rate.command[2]==(rate.rates.rate_id|0xa0U)&&rate.command[3]==(0x50U|(width==80?2:width==40?1:0)));
+  for(unsigned r=0;r<84;++r){bool selected=r>=4&&r<12;if(r>=44&&r<44+10*streams)selected=(r-44)%10<=top;assert(rtw88_station_rate_selected(&rate,(uint8_t)r)==selected);}
+  auto saved=rate;assert(rtw88_station_prepare_rate(family,52,streams,0xff0,mcs,peer,1,1,width,1,1,&rate)==EINVAL&&!memcmp(&saved,&rate,sizeof(rate)));
+  assert(rtw88_station_prepare_rate(family,36,streams,0xff0,mcs,0xffff,1,1,width,1,1,&rate)==EINVAL&&!memcmp(&saved,&rate,sizeof(rate)));++checks;
+ }
+ for(const auto&o:{rtw88_station_operating{36,38,40,2},rtw88_station_operating{48,46,40,1},rtw88_station_operating{36,42,80,4},rtw88_station_operating{161,155,80,3}})assert(!rtw88_station_operating_validate(&o));
+ for(const auto&o:{rtw88_station_operating{6,8,40,2},rtw88_station_operating{52,58,80,4},rtw88_station_operating{165,171,80,4},rtw88_station_operating{36,58,80,4},rtw88_station_operating{36,42,80,1}})assert(rtw88_station_operating_validate(&o));
+ printf("B/C exact primary RA wire: %u family/NSS/width/VHT-map goldens; full descriptor-rate membership and invalid-policy checks passed\n",checks);
+}
 int main(){
+ negotiated_rates();
  unsigned failure_positions=0;
  for(auto family:families){Fixture f(family);assert(f.init()==0);assert(f.station.initialized&&f.value(0x680,2)==0);
   assert(f.value(0x610,1)==2&&f.value(0x615,1)==1);assert(f.memory[0x522]==0x3f);

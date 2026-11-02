@@ -1,3 +1,4 @@
+#include "rtw/StationRecovery.hpp"
 /* SPDX-License-Identifier: BSD-3-Clause
  * Executes actual controller state/TX/RX methods with isolated USB, RF and
  * host scheduling boundaries. It does not emulate an AP or prove RF/CCMP. */
@@ -66,6 +67,7 @@ static std::vector<int> events;static int failEvent=0,genericFail=-1;
 static int event(int e){events.push_back(e);return failEvent==e?EIO:0;}
 static int ieee80211_chan2ieee(ieee80211com*,ieee80211_channel*c){return c->number;}
 class RTWUSBController {public:
+
  rtwn_softc core_{};BUModel*model=nullptr;rtw_wifi_family family_=RTW_WIFI_RTL8710BU;TestPipe receive{};TestPipe*rxPipe_=&receive;bool running_=true,stopping_=false,present_=true,radioReady_=true,sleeping_=false;int usbError_=0;
  uint64_t txHTPackets_=0,txAMPDUPackets_=0;
  void*completionLock_=nullptr;rtw_transfer_ledger ledger_{};rtw_usb_endpoints endpoints_{};uint16_t txMPS_[4]{};TestPipe pipes[4]{};TestPipe*txPipes_[4]{};
@@ -85,6 +87,8 @@ class RTWUSBController {public:
  static int busInitialize(void*p){auto*s=owner(p);int e=event(14);s->running_=!e;return e;}
  unsigned submitted=0,submittedPipe=0,submittedIndex=0;std::vector<uint8_t>submittedBytes;int submitError=0;
  int submit(unsigned index,TestPipe*pipe,uint32_t len){++submitted;submittedIndex=index;submittedPipe=pipe->number;submittedBytes.assign(memories[index].b,memories[index].b+len);return submitError;}
+
+#include "family_recovery_backend_host.hpp"
 };
 static int generic(ieee80211com*ic,ieee80211_state state,int){events.push_back(60+state);if(genericFail==state)return EINVAL;if(state==IEEE80211_S_RUN)assert(!static_cast<RTWUSBController*>(static_cast<rtwn_softc*>(ic->ic_softc)->sc_ops.cookie)->buRateReady_);else if(ic->ic_bss)ic->ic_bss->ni_port_valid=false;ic->ic_state=state;return 0;}
 static int route(ieee80211com*ic,ieee80211_state state,int argument){return static_cast<RTWUSBController*>(static_cast<rtwn_softc*>(ic->ic_softc)->sc_ops.cookie)->state8710BU(ic,state,argument);}

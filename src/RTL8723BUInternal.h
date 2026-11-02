@@ -34,7 +34,7 @@ struct rtw_8723bu_private {
  const struct rtl8xxxu_fileops *fops;
  const struct rtl8xxxu_firmware_header *fw_data;size_t fw_size;
  u8 ep_tx_count,ep_tx_high_queue,ep_tx_low_queue,ep_tx_normal_queue;
- u8 out_ep[3],pipe_out[0x20];
+ u8 out_ep[4],pipe_out[0x20];
  struct rtl8xxxu_cfo_tracking cfo_tracking;
 };
 struct rtl8xxxu_fileops {

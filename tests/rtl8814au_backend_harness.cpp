@@ -34,6 +34,9 @@ extern "C" int rtw_8814au_h2c_mailbox(rtw_8814au*,const uint8_t b[8]){return eve
 extern "C" int rtw_8814au_write(rtw_8814au*,uint16_t a,unsigned,uint32_t){assert(a==0x554);return event(40);}
 struct Timer {void setTimeoutMS(unsigned){events.push_back(51);}};
 class RTWUSBController {public:rtwn_softc core_{};rtw_8814au acCore_{};rtw_8814au_rate_config acRateConfig_{};bool acMediaConnected_=false,acRateReady_=false;uint8_t acChannel_=0,acRSSI_=0;Timer timer;Timer *calibTimer_=&timer;
+ enum{AUChannel=7,AURFK=8};bool acStarting_=false;struct{uint32_t stage=0;}acRecoveryDiag_;
+ // Recovery is exercised with the real startup/control/HAL in its own suite.
+ void record8814Failure(uint32_t,int){}
  rtw_8814au_station_params station8814Params()const;int set8814Channel(uint8_t);int state8814(ieee80211com*,ieee80211_state,int);
  // Factory policy is a boundary here; actual country denial is covered by
  // rtl8814au_channel_tests and dfs_regulatory_controller_tests.

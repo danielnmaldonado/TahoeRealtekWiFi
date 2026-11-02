@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include "rtl8192fu_model.hpp"
 #include <algorithm>
+#ifndef RTW_R92FU_CHECKED_STOP
+#define rtw_r92fu_stop_checked rtw_r92fu_stop
+#endif
+static void checked_cleanup_separates_original(){FUFixture f;f.identify();assert(!f.boot());uint32_t v=0;f.m.fail=f.m.calls+1;assert(rtw_r92fu_read(f.c,0x80,1,&v)==EIO);f.m.fail=0;assert(rtw_r92fu_stop_checked(f.c)==0);assert(f.status().error==EIO&&!f.status().powered);}
 static void inputs(){
  FUFixture zero;zero.identify();zero.m.zero_coefficients=true;assert(zero.boot()==ETIMEDOUT&&!zero.status().calibrated&&!zero.status().tx_enabled);
  assert(rtw_r92fu_size()>512);rtw_r92fu*radio=nullptr;assert(rtw_r92fu_init(nullptr,0,nullptr,nullptr,nullptr,&radio)==EINVAL&&!radio);
@@ -47,4 +51,7 @@ static void rates(){
  for(unsigned mask=1;mask<4096;++mask)for(bool ht:{false,true})for(unsigned width:{20U,40U}){if(!ht&&width==40)continue;uint8_t mcs[2]={255,255};rtw_r92fu_rate rate{};assert(rtw_r92fu_rate_build(uint16_t(mask),mcs,ht,width,1,1,&rate));assert(rate.mask==(ht?(mask|0xffff000U):mask));uint8_t h2c[8];assert(rtw_r92fu_rate_command(&rate,1,h2c)&&h2c[0]==0x40&&h2c[3]==(width==40?1:0)&&h2c[2]==(rate.rate_id|(rate.sgi?0x80:0)));rtw_r92fu_tx_options o{};o.payload_bytes=100;o.data=o.ack_expected=o.firmware_rate=1;o.rate=rate.initial;o.rf_chains=2;o.bandwidth_mhz=uint8_t(width);o.short_gi=rate.sgi;o.retry_limit=7;uint8_t descriptor[40];assert(rtw_r92fu_make_tx(&o,&rate,descriptor)&&(descriptor[6]&31)==rate.rate_id);o.band_5ghz=1;assert(!rtw_r92fu_make_tx(&o,&rate,descriptor));}
  FUFixture f;f.identify();assert(!f.boot());uint8_t sample[32]={};sample[1]=62;sample[13]=(7U<<5)|2;int dbm=0;assert(rtw_r92fu_decode_phy(f.c,0,sample,32,&dbm)&&dbm==-48);sample[0]=1;sample[1]=50;sample[2]=60;assert(rtw_r92fu_decode_phy(f.c,27,sample,32,&dbm)&&dbm==-50);sample[0]=255;assert(!rtw_r92fu_decode_phy(f.c,4,sample,32,&dbm));
 }
-int main(){inputs();success();rfe_and_trim();rates();failures();puts("Dedicated FU actual OTP/0x4000-FW/MAC/PHY/measured RFK/HT20-40/runtime and strict wire passed");}
+static void failed_cleanup_stays_failed(){FUFixture f;f.identify();assert(!f.boot());f.m.fail=f.m.calls+1;assert(rtw_r92fu_stop_checked(f.c)==EIO);f.m.fail=0;assert(rtw_r92fu_stop_checked(f.c)==EIO);}
+static void shutdown_polls_are_checked(){for(unsigned mode=0;mode<3;++mode){FUFixture f;f.identify();assert(!f.boot());if(mode==0)f.m.power_ready=false;if(mode==1)f.m.fifo_idle=false;if(mode==2)f.m.set(0x5f8,1);assert(rtw_r92fu_stop_checked(f.c)==ETIMEDOUT);assert(!f.status().powered&&!f.status().firmware);}}
+static void complete_rom_is_identity(){auto first=fu_rom(),changed=first;changed[0xf8]=0x31;rtw_r92fu_board a{},b{};assert(!rtw_r92fu_decode_rom(first.data(),first.size(),&a));assert(!rtw_r92fu_decode_rom(changed.data(),changed.size(),&b));assert(memcmp(&a,&b,sizeof(a))!=0);}
+int main(){complete_rom_is_identity();shutdown_polls_are_checked();checked_cleanup_separates_original();failed_cleanup_stays_failed();inputs();success();rfe_and_trim();rates();failures();puts("Dedicated FU actual OTP/0x4000-FW/MAC/PHY/measured RFK/HT20-40/runtime and strict wire passed");}

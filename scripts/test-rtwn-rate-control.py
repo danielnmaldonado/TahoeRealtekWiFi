@@ -8,7 +8,7 @@ import subprocess
 
 
 def method(source, name):
-    match = re.search(r"\b(?:void|bool|rtw_packet_error) RTWUSBController::" + re.escape(name) + r"\(", source)
+    match = re.search(r"\b(?:void|bool|uint8_t|rtw_packet_error) RTWUSBController::" + re.escape(name) + r"\(", source)
     if not match: raise ValueError(name)
     start = match.start()
     opening = source.index("{", start)
@@ -41,6 +41,8 @@ def main():
     closure = '#include "rtwn_rate_control_host.hpp"\n' + amrr[amrr.index("#define is_success"):]
     closure += "\n" + method(ht, "usesFirmwareRate")
     closure += "\n" + method(family, "usesLegacyFirmwareRate")
+    for name in ("usesLegacyHighThroughput","acceptsLegacyReceiveRate","legacyHostHTRate"):
+        closure += "\n" + method(family,name)
     closure += "\n" + method(family, "uses8814FirmwareRate")
     closure += "\n" + method(family, "handle8814C2H")
     closure += "\n" + method(r23,"decode8723USBFrame")
@@ -59,7 +61,7 @@ def main():
         "-I" + str(project), "-I" + str(project / "include"), "-I" + str(project / "tests"),
         str(generated), str(project / "src/RTL8192EUDataPath.c"), str(project / "src/RTL8192CDataPath.c"),
         str(project / "src/RTL8723BUDataPath.c"), str(project / "src/RTL8710BUDataPath.c"), str(project / "src/RTL8192FUDataPath.c"), str(project / "src/RTL8814AUDataPath.c"), str(project / "src/RTL8812AUDataPath.c"), str(project / "src/RTL8192DUDataPath.c"), str(project / "src/FCS.c"), str(project / "src/RTW88RX.c"),
-        str(project / "src/USBWiFiProfiles.c"), str(project / "src/RTL8192EUHT.c"),
+        str(project / "src/RTW88Station.c"),str(project / "src/RTW88Firmware.c"),str(project / "src/RTW88USBDataPath.c"),str(project / "src/FamilyRX24.c"), str(project / "src/USBWiFiProfiles.c"), str(project / "src/RTL8192EUHT.c"),
         str(project / "src/USBPackets.c"), str(project / "src/RTL8192EU.c"),
         str(project / "src/Efuse.c"), str(project / "src/USBRegisterIO.c"), str(project / "src/USBControl.c"),
         str(project / "tests/rtwn_rate_control_tests.cpp"),

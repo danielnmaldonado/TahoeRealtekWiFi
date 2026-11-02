@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(TahoeRealtekWiFi VERSION 0.14.8 LANGUAGES C CXX)
+project(TahoeRealtekWiFi VERSION 0.14.14 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -298,19 +298,34 @@ if(BUILD_TESTING)
         set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
         add_executable(rtw-menu-login-item-tests app/tests/login-item-tests.mm app/LoginItem.mm)
         target_include_directories(rtw-menu-login-item-tests PRIVATE app)
-        target_compile_options(rtw-menu-login-item-tests PRIVATE -fobjc-arc -Wall -Wextra -Werror -mmacosx-version-min=26.0)
-        target_link_options(rtw-menu-login-item-tests PRIVATE -mmacosx-version-min=26.0)
+        target_compile_options(rtw-menu-login-item-tests PRIVATE -fobjc-arc -Wall -Wextra -Werror -Werror=unguarded-availability -Werror=unguarded-availability-new -mmacosx-version-min=13.0)
+        target_link_options(rtw-menu-login-item-tests PRIVATE -mmacosx-version-min=13.0)
         target_link_libraries(rtw-menu-login-item-tests PRIVATE "-framework Foundation" "-framework ServiceManagement" "-framework CoreServices")
         add_test(NAME rtw-menu-login-item-tests COMMAND rtw-menu-login-item-tests)
         add_executable(rtw-menu-credential-store-tests app/tests/credential-store-tests.mm app/CredentialStore.mm)
         target_include_directories(rtw-menu-credential-store-tests PRIVATE app kext)
-        target_compile_options(rtw-menu-credential-store-tests PRIVATE -fobjc-arc -Wall -Wextra -Werror -mmacosx-version-min=26.0)
-        target_link_options(rtw-menu-credential-store-tests PRIVATE -mmacosx-version-min=26.0)
+        target_compile_options(rtw-menu-credential-store-tests PRIVATE -fobjc-arc -Wall -Wextra -Werror -Werror=unguarded-availability -Werror=unguarded-availability-new -mmacosx-version-min=13.0)
+        target_link_options(rtw-menu-credential-store-tests PRIVATE -mmacosx-version-min=13.0)
         target_link_libraries(rtw-menu-credential-store-tests PRIVATE "-framework Foundation" "-framework Security")
         add_test(NAME rtw-menu-credential-store-tests COMMAND rtw-menu-credential-store-tests)
         add_executable(rtw-menu-transport-tests app/tests/transport-tests.cpp app/Transport.cpp)
         target_include_directories(rtw-menu-transport-tests PRIVATE app kext)
         add_test(NAME rtw-menu-transport-tests COMMAND rtw-menu-transport-tests)
+        add_executable(rtw-menu-diagnostic-cli-tests app/tests/diagnostic-cli-tests.mm
+            app/DiagnosticCLI.mm app/ControlDiagnostics.mm app/DriverConnection.mm)
+        target_include_directories(rtw-menu-diagnostic-cli-tests PRIVATE app kext)
+        target_compile_options(rtw-menu-diagnostic-cli-tests PRIVATE -fobjc-arc -Wall -Wextra -Werror -Werror=unguarded-availability -Werror=unguarded-availability-new -mmacosx-version-min=13.0)
+        target_link_options(rtw-menu-diagnostic-cli-tests PRIVATE -mmacosx-version-min=13.0)
+        target_link_libraries(rtw-menu-diagnostic-cli-tests PRIVATE "-framework Foundation"
+            "-framework ServiceManagement" "-framework Security" "-framework IOKit" "-framework CoreFoundation")
+        add_test(NAME rtw-menu-diagnostic-cli-tests COMMAND rtw-menu-diagnostic-cli-tests)
+        add_executable(rtw-menu-control-diagnostics-tests app/tests/control-diagnostics-tests.mm app/ControlDiagnostics.mm)
+        target_include_directories(rtw-menu-control-diagnostics-tests PRIVATE app kext)
+        target_compile_options(rtw-menu-control-diagnostics-tests PRIVATE -fobjc-arc -Wall -Wextra -Werror -Werror=unguarded-availability -Werror=unguarded-availability-new -mmacosx-version-min=13.0)
+        target_link_options(rtw-menu-control-diagnostics-tests PRIVATE -mmacosx-version-min=13.0)
+        target_link_libraries(rtw-menu-control-diagnostics-tests PRIVATE "-framework Foundation")
+        add_test(NAME rtw-menu-control-diagnostics-tests COMMAND rtw-menu-control-diagnostics-tests)
+        set_tests_properties(rtw-menu-control-diagnostics-tests PROPERTIES TIMEOUT 10)
     endif()
 
     add_executable(rtw-control-tests tests/control_tests.cpp)
@@ -387,6 +402,8 @@ if(BUILD_TESTING)
         --decoder "$<TARGET_FILE:rtw-acusb-decode>")
     add_test(NAME rtw-signing-policy-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/signing_policy_tests.py")
+    add_test(NAME rtw-sdk-policy-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/sdk_policy_tests.py")
     add_test(NAME rtw-app-pkg-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/app_pkg_tests.py")
     add_test(NAME rtw-menu-socket-exchange-tests COMMAND "${Python3_EXECUTABLE}"
@@ -404,31 +421,49 @@ if(BUILD_TESTING)
     add_test(NAME rtw-deferred-cleanup-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-deferred-cleanup.py"
         --out "${CMAKE_BINARY_DIR}/deferred-cleanup")
+    add_test(NAME rtw-kext-resource-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-kext-resources.py"
+        --out "${CMAKE_BINARY_DIR}/kext-resources")
+    add_test(NAME rtw-controller-scan-completion-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-controller-scan-completion.py"
+        --out "${CMAKE_BINARY_DIR}/controller-scan-completion")
     add_test(NAME rtw-usb-termination-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-usb-termination.py"
         --out "${CMAKE_BINARY_DIR}/usb-termination")
     foreach(part core datapath backend imported-ht)
+        set(station_control_args)
+        if(part STREQUAL "backend")
+            list(APPEND station_control_args --control)
+        endif()
         if(part STREQUAL "imported-ht")
             add_test(NAME rtw-rtl8723bu-${part}-tests COMMAND "${Python3_EXECUTABLE}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtl8723bu-${part}.py")
         else()
             add_test(NAME rtw-rtl8723bu-${part}-tests COMMAND "${Python3_EXECUTABLE}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtl8723bu-${part}.py"
-                --out "${CMAKE_BINARY_DIR}/rtl8723bu-${part}")
+                --out "${CMAKE_BINARY_DIR}/rtl8723bu-${part}" ${station_control_args})
         endif()
     endforeach()
     foreach(part backend negotiation)
+        set(station_control_args)
+        if(part STREQUAL "backend")
+            list(APPEND station_control_args --control)
+        endif()
         add_test(NAME rtw-rtl8710bu-${part}-tests COMMAND "${Python3_EXECUTABLE}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtl8710bu-${part}.py")
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtl8710bu-${part}.py" ${station_control_args})
     endforeach()
     foreach(part core backend negotiation)
+        set(station_control_args)
+        if(part STREQUAL "backend")
+            list(APPEND station_control_args --control)
+        endif()
         if(part STREQUAL "core")
             set(fu_runner "test-rtl8192fu.py")
         else()
             set(fu_runner "test-rtl8192fu-${part}.py")
         endif()
         add_test(NAME rtw-rtl8192fu-${part}-tests COMMAND "${Python3_EXECUTABLE}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/${fu_runner}")
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/${fu_runner}" ${station_control_args})
     endforeach()
     add_test(NAME rtw-legacy-usb-edca-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-legacy-usb-edca.py")
@@ -445,7 +480,7 @@ if(BUILD_TESTING)
     add_test(NAME rtw-rtl8192du-negotiation-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtl8192du-negotiation.py")
     add_test(NAME rtw-rtl8192du-backend-tests COMMAND "${Python3_EXECUTABLE}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtl8192du-backend.py" --library "$<TARGET_FILE:rtwcore>")
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtl8192du-backend.py" --library "$<TARGET_FILE:rtwcore>" --control)
     add_test(NAME rtw-rtw88-bootstrap-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtw88-bootstrap.py")
     add_test(NAME rtw-rtl8812au-negotiation-tests COMMAND "${Python3_EXECUTABLE}"
@@ -455,9 +490,9 @@ if(BUILD_TESTING)
     add_test(NAME rtw-realtek-imported-ht-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-realtek-imported-ht.py")
     add_test(NAME rtw-rtl8812au-backend-tests COMMAND "${Python3_EXECUTABLE}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtl8812au-backend.py")
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtl8812au-backend.py" --control)
     add_test(NAME rtw-rtw88-backend-tests COMMAND "${Python3_EXECUTABLE}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtw88-backend.py")
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtw88-backend.py" --control)
     add_test(NAME rtw-wpa-recovery-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rtwn-wpa-recovery.py"
         --out "${CMAKE_BINARY_DIR}/rtwn-wpa-recovery")
@@ -494,6 +529,9 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/wifi_diagnostics_command_tests.py")
     add_test(NAME rtw-dfs-regulatory-generator-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/dfs_regulatory_generator_tests.py")
+    add_test(NAME rtw-controller-power-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-controller-power.py"
+        --out "${CMAKE_BINARY_DIR}/controller-power")
     add_test(NAME rtw-dfs-station-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-dfs-station.py"
         --out "${CMAKE_BINARY_DIR}/dfs-station")
@@ -538,7 +576,7 @@ if(BUILD_TESTING)
     add_test(NAME rtw-net80211-taskq-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-net80211-taskq.py"
         --out "${CMAKE_BINARY_DIR}/net80211-taskq")
-    foreach(part boot phy datapath station backend attach)
+    foreach(part boot phy datapath station backend attach recovery)
         set(RTW_BACKEND_TEST_ARGS)
         if(NOT part STREQUAL "station")
             list(APPEND RTW_BACKEND_TEST_ARGS
@@ -621,6 +659,21 @@ if(BUILD_TESTING)
 endif()
 
 if(BUILD_TESTING)
+    add_test(NAME rtw-family-recovery-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-family-recovery.py")
+    add_test(NAME rtw-family-controller-recovery-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-family-controller-recovery.py")
+    add_test(NAME rtw-legacy-controller-recovery-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-legacy-controller-recovery.py")
+    add_test(NAME rtw-legacy-power-off-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-legacy-power-off.py"
+        --out "${CMAKE_BINARY_DIR}/legacy-power-off")
+    add_test(NAME rtw-net80211-iecache-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-net80211-iecache.py"
+        --out "${CMAKE_BINARY_DIR}/net80211-iecache")
+    add_test(NAME rtw-net80211-channel-capabilities-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-net80211-channel-capabilities.py"
+        --out "${CMAKE_BINARY_DIR}/net80211-channel-capabilities")
     get_property(RTW_TEST_NAMES DIRECTORY PROPERTY TESTS)
     set_tests_properties(${RTW_TEST_NAMES} PROPERTIES
         ENVIRONMENT "RTW_HOST_SANITIZERS=${RTW_HOST_SANITIZERS}"
@@ -628,4 +681,11 @@ if(BUILD_TESTING)
     # The installer suite launches many bounded subprocess fixtures. Keep it
     # separate from sanitizer compilation to avoid scheduler-induced timeouts.
     set_tests_properties(rtw-app-pkg-tests PROPERTIES RUN_SERIAL TRUE)
+    if(APPLE)
+        # Invalid-request fixtures call the production logger before XPC.
+        # Keep their simulated errors outside the installed app's user log.
+        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/diagnostic-test-home")
+        set_property(TEST rtw-menu-diagnostic-cli-tests APPEND PROPERTY ENVIRONMENT
+            "CFFIXED_USER_HOME=${CMAKE_BINARY_DIR}/diagnostic-test-home")
+    endif()
 endif()

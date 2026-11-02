@@ -129,7 +129,7 @@ static void ccx_reports() {
     b[2]=0;CHECK(rtw_88e_parse_tx_report(b.data(),8,&r));CHECK(!r.packet_ok&&!r.report.retry_over&&!r.report.lifetime_expired);
     for(unsigned length=0;length<16;length++)if(length!=8)CHECK(!rtw_88e_parse_tx_report(b.data(),length,&r));
     for(unsigned bad=0;bad<5;bad++) { auto c=b;
-        if(bad==0)c[1]=1;else if(bad==1)c[1]=0x80;else if(bad==2)c[5]=12;else if(bad==3)c[6]=0x80;else c[1]=0x40,c[2]=0x80;
+        if(bad==0)c[1]=1;else if(bad==1)c[1]=0x80;else if(bad==2)c[5]=20;else if(bad==3)c[6]=0x80;else c[1]=0x40,c[2]=0x80;
         CHECK(!rtw_88e_parse_tx_report(c.data(),8,&r));CHECK(r.packet_ok==0&&r.report.queue_time==0);
     }
     CHECK(!rtw_88e_parse_tx_report(nullptr,8,&r));CHECK(!rtw_88e_parse_tx_report(b.data(),8,nullptr));
@@ -157,4 +157,36 @@ static void bounded_inputs() {
     bad.buffer=b.data();bad.length=1;bad.cursor=2;
     CHECK(rtw_92c_rx_next(&bad,0,&f)==RTW_PACKETS_BAD_ARGUMENT);
 }
-int main() { tx_vectors();protection_and_reports();rx_vectors();ccx_reports();bounded_inputs();std::printf("gen1 datapath: %u checks passed\n",checks); }
+static void ht20_vectors() {
+    for(int eu=0;eu<2;++eu) {
+        auto o=options();o.raid=0;o.rate=eu?19:27;o.firmware_rate=!eu;
+        o.short_gi=1;o.ampdu=1;o.density=7;o.max_agg=16;o.qsel=5;
+        std::array<uint8_t,32>d{};
+        CHECK(rtw_92c_make_tx_descriptor_ex(1500,eu,1,&o,d.data()));
+        CHECK(word(d.data()+4)==(eu?0x500U:0x520U));
+        CHECK(word(d.data()+8)==(eu?0x701000U:0x700000U));
+        CHECK(word(d.data()+16)==(eu?0x148U:0x48U));
+        CHECK(word(d.data()+20)==(eu?0x1ff53U:0x1ff5bU));
+        CHECK(word(d.data()+24)==0x8000U);checksum(d.data());
+        CHECK(rtw_92c_tx_report_request(eu,eu,d.data()));
+        CHECK(!(word(d.data()+4)&0x40U)&&!(word(d.data()+8)&0x10000U));checksum(d.data());
+        for(unsigned bad=0;bad<8;++bad) {
+            auto b=o;int qos=1;
+            if(bad==0)b.bw40=1;if(bad==1)b.channel_bw40=1;if(bad==2)b.rate=eu?20:28;
+            if(bad==3)qos=0;if(bad==4)b.firmware_rate=eu;if(bad==5)b.density=8;
+            if(bad==6)b.max_agg=32;if(bad==7)b.data=0,b.qsel=0x12;
+            d.fill(0xa5);CHECK(!rtw_92c_make_tx_descriptor_ex(1500,eu,qos,&b,d.data()));CHECK(d.front()==0xa5&&d.back()==0xa5);
+        }
+    }
+    rtw_92e_rate_config c{};uint8_t peer[2]={0x81,0xff};
+    CHECK(rtw_92c_build_rate_config(0xfff,peer,2,1,1,1,&c));
+    CHECK(c.ht&&c.raid==0&&c.rate_mask==0x0ff81fffU&&c.initial_rate==27&&c.sgi20&&!c.bw40&&!c.sgi40);
+    CHECK(rtw_92c_build_rate_config(0xff0,peer,1,1,1,0,&c));
+    CHECK(c.raid==1&&c.rate_mask==0x81ff0U&&c.tx_streams==1&&!c.sgi20);
+    CHECK(rtw_92c_build_rate_config(15,peer,1,0,1,1,&c)&&!c.ht&&c.raid==6&&c.rate_mask==15);
+    CHECK(!rtw_92c_build_rate_config(0xfff,peer,3,1,1,1,&c)&&!c.rate_mask);
+    std::array<uint8_t,8>b{{0x80,0x40,0,0,0,19,0,0}};rtw_88e_tx_report r{};
+    CHECK(rtw_88e_parse_tx_report(b.data(),8,&r)&&r.report.final_rate==19);
+    b[5]=20;CHECK(!rtw_88e_parse_tx_report(b.data(),8,&r));
+}
+int main() { ht20_vectors();tx_vectors();protection_and_reports();rx_vectors();ccx_reports();bounded_inputs();std::printf("gen1 datapath: %u checks passed\n",checks); }

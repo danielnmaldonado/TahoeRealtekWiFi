@@ -22,7 +22,8 @@ Tahoe Wi-Fi USB - .pkg builder (application only)
 
 Do not use sudo. The .pkg requests authorization only when it is installed.
 The package installs the complete app in /Applications, without installing the kernel extension.
-Requires macOS and, for building, Xcode with the macOS 26 SDK or later.
+Targets Intel Macs with macOS Ventura 13, Sonoma 14, Sequoia 15 or Tahoe 26.
+Building requires Xcode with the macOS 13 SDK or later and Python 3.
 The packaged app must be version 0.2.5 or later.
 
 The app and helper must have verified ad-hoc signatures; this is mandatory.
@@ -49,7 +50,7 @@ done
 rtw_require_adhoc_identity
 [[ "$(/usr/bin/uname -s)" == Darwin ]] || fail "The .pkg must be built on macOS with pkgbuild/productbuild."
 [[ "$(/usr/bin/id -u)" != 0 ]] || fail "Run without sudo; only Installer needs administrative authorization."
-for tool in /usr/bin/pkgbuild /usr/bin/productbuild /usr/sbin/pkgutil /usr/bin/ditto \
+for tool in /usr/bin/pkgbuild /usr/bin/productbuild /usr/sbin/pkgutil /usr/bin/ditto /usr/bin/python3 \
     /usr/bin/codesign /usr/bin/plutil /usr/bin/lipo /usr/libexec/PlistBuddy; do
     [[ -x "$tool" ]] || fail "Missing tool: $tool."
 done
@@ -93,11 +94,16 @@ package_app() (
     # Future packages must explicitly declare protocol compatibility.
     [[ "$version" == 0.2.5 || "$installer_protocol" == 1 ]] ||
         fail "The app has no supported installer protocol; use version 0.2.5 or this updated project."
-    [[ "$minimum" == 26.0 ]] || fail "This installer requires LSMinimumSystemVersion=26.0."
+    [[ "$minimum" == 13.0 ]] || fail "This installer requires LSMinimumSystemVersion=13.0."
     for relative in Contents/MacOS/TahoeUSBWiFi Contents/Helpers/TahoeWiFiHelper; do
         /usr/bin/lipo -archs "$SOURCE_APP/$relative" | /usr/bin/tr ' ' '\n' |
             /usr/bin/grep -qx x86_64 || fail "Executable does not contain the x86_64 architecture: $relative."
     done
+    # Bundle metadata cannot lower a binary's actual deployment requirement.
+    # Inspect both executables before producing a component or product archive.
+    /usr/bin/python3 "$APP_DIR/check-macos-compatibility.py" --max-minos "$minimum" \
+        "$SOURCE_APP/Contents/MacOS/TahoeUSBWiFi" \
+        "$SOURCE_APP/Contents/Helpers/TahoeWiFiHelper" || fail "Incompatible app/helper Mach-O deployment target."
     rtw_verify_app "$SOURCE_APP"
 
     local stage payload staged_app component product final checksum

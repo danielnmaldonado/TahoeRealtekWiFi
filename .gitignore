@@ -1,6 +1,8 @@
 /build/
 /build-sanitized/
+/build-*/
 /out/
+/out-*/
 .DS_Store
 *.dSYM/
 *.kext/

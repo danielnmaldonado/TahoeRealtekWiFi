@@ -104,6 +104,9 @@ for file,name in functions:
   s=re.sub(r'if \(rtl8xxxu_debug[^)]*\)\s*\(void\)0;','',s)
  if name=='rtl8xxxu_dump_hw_feature':
   s=re.sub(r'ret = read_poll_timeout\([\s\S]*?REG_C2HEVT_MSG_NORMAL\);','ret = fu_poll_feature(priv);',s)
+ if name=='rtl8192fu_power_off':
+  for callee in ['rtl8xxxu_flush_fifo', 'rtl8192fu_active_to_lps', 'rtl8192fu_active_to_emu', 'rtl8192fu_emu_to_disabled']:s=s.replace(callee+'(priv);','shutdown_result(priv,'+callee+'(priv));')
+ if name=='rtl8192fu_active_to_lps':s=s.replace('if (!retry)','if (val32 != 0)')
  if name=='rtl8xxxu_download_firmware':s=s.replace('u8 *fwptr;','const u8 *fwptr;')
  if name=='rtl8188f_phy_lc_calibrate':
   s=s.replace('u32 val32;','u32 val32;\n u8 saved_pause=rtl8xxxu_read8(priv,REG_TXPAUSE);').replace('if (i == 100)\n\t\t(void)0;','if (i == 100) priv->cal_timeout=true;').replace('rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);','rtl8xxxu_write8(priv, REG_TXPAUSE, saved_pause);')

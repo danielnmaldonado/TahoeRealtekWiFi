@@ -191,9 +191,9 @@ inline const char* adapterSupportDescription(AdapterSupportState state) {
 inline const char* adapterCapabilityDescription(rtw_wifi_family family) {
     switch (family) {
     case RTW_WIFI_RTL8192CU:
-        return "C/CU backend: 2.4 GHz, 11b/g, WPA2-Personal/CCMP; no HT/VHT/5 GHz.";
+        return "C/CU backend: 2.4 GHz, HT20, up to 2 streams, firmware rate control, WPA2-Personal/CCMP; no HT40/5 GHz.";
     case RTW_WIFI_RTL8188EU:
-        return "8188EU backend: 2.4 GHz, 11b/g, WPA2-Personal/CCMP; I-cut not supported.";
+        return "8188EU backend: 2.4 GHz, HT20, one stream, host rate control, WPA2-Personal/CCMP; no HT40/5 GHz; I-cut not supported.";
     case RTW_WIFI_RTL8192EU:
         return "8192EU backend: 2.4 GHz, negotiated HT20/HT40, WPA2-Personal/CCMP; no 5 GHz.";
     case RTW_WIFI_RTL8814AU:
@@ -218,11 +218,11 @@ inline const char* adapterCapabilityDescription(rtw_wifi_family family) {
     case RTW_WIFI_RTL8814BU:
         return "8814BU: dedicated USB HAL and PHY source is present; connection stays disabled pending qualified NIC firmware/protocol and station validation.";
     case RTW_WIFI_RTL8821CU:
-        return "8821CU: 2.4/5 GHz, HT20, one stream, WPA2-Personal/CCMP; running board/channel capability required.";
+        return "8821CU: HT20 in 2.4 GHz/DFS; HT40 and VHT20/40/80 in non-DFS 5 GHz, one stream. Channel165: 20 MHz. WPA2-Personal/CCMP; running board/channel capability required.";
     case RTW_WIFI_RTL8822BU:
-        return "8822BU: 2.4/5 GHz, HT20, up to 2 streams, WPA2-Personal/CCMP; running board/channel capability required.";
+        return "8822BU: HT20 in 2.4 GHz/DFS; HT40 and VHT20/40/80 in non-DFS 5 GHz, up to 2 streams. Channel165: 20 MHz. WPA2-Personal/CCMP; running board/channel capability required.";
     case RTW_WIFI_RTL8822CU:
-        return "8822CU: 2.4/5 GHz, HT20, up to 2 streams, WPA2-Personal/CCMP; running board/channel capability required.";
+        return "8822CU: HT20 in 2.4 GHz/DFS; HT40 and VHT20/40/80 in non-DFS 5 GHz, up to 2 streams. Channel165: 20 MHz. WPA2-Personal/CCMP; running board/channel capability required.";
 
     default:
         return "Connection unavailable: this family has no integrated station backend.";

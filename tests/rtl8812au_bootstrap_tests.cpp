@@ -12,7 +12,7 @@ struct Event{unsigned address,width;uint32_t value;};
 struct Bus{
  std::array<uint8_t,65536> regs{};std::array<uint8_t,1024> otp{};std::array<uint8_t,32768> ram{};
  std::vector<Event>writes;std::vector<unsigned>otp_reads;std::array<uint8_t,256>llt{};
- unsigned calls=0,fail_at=0,late_fail_at=0,waits=0;uint64_t delayed=0;bool otp_stuck=false,power_stuck=false,llt_stuck=false,cam_stuck=false,delay_fail=false,checksum=true,init_ready=true,ram_ready=true;
+ unsigned calls=0,fail_at=0,late_fail_at=0,waits=0;uint64_t delayed=0;bool otp_stuck=false,power_stuck=false,mac_off_stuck=false,llt_stuck=false,cam_stuck=false,delay_fail=false,checksum=true,init_ready=true,ram_ready=true;
  size_t expected_fw=0,written=0;bool single;
  explicit Bus(bool one=false):single(one){otp.fill(255);regs[6]=2;put(0xf0,4,one?0x01000000:0x04000000);}
  uint32_t read(unsigned a,unsigned n)const{uint32_t v=0;for(unsigned i=0;i<n;++i)v|=uint32_t(regs[a+i])<<(8*i);return v;}
@@ -27,7 +27,7 @@ struct Bus{
    if(a==0x80)b.regs[0x80]=uint8_t((d[0]&~4U)|((d[0]&4U)?0U:(old&4U)));
    if(a==3&&(d[0]&4)&&(b.regs[0x80]&2)&&!(b.regs[0x80]&1)&&b.init_ready)b.regs[0x80]|=uint8_t(0x40|(b.ram_ready?0x80:0));
    if(a==0x33&&!(d[0]&0x80)&&!b.otp_stuck){unsigned address=b.regs[0x31]|((b.regs[0x32]&3U)<<8);assert(address<(b.single?512U:1024U));b.otp_reads.push_back(address);b.regs[0x30]=b.otp[address];b.regs[0x33]|=0x80;}
-   if(a==5&&(d[0]&3)&&!b.power_stuck)b.regs[5]&=uint8_t(~3U);
+   if(a==5&&(d[0]&3)&&!b.power_stuck)b.regs[5]&=uint8_t(~(b.mac_off_stuck?1U:3U));
    if(a==0x1e0&&!b.llt_stuck){b.llt[(v>>8)&255]=uint8_t(v);b.regs[0x1e3]&=0x3f;}
    if(a==0x670&&!b.cam_stuck)b.regs[0x673]&=0x7f;
   }*actual=s->w_length;return b.calls==b.late_fail_at?RTW_USB_IO_ERROR:RTW_USB_OK;
@@ -71,10 +71,47 @@ static void inputs(){
  assert(!rtw_r12au_boot_init(&f.c,f.c.chip,&f.c.bus,&f.c.waiter,&f.c.usb));assert(f.c.bus.context==&f.b&&f.c.usb.bulk_out_count==3);
  assert(rtw_r12au_dma_prepare(&f.c)==EINVAL);assert(rtw_r12au_mac_init(&f.c)==EINVAL);assert(rtw_r12au_power_on(&f.c)==EINVAL);assert(!f.b.calls);
  for(bool one:{false,true}){auto image=firmware(one);rtw_fw_image fw{};assert(!rtw_r12au_fw_inspect(one?RTW_R12AU_CHIP_8821AU:RTW_R12AU_CHIP_8812AU,image.data(),image.size(),&fw));assert(rtw_r12au_fw_inspect(one?RTW_R12AU_CHIP_8812AU:RTW_R12AU_CHIP_8821AU,image.data(),image.size(),&fw)==EBADMSG);image[12]^=1;assert(rtw_r12au_fw_inspect(one?RTW_R12AU_CHIP_8821AU:RTW_R12AU_CHIP_8812AU,image.data(),image.size(),&fw)==EBADMSG);}
- Fixture warm;warm.seed(0);warm.b.regs[0x80]=0x80;auto count=warm.b.writes.size();assert(rtw_r12au_power_on(&warm.c)==EBUSY&&!warm.c.powered&&warm.b.writes.size()==count);
+ /* Linux rtw88xxau_hw_reset retires resident RAM firmware before the cold
+  * flow. This catches the permanent EBUSY dead end on an identified warm AU. */
+ for(bool one:{false,true}){Fixture warm(one);warm.seed(0);warm.b.regs[0x80]=0xc6;
+  assert(!rtw_r12au_power_on(&warm.c));assert(warm.c.powered&&!warm.c.firmware_running&&!warm.c.mac_initialized);
+  assert(warm.c.warm_reset_attempts==1&&warm.c.warm_reset_stage==5&&warm.c.warm_reset_mcu==0xc6&&!warm.c.warm_reset_error);
+  assert(!(warm.b.regs[0x80]&0x80));
+  /* Independently transcribed primary reset boundaries. A stale-MCU bypass
+   * that merely clears RAM_DL_SEL cannot satisfy the BB/RF/MAC ordering. */
+  const Event reset[]={{0x80,1,0},{0x8b4,4,0x40},{2,1,0},{0x1f,1,0},{0x100,2,0},{5,1,2},{5,1,1},{3,1,4},{3,1,0x94}};
+  size_t cursor=0;
+  for(const auto&want:reset){while(cursor<warm.b.writes.size()&&(warm.b.writes[cursor].address!=want.address||warm.b.writes[cursor].width!=want.width||warm.b.writes[cursor].value!=want.value))++cursor;assert(cursor<warm.b.writes.size());++cursor;}
+  assert(!rtw_r12au_dma_prepare(&warm.c));auto image=firmware(one);warm.b.expected_fw=image.size()-32;rtw_boot_report report{};
+  assert(!rtw_r12au_download_fw(&warm.c,image.data(),image.size(),&report)&&report.firmware_ready);
+  assert(!rtw_r12au_mac_init(&warm.c)&&warm.c.mac_initialized);
+ }
  Fixture single(true);single.b.put(0x68,4,1U<<18);single.identify();assert(single.c.board.phy.btcoex==1&&single.c.board.phy.rf_paths==1);assert(single.c.board.phy.cut==0);
  auto ff=rom(true);ff[0xc3]=255;rtw_r12au_board decoded{};assert(!rtw_r12au_decode_board(RTW_R12AU_CHIP_8821AU,single.c.board.sys_cfg,ff.data(),nullptr,1,&decoded));assert(decoded.bt_setting==255&&decoded.share_ant==1);
  Fixture two;two.b.otp[1019]=0x20;assert(!rtw_r12au_identify(&two.c));assert(two.c.board.phy.rf_paths==1&&two.c.board.phy.cut==1);
+}
+static void warm_reset_failures(){
+ for(bool one:{false,true}){
+  Fixture base(one);base.seed(0);base.b.regs[0x80]=0xc6;assert(!rtw_r12au_power_on(&base.c));unsigned total=base.b.calls;
+  for(bool ambiguous:{false,true})for(unsigned step=1;step<=total;++step){
+   Fixture f(one);f.seed(0);f.b.regs[0x80]=0xc6;
+   if(ambiguous)f.b.late_fail_at=step;else f.b.fail_at=step;
+   const int e=rtw_r12au_power_on(&f.c);
+   /* The late-error hook applies only to writes. Successful reads may reach
+    * the complete state, but every reported transfer error must close it. */
+   if(!e){assert(ambiguous&&f.c.powered&&f.c.warm_reset_stage==5);continue;}
+   assert(e==EIO&&f.c.io_error==EIO&&!f.c.powered&&!f.c.firmware_running&&!f.c.mac_initialized);
+   if(f.c.warm_reset_stage&&f.c.warm_reset_stage!=5)assert(f.c.warm_reset_error==EIO);
+  }
+  Fixture stuck(one);stuck.seed(0);stuck.b.regs[0x80]=0xc6;stuck.b.mac_off_stuck=true;
+  assert(rtw_r12au_power_on(&stuck.c)==ETIMEDOUT&&stuck.c.io_error==ETIMEDOUT&&!stuck.c.powered);
+  assert(stuck.c.warm_reset_stage==3&&stuck.c.warm_reset_error==ETIMEDOUT&&stuck.b.delayed==4999);
+  const auto attempts=stuck.c.warm_reset_attempts;assert(rtw_r12au_power_on(&stuck.c)==ETIMEDOUT&&stuck.c.warm_reset_attempts==attempts);
+  /* Shutdown/recovery must retain the original reset result for diagnostics. */
+  stuck.b.mac_off_stuck=false;assert(!rtw_r12au_power_off_checked(&stuck.c));
+  assert(stuck.c.io_error==ETIMEDOUT&&stuck.c.warm_reset_error==ETIMEDOUT&&stuck.c.warm_reset_stage==3);
+  std::printf("RTL%u resident MCU reset: %u early/ambiguous I/O positions and bounded MAC-off timeout\n",one?8821:8812,total);
+ }
 }
 static int phase(Fixture&f,unsigned p,const std::vector<uint8_t>&image){switch(p){case 0:return rtw_r12au_identify(&f.c);case 1:return rtw_r12au_power_on(&f.c);case 2:return rtw_r12au_dma_prepare(&f.c);case 3:{f.b.expected_fw=image.size()-32;rtw_boot_report r{};return rtw_r12au_download_fw(&f.c,image.data(),image.size(),&r);}default:return rtw_r12au_mac_init(&f.c);}}
 static void error_sweep(){
@@ -105,4 +142,5 @@ static void timeouts(){
   Fixture shutdown(one);shutdown.seed(3);shutdown.c.io_error=EIO;assert(rtw_r12au_power_off(&shutdown.c)==EIO&&!shutdown.c.firmware_running&&!shutdown.c.powered&&shutdown.b.calls>1&&!(shutdown.b.regs[0x100]&0xc0));
  }
 }
-int main(int argc,char**argv){assert(argc==1||argc==3);if(argc==3){actual_firmware(argv[1],false);actual_firmware(argv[2],true);}inputs();happy();firmware_boundaries();timeouts();error_sweep();ambiguous_writes_and_station();std::puts("Typed AU bootstrap/MAC: distinct OTP,8051,power,LLT,DMA,USB,station,H2C,rollback passed");}
+static void checked_cleanup(){for(bool one:{false,true}){Fixture clean(one);clean.seed(3);clean.c.io_error=ETIMEDOUT;assert(rtw_r12au_power_off_checked(&clean.c)==0&&clean.c.io_error==ETIMEDOUT&&!clean.c.powered);Fixture failed(one);failed.seed(3);failed.b.fail_at=failed.b.calls+1;assert(rtw_r12au_power_off_checked(&failed.c)==EIO);failed.b.fail_at=0;assert(rtw_r12au_power_off_checked(&failed.c)==EIO);}}
+int main(int argc,char**argv){warm_reset_failures();checked_cleanup();assert(argc==1||argc==3);if(argc==3){actual_firmware(argv[1],false);actual_firmware(argv[2],true);}inputs();happy();firmware_boundaries();timeouts();error_sweep();ambiguous_writes_and_station();std::puts("Typed AU bootstrap/MAC: distinct OTP,8051,power,LLT,DMA,USB,station,H2C,rollback passed");}

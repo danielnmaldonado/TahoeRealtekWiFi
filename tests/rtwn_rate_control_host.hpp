@@ -39,7 +39,7 @@
 struct ieee80211_rateset { uint8_t rs_nrates = 0, rs_rates[15]{}; };
 struct ieee80211_node {
     ieee80211_rateset ni_rates;
-    uint8_t ni_txrate = 0, ni_bssid[6]{2,0,0,0,0,1};
+    int ni_txrate = 0;uint8_t ni_bssid[6]{2,0,0,0,0,1};
     bool ni_port_valid = true;
     unsigned ni_rsn_supp_state = 0, ni_rsnprotos = 0, ni_rsncipher = 0;
     unsigned ni_flags = 0;
@@ -59,7 +59,7 @@ public:
     rtw_wifi_family family_ = RTW_WIFI_RTL8192EU;
     bool running_ = true, stopping_ = false, rateTransportFresh_ = false;
     bool joinRequested_ = false;
-    struct { ieee80211com sc_ic; rtw_92e_rate_config rate_config{}; uint8_t fw_station_connected=0; } core_;
+    struct { ieee80211com sc_ic; rtw_92e_rate_config rate_config{}; uint8_t fw_station_connected=0;unsigned nrxchains=1; } core_;
     // Other hardware backends are isolated scheduling/readiness boundaries.
     rtw_r12au_boot auCore_{};
     rtw_r12au_rate_config auRateConfig_{};
@@ -100,6 +100,7 @@ public:
         uint64_t repeatedSequences = 0, changes = 0, resets = 0;
         uint64_t htSampleCounter = 0;
         uint8_t bssid[6]{}, lastSequence = 0, finalRate = 0;
+        uint8_t hostHTRates[20]{}, hostHTCount=0, hostHTIndex=0;
         bool active = false, seenSequence = false, requestedSinceReset = false;
     } rateControl_{};
     std::map<std::string,uint64_t> properties;
@@ -122,6 +123,9 @@ public:
     void publishRateControlDiagnostics();
     bool usesFirmwareRate() const;
     bool usesLegacyFirmwareRate() const;
+    bool usesLegacyHighThroughput() const;
+    bool acceptsLegacyReceiveRate(const rtw_rx_packet &) const;
+    uint8_t legacyHostHTRate() const;
     bool uses8814FirmwareRate() const;
     void handle8814C2H(const uint8_t *,size_t);
     rtw_packet_error decodeUSBFrame(rtw_rx_iterator *,rtw_8192eu_rx_frame *,uint8_t *) const;

@@ -13,9 +13,9 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.14.8</string>
+	<string>0.14.14</string>
 	<key>CFBundleVersion</key>
-	<string>55</string>
+	<string>61</string>
 	<key>IOKitPersonalities</key>
 	<dict>
 		<key>RTL8812AU-0409-0408</key>
@@ -5449,6 +5449,12 @@
 			<integer>2</integer>
 			<key>IOProbeScore</key>
 			<integer>100</integer>
+			<key>bInterfaceClass</key>
+			<integer>255</integer>
+			<key>bInterfaceSubClass</key>
+			<integer>255</integer>
+			<key>bInterfaceProtocol</key>
+			<integer>255</integer>
 		</dict>
 		<key>RTL8821AU-7392-a811</key>
 		<dict>

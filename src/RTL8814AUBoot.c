@@ -152,15 +152,21 @@ int rtw_8814au_power_on(struct rtw_8814au *c)
     if(R32(c,REG_MCUFW_CTRL)&BIT_BOOT_FSPI_EN){U32(c,REG_MCUFW_CTRL,BIT_BOOT_FSPI_EN,0);U32(c,REG_GPIO_MUXCFG,BIT_FSPI_EN,0);}
     if(!c->io_error)c->powered=1;return c->io_error;
 }
-int rtw_8814au_stop(struct rtw_8814au *c)
+int rtw_8814au_stop_checked(struct rtw_8814au *c)
 {
     if(!c)return EINVAL;
     /* A stop is also a recovery operation, preserving any earlier error. */
     int original=c->io_error;c->io_error=0;
     int e=power_switch(c,0);if(e==EALREADY)e=0;
-    if(original)c->io_error=original;else if(e)c->io_error=e;
+    int cleanup=c->io_error?c->io_error:e;
+    c->io_error=original?original:cleanup;
     c->powered=c->fw_running=c->mac_initialized=c->phy_initialized=0;
-    return c->io_error;
+    return cleanup;
+}
+int rtw_8814au_stop(struct rtw_8814au *c)
+{
+    int error=rtw_8814au_stop_checked(c);
+    return c?c->io_error:error;
 }
 
 int rtw_8814au_inspect_fw(const uint8_t *data,size_t size,struct rtw_8814au_fw_info *out)

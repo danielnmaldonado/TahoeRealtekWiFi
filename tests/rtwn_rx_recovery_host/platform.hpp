@@ -19,7 +19,13 @@ using IOReturn = int;
 using IOInterruptState = int;
 struct IOSimpleLock {};
 inline int IOSimpleLockLockDisableInterrupt(IOSimpleLock*) { return 0; }
-inline void IOSimpleLockUnlockEnableInterrupt(IOSimpleLock*,int) {}
+inline std::function<void()> hostAfterUnlock;
+inline bool hostUnlockRunning=false;
+inline void IOSimpleLockUnlockEnableInterrupt(IOSimpleLock*,int) {
+    if(hostAfterUnlock&&!hostUnlockRunning){
+        hostUnlockRunning=true;auto action=hostAfterUnlock;action();hostUnlockRunning=false;
+    }
+}
 enum { kIOReturnSuccess=0, kIOReturnNotReady=-1, kIOReturnNotResponding=-2, kIOReturnAborted=-3,
        kIOReturnUnderrun=-4, kIOReturnIOError=-5, kIOReturnNoDevice=-6, kIOReturnTimeout=-7,
        IFF_RUNNING=1, IEEE80211_S_SCAN=1, IEEE80211_S_RUN=2, LINK_STATE_DOWN=0 };
@@ -55,14 +61,14 @@ struct IOUSBHostPipe {
     std::map<unsigned,IOReturn> ioResults;
     unsigned failIOCall=0;
     bool deferAbort=false,withRequest=false,halted=false;
-    std::function<void()> onClear,onIO;
+    std::function<void()> onClear,onIO,onAccepted,onAbort;
     IOReturn io(IOBufferMemoryDescriptor*memory,uint32_t length,IOUSBHostCompletion*callback,unsigned){
         ++ioCalls;if(onIO)onIO();
         if(halted)return kIOReturnNotResponding;
         IOReturn result=ioResults.count(ioCalls)?ioResults[ioCalls]:ioError;
         if(!result&&failIOCall&&ioCalls==failIOCall)result=kIOReturnIOError;
         if(result){if(result!=kIOReturnTimeout)halted=true;return result;}
-        requests.push_back({*callback,memory,length,false});return 0;
+        requests.push_back({*callback,memory,length,false});if(onAccepted)onAccepted();return 0;
     }
     void finish(unsigned index,IOReturn result,uint32_t length){
         auto&r=requests.at(index);if(r.done)std::abort();r.done=true;
@@ -70,7 +76,7 @@ struct IOUSBHostPipe {
         r.callback.action(r.callback.owner,r.callback.parameter,result,length);
     }
     void duplicate(unsigned index,IOReturn result,uint32_t length){auto&r=requests.at(index);r.callback.action(r.callback.owner,r.callback.parameter,result,length);}
-    IOReturn abort(unsigned){++abortCalls;if(!deferAbort){for(unsigned i=0,n=requests.size();i<n;++i)if(!requests[i].done)finish(i,kIOReturnAborted,0);}return 0;}
+    IOReturn abort(unsigned){++abortCalls;if(onAbort)onAbort();if(!deferAbort){for(unsigned i=0,n=requests.size();i<n;++i)if(!requests[i].done)finish(i,kIOReturnAborted,0);}return 0;}
     IOReturn clearStall(bool request){
         ++clearCalls;withRequest=request;if(onClear)onClear();abort(1);
         IOReturn result=clearCalls<=clearResults.size()?clearResults[clearCalls-1]:clearError;
@@ -169,6 +175,11 @@ public:
     static void usbCompletion(void*,void*,IOReturn,uint32_t);
     static void completionAction(OSObject*,IOInterruptEventSource*,int);
     void drainCompletions(bool);
+    // Actual deferred AU power-off is covered by rtl8814au_recovery_tests.
+    void finish8814StopAfterDrain(){}
+    void finishFamilyStopAfterDrain(){}
+    enum{AUThermal=19};
+    void record8814Failure(uint32_t,int){}
     void abortTransfers();
     bool beginRXRecovery(IOReturn);
     void advanceRXRecovery();

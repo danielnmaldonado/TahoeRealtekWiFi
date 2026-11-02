@@ -42,7 +42,8 @@ struct Bus {
  rtw88_fw_bus ops(){return {this,read,write,nullptr,delay,nullptr,nullptr};}
 };
 static void ready(rtw88_boot_context&c,Bus&b){auto ops=b.ops();assert(!rtw88_boot_init(&c,profile(b.family),&ops));assert(!rtw88_boot_identify(&c));assert(!rtw88_boot_power_on(&c));c.firmware.firmware_running=1;}
-int main(){
+static void checked_cleanup(){for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU}){Bus bus(family);rtw88_boot_context c{};ready(c,bus);c.firmware.last_error=ETIMEDOUT;assert(rtw88_boot_stop_checked(&c)==0&&c.firmware.last_error==ETIMEDOUT&&!c.firmware.powered);Bus bad(family);rtw88_boot_context failed{};ready(failed,bad);bad.fail_write=int(bad.writes)+1;assert(rtw88_boot_stop_checked(&failed)==EIO);bad.fail_write=0;assert(rtw88_boot_stop_checked(&failed)==EIO);}}
+int main(){checked_cleanup();
  unsigned injected=0;
  for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU}){
   rtw88_efuse_geometry g{};assert(!rtw88_boot_geometry(family,&g));assert(g.physical_bytes==(family==RTW_WIFI_RTL8822BU?1024:512));assert(g.logical_bytes==(family==RTW_WIFI_RTL8821CU?512:768));assert(g.protected_bytes==(family==RTW_WIFI_RTL8822CU?124:96));

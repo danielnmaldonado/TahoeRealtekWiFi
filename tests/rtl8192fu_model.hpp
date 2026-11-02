@@ -12,17 +12,17 @@
 #include "../kext/RTL8192FUFirmware.inc"
 struct FUModel {
  std::array<uint8_t,65536>reg{};std::array<uint8_t,512>otp{};std::array<std::array<uint32_t,256>,2>rf{};
- std::vector<uint8_t>firmware;unsigned calls=0,fail=0,writes=0,otp_reads=0,firmware_max_chunk=0;bool pendingB=false;unsigned addressB=0;bool ambiguous=false,firmware_ready=true,checksum_ready=true,power_ready=true,llt_ready=true,iqk_ready=true,iqk_fail=false,zero_coefficients=false,lck_ready=true;
+ std::vector<uint8_t>firmware;unsigned calls=0,fail=0,writes=0,otp_reads=0,firmware_max_chunk=0;bool pendingB=false;unsigned addressB=0;bool ambiguous=false,firmware_ready=true,checksum_ready=true,power_ready=true,fifo_idle=true,llt_ready=true,iqk_ready=true,iqk_fail=false,zero_coefficients=false,lck_ready=true;
  uint32_t read(unsigned a,unsigned n=4)const{uint32_t v=0;for(unsigned i=0;i<n;++i)v|=uint32_t(reg[a+i])<<(8*i);return v;}
  void set(unsigned a,uint32_t v,unsigned n=4){for(unsigned i=0;i<n;++i)reg[a+i]=uint8_t(v>>(8*i));}
- FUModel(){otp.fill(255);set(4,1U<<17);set(0xF0,1U<<12);set(0x284,2U<<17);set(0x5f8,~uint32_t(0));set(0xe90,1);set(0xe98,1);set(0xeb0,1);set(0xeb8,1);}
+ FUModel(){otp.fill(255);set(4,1U<<17);set(0xF0,1U<<12);set(0x284,2U<<17);set(0x5f8,0);set(0xe90,1);set(0xe98,1);set(0xeb0,1);set(0xeb8,1);}
  void packed(const std::array<uint8_t,512>&rom){std::vector<uint8_t> bytes;for(unsigned section=0;section<64;++section){unsigned mask=15;for(unsigned word=0;word<4;++word)if(rom[section*8+word*2]!=255||rom[section*8+word*2+1]!=255)mask&=~(1U<<word);if(mask==15)continue;if(section<16)bytes.push_back(uint8_t(section*16+mask));else{bytes.push_back(uint8_t(((section&7)<<5)|15));bytes.push_back(uint8_t(((section&0x78)<<1)|mask));}for(unsigned word=0;word<4;++word)if(!(mask&(1U<<word))){bytes.push_back(rom[section*8+word*2]);bytes.push_back(rom[section*8+word*2+1]);}}assert(bytes.size()<490);otp.fill(255);memcpy(otp.data(),bytes.data(),bytes.size());}
  static int wait(void*,uint32_t){return 1;}
  static rtw_usb_error in(void*p,const rtw_usb_setup*s,uint8_t*b,uint16_t*n){
   auto&m=*static_cast<FUModel*>(p);*n=0;assert(s->bm_request_type==0xc0&&s->b_request==5&&!s->w_index);if(++m.calls==m.fail)return RTW_USB_IO_ERROR;
   if(s->w_value==4&&s->w_length==4&&m.power_ready)m.set(4,(m.read(4)|(1U<<17))&~0x300U);
   if(s->w_value==0x224&&m.llt_ready)m.set(0x224,m.read(0x224)&~(1U<<16));
-  if(s->w_value==0x284)m.set(0x284,m.read(0x284)|(1U<<17));
+  if(s->w_value==0x284)m.set(0x284,m.fifo_idle?m.read(0x284)|(1U<<17):m.read(0x284)&~(1U<<17));
   if(s->w_value==0xe98||s->w_value==0xea8||s->w_value==0xeb8||s->w_value==0xec8)m.set(s->w_value,m.iqk_ready?1:0);
   if(s->w_value==0xe94||s->w_value==0xea4||s->w_value==0xeb4||s->w_value==0xec4)m.set(s->w_value,m.zero_coefficients?0:0x100U<<16);
   if(s->w_value==0xe9c||s->w_value==0xeac||s->w_value==0xebc||s->w_value==0xecc)m.set(s->w_value,m.iqk_fail?0x38000000:0);

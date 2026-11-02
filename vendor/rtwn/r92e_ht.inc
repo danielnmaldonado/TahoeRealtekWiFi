@@ -66,7 +66,7 @@ rtwn_r92e_ampdu_params(struct rtwn_softc *sc, uint8_t factor, uint8_t density)
 	uint8_t max_agg, value;
 	unsigned i;
 
-	if (!sc || !(sc->chip & RTWN_CHIP_92E) || factor > 3 || density > 7)
+	if (!sc || !(sc->chip & (RTWN_CHIP_92E | RTWN_CHIP_92C | RTWN_CHIP_88C | RTWN_CHIP_88E)) || factor > 3 || density > 7)
 		return EINVAL;
 	max_agg = (uint8_t)(1U << (factor + 2));
 	if (max_agg > 0x0f)

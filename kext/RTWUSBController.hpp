@@ -22,6 +22,7 @@
 #include "rtw/SignalSample.h"
 #include "rtw/DFSStation.h"
 #include "rtw/ScanDiagnostics.hpp"
+#include "rtw/StationRecovery.hpp"
 #include "rtw/USBWiFiFirmware.h"
 #include "rtw/RTL8192CDataPath.h"
 #include "rtw/RTL8192EU.h"
@@ -67,6 +68,7 @@ public:
     IOReturn newUserClient(task_t, void *, UInt32, OSDictionary *, IOUserClient **) override;
     IOReturn controlRequest(uint32_t, const void *, size_t, void *, size_t *);
 protected:
+    IOReturn registerWithPolicyMaker(IOService *) override;
     bool configureInterface(IONetworkInterface *) override;
     IOOutputQueue *createOutputQueue() override;
 private:
@@ -105,6 +107,20 @@ private:
         enum Stage : uint32_t { Idle=0, Clear=1, RetryWait=2, Drain=3, Refill=4, Complete=5, Failed=6, Cancelled=7 };
         uint64_t errors = 0, attempts = 0, completed = 0, failures = 0, exhausted = 0;
         uint64_t clearAttempts = 0, clearFailures = 0, refillFailures = 0, transportRetries = 0, transportExhausted = 0;
+        /* Initial station reads roll back synchronously; a later explicit start
+         * owns the retry. Stop/ledger resets must not replenish this budget. */
+        uint64_t initialErrors = 0, initialClearAttempts = 0, initialFailures = 0, initialExhausted = 0;
+        uint32_t initialConsecutive = 0;
+        IOReturn initialOriginalError = kIOReturnSuccess, initialClearResult = kIOReturnSuccess;
+        /* Old startup completions remain attributable after EBUSY returns.
+         * Each recorded status must be validated before ownership is reused. */
+        uint32_t initialDrainMask = 0, initialDrainGeneration[RXSlots] = {0};
+        IOReturn initialDrainError = kIOReturnSuccess;
+        /* Ordinary shutdown must retain callback provenance too. These slots
+         * are owned until their recorded metadata is validated and reclaimed. */
+        uint32_t stopDrainMask = 0, stopDrainGeneration[RTW_TRANSFER_SLOTS] = {0};
+        IOReturn stopDrainError = kIOReturnSuccess;
+        uint64_t stopDrainFailures = 0;
         uint64_t startedMS = 0, nextAttemptMS = 0;
         uint32_t consecutive = 0, clearAttempt = 0, refillSlot = RXSlots;
         IOReturn originalError = kIOReturnSuccess, lastError = kIOReturnSuccess;
@@ -131,6 +147,8 @@ private:
     rtw_8814au_rate_config acRateConfig_{};
     bool acMediaConnected_ = false, acRateReady_ = false;
     uint8_t acRSSI_ = 0, acChannel_ = 0;
+#include "RTW8814RecoveryMembers.inc"
+#include "RTWFamilyRecoveryMembers.inc"
     device device_{};
     IOEthernetInterface *netif_ = nullptr;
     IONetworkStats *stats_ = nullptr;
@@ -145,6 +163,7 @@ private:
         uint64_t failures = 0, retried = 0, invalid = 0, ignored = 0;
         uint64_t repeatedSequences = 0, changes = 0, resets = 0, htSampleCounter = 0;
         uint8_t bssid[6]{}, lastSequence = 0, finalRate = 0;
+        uint8_t hostHTRates[20]{}, hostHTCount = 0, hostHTIndex = 0;
         bool active = false, seenSequence = false, requestedSinceReset = false;
     } rateControl_{};
     bool rateTransportFresh_ = false;
@@ -155,6 +174,9 @@ private:
     static void ampduTXStop(ieee80211com *, ieee80211_node *, uint8_t);
     bool usesFirmwareRate() const;
     bool usesLegacyFirmwareRate() const;
+    bool usesLegacyHighThroughput() const;
+    bool acceptsLegacyReceiveRate(const rtw_rx_packet &) const;
+    uint8_t legacyHostHTRate() const;
     rtw_packet_error decodeUSBFrame(rtw_rx_iterator *, rtw_8192eu_rx_frame *, uint8_t *) const;
     struct RXDiagnostics {
         uint64_t aggregates = 0, bytes = 0, aggregateErrors = 0, c2h = 0;
@@ -221,7 +243,11 @@ private:
     bool usbOpened_ = false, present_ = false, runtimeLease_ = false;
     bool attached_ = false, running_ = false, enabled_ = false;
     bool radioReady_ = false, joinRequested_ = false, sleeping_ = false;
+    bool browseScanComplete_ = false;
     bool stopping_ = false, powerManaged_ = false, retainedForPending_ = false;
+    bool powerRegistrationAttempted_ = false;
+    IOReturn powerRegistrationResult_ = kIOReturnNotReady;
+    void stopPowerManagement();
     bool macReady_ = false, closing_ = false;
     thread_call_t cleanupCall_ = nullptr;
     bool teardownReady_ = false, cleanupQueued_ = false;
@@ -253,6 +279,7 @@ private:
     static void nextCalibration(void *), cancelCalibration(void *), waitAsync(void *);
     static int transmit(void *, mbuf_t, ieee80211_node *);
     static int stateTransition(ieee80211com *, ieee80211_state, int);
+    static int scanComplete(ieee80211com *);
     void observeScanTransition(ieee80211_state,ieee80211_state,unsigned,int);
     static int acRead(void *, uint16_t, unsigned, uint32_t *);
     static int acWrite(void *, uint16_t, unsigned, uint32_t);

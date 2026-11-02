@@ -82,6 +82,7 @@ struct ieee80211com {
     struct {unsigned ac_acm=0;} ic_edca_ac[4];
 };
 struct rtwn_softc {
+    unsigned nrxchains=2;
     ieee80211com sc_ic;
     struct {void *cookie=nullptr;} sc_ops;
     rtw_92e_rate_config rate_config{};
@@ -172,6 +173,8 @@ public:
     bool uses8812HighThroughput()const{return false;}
     static int ampdu8812TXStart(ieee80211com*,ieee80211_node*,uint8_t){return ENOTSUP;}
     bool uses88FirmwareRate()const{return is88Family()&&r88FirmwareReady_;}
+    bool uses88HighThroughput()const{return uses88FirmwareRate()&&r88Rates_.rates.ht;}
+    static int ampdu88TXStart(ieee80211com*,ieee80211_node*,uint8_t){return ENOTSUP;}
     rtw_8814au acCore_{};
     rtw_8814au_rate_config acRateConfig_{};
     bool acRateReady_=false,acMediaConnected_=false;
@@ -181,7 +184,7 @@ public:
     struct {host_memory *memory=nullptr;} transfers_[RTW_TRANSFER_SLOTS];
     IOUSBHostPipe pipeStorage_[3]{{0},{1},{2}},*txPipes_[3]{};
     uint16_t txMPS_[3]{512,512,512};
-    struct {bool active=true,requestedSinceReset=false;uint64_t requests=0,pendingReports=0,htSampleCounter=0,reports=0,invalid=0,ignored=0;uint8_t finalRate=0,bssid[6]{2,0,0,0,0,1};} rateControl_;
+    struct {bool active=true,requestedSinceReset=false;uint64_t requests=0,pendingReports=0,htSampleCounter=0,reports=0,invalid=0,ignored=0;uint8_t finalRate=0,bssid[6]{2,0,0,0,0,1};uint8_t hostHTCount=0,hostHTIndex=0,hostHTRates[20]{};} rateControl_;
     uint64_t txHTPackets_=0,txAMPDUPackets_=0,rxBARPackets_=0;
     unsigned submitted=0,last_slot=0,last_pipe=0;
     int submit_error=0;
@@ -204,6 +207,9 @@ public:
     int sendFrame(mbuf_t,ieee80211_node *);
     bool usesFirmwareRate() const;
     bool usesLegacyFirmwareRate() const;
+    bool usesLegacyHighThroughput() const;
+    bool acceptsLegacyReceiveRate(const rtw_rx_packet &) const;
+    uint8_t legacyHostHTRate() const;
     bool uses8814FirmwareRate() const;
     void handle8814C2H(const uint8_t *,size_t);
     static int ampduRXStart(ieee80211com *,ieee80211_node *,uint8_t);

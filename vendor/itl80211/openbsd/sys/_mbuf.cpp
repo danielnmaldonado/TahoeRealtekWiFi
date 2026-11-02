@@ -22,6 +22,7 @@
 #include <sys/_mbuf.h>
 extern "C" {
 #include <net/bpf.h>
+#include <net/kpi_interface.h>
 }
 #include <IOKit/IOCommandGate.h>
 
@@ -31,6 +32,27 @@ struct network_header {
     char pad[0x48];
 };
 
+static rtw_if_input_native_snapshot _if_input_native_snapshot(ifnet_t iface)
+{
+    rtw_if_input_native_snapshot snapshot{};
+    snapshot.statsError = ENXIO;
+    if (iface == NULL) return snapshot;
+    snapshot.index = ifnet_index(iface);
+    snapshot.supportedCapabilities = ifnet_capabilities_supported(iface);
+    snapshot.enabledCapabilities = ifnet_capabilities_enabled(iface);
+    ifnet_stats_param stats{};
+    snapshot.statsError = ifnet_stat(iface, &stats);
+    if (snapshot.statsError == 0) {
+        snapshot.packetsIn = stats.packets_in;
+        snapshot.bytesIn = stats.bytes_in;
+        snapshot.errorsIn = stats.errors_in;
+        snapshot.packetsOut = stats.packets_out;
+        snapshot.bytesOut = stats.bytes_out;
+        snapshot.errorsOut = stats.errors_out;
+    }
+    return snapshot;
+}
+
 static IOReturn _if_input(OSObject *target, void *arg0, void *arg1, void *arg2, void *arg3)
 {
     mbuf_t m;
@@ -39,6 +61,9 @@ static IOReturn _if_input(OSObject *target, void *arg0, void *arg1, void *arg2, 
     struct mbuf_list *ml = (struct mbuf_list *)arg1;
     uint64_t offered = 0;
     uint64_t immediate = 0;
+    uint64_t offeredBytes = 0;
+    bool sampleNative = false;
+    ifnet_t sampleIfnet = NULL;
     bool noIfnet = false;
     ++ifq->if_input_diag.calls;
     
@@ -56,13 +81,22 @@ static IOReturn _if_input(OSObject *target, void *arg0, void *arg1, void *arg2, 
         }
         //        XYLog("%s %d 啊啊啊啊 ifq->iface->inputPacket(m) hdr_len=%d len=%d\n", __FUNCTION__, __LINE__, mbuf_pkthdr_len(m), mbuf_len(m));
         if (isEmpty) {
-            noIfnet = ifq->iface->getIfnet() == NULL;
+            const auto nativeIfnet = ifq->iface->getIfnet();
+            noIfnet = nativeIfnet == NULL;
             if (noIfnet) ++ifq->if_input_diag.noIfnetCalls;
+            sampleNative = ifq->if_input_diag.flushCalls %
+                RTW_IF_INPUT_NATIVE_SAMPLE_INTERVAL == 0;
+            if (sampleNative) {
+                sampleIfnet = nativeIfnet;
+                ifq->if_input_diag.nativeBefore = _if_input_native_snapshot(nativeIfnet);
+            }
         }
         isEmpty = false;
         ++offered;
         ++ifq->if_input_diag.offeredPackets;
-        ifq->if_input_diag.offeredBytes += mbuf_pkthdr_len(m);
+        const auto packetBytes = mbuf_pkthdr_len(m);
+        offeredBytes += packetBytes;
+        ifq->if_input_diag.offeredBytes += packetBytes;
         immediate += ifq->iface->inputPacket(m, 0, IONetworkInterface::kInputOptionQueuePacket);
         if (ifq->netStat != NULL) {
             ifq->netStat->inputPackets++;
@@ -71,6 +105,18 @@ static IOReturn _if_input(OSObject *target, void *arg0, void *arg1, void *arg2, 
     if (!isEmpty) {
         ++ifq->if_input_diag.flushCalls;
         const uint64_t flushed = ifq->iface->flushInputQueue();
+        if (sampleNative) {
+            const auto nativeIfnet = ifq->iface->getIfnet();
+            auto& diag = ifq->if_input_diag;
+            diag.nativeAfter = _if_input_native_snapshot(nativeIfnet);
+            ++diag.nativeSampleCount;
+            diag.nativeSampleBatch = diag.flushCalls;
+            diag.nativeSampleOfferedPackets = offered;
+            diag.nativeSampleOfferedBytes = offeredBytes;
+            diag.nativeSampleImmediateReturns = immediate;
+            diag.nativeSampleFlushPackets = flushed;
+            diag.nativeSampleIfnetStable = sampleIfnet != NULL && sampleIfnet == nativeIfnet;
+        }
         ifq->if_input_diag.immediateReturns += immediate;
         ifq->if_input_diag.flushPackets += flushed;
         /* A queued inputPacket normally returns zero; a detached interface

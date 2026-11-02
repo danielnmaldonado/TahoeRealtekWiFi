@@ -50,13 +50,21 @@ pre=r'''
 #define htole32(x) (x)
 #endif
 #include "vendor/rtwn/r92creg.h"
+#include "rtw/RTL8192CDataPath.h"
+#define IEEE80211_HTCAP_SGI20 0x20U
+#define IEEE80211_NODE_HT 0x400U
+#define IEEE80211_NODE_HT_SGI20 0x4000U
+#define IEEE80211_HTCAP_SMPS_MASK 0x0cU
+#define IEEE80211_HTCAP_SMPS_SHIFT 2U
+#define IEEE80211_HTCAP_SMPS_DIS 3U
 struct ieee80211_rateset { uint8_t rs_nrates=0,rs_rates[32]{}; };
-struct ieee80211_node { ieee80211_rateset ni_rates;int ni_txrate=99; };
-struct ieee80211com { ieee80211_node *ic_bss=nullptr;int ic_curmode=IEEE80211_MODE_11G; };
+struct ieee80211_node { ieee80211_rateset ni_rates;int ni_txrate=99;uint32_t ni_flags=0;uint16_t ni_htcaps=0;uint8_t ni_rxmcs[2]{}; };
+struct ieee80211com { ieee80211_node *ic_bss=nullptr;int ic_curmode=IEEE80211_MODE_11G;uint16_t ic_htcaps=0; };
 struct device { const char *dv_xname="legacy-ra"; };
 struct Write { unsigned width;uint16_t address;uint32_t value; };
 struct rtwn_softc {
  uint32_t chip=RTWN_CHIP_USB,sc_flags=0;int fwcur=0,error=0;
+ unsigned ntxchains=1;rtw_92e_rate_config rate_config{};
  uint32_t sys_cfg=0,hpon_fsm=0;
  unsigned fail_write=0;std::vector<Write> writes;ieee80211com sc_ic;
  device dev;device*sc_pdev=&dev;
@@ -103,5 +111,5 @@ int main(){
 code=pre+'\nint\n'+body('rtwn_read_chipid')+'\nint\n'+body('rtwn_fw_cmd')+'\nint\n'+body('rtwn_r92c_ra_init')+'\nint\n'+body('rtwn_r88e_ra_init')+'\nint\n'+body('rtwn_ra_init')+main
 with tempfile.TemporaryDirectory(prefix='rtwn-legacy-ra-') as temp:
     path=Path(temp);(path/'test.cpp').write_text(code)
-    subprocess.run(_host_cxx + ['-std=c++17','-g','-O1',*_host_sanitizers,'-fno-omit-frame-pointer','-I'+str(project),str(path/'test.cpp'),'-o',str(path/'test')],check=True)
+    subprocess.run(_host_cxx + ['-std=c++17','-g','-O1',*_host_sanitizers,'-fno-omit-frame-pointer','-I'+str(project),'-I'+str(project/'include'),str(path/'test.cpp'),'-x','c++',str(project/'src/RTL8192CDataPath.c'),str(project/'src/USBPackets.c'),'-o',str(path/'test')],check=True)
     subprocess.run([str(path/'test')],check=True)

@@ -39,6 +39,38 @@ static void legacy_profile(fixture&f,rtw_wifi_family family) {
     if(family==RTW_WIFI_RTL8814AU)f.c.acCore_.phy_initialized=1;
     f.c.core_.fw_station_connected=0; // 92E MEDIA_STATUS state is irrelevant on gen1.
 }
+static void gen1_ht20_tx() {
+    for(auto family:{RTW_WIFI_RTL8192CU,RTW_WIFI_RTL8188EU})for(unsigned tid=0;tid<8;++tid) {
+        fixture f;legacy_profile(f,family);f.n.ni_flags=IEEE80211_NODE_HT;
+        const uint8_t mcs[2]={0xff,0xff};CHECK(rtw_92c_build_rate_config(0xfff,mcs,family==RTW_WIFI_RTL8188EU?1:2,1,1,1,&f.c.core_.rate_config));
+        f.c.rateControl_.hostHTCount=1;f.c.rateControl_.hostHTRates[0]=19;
+        auto&ba=f.n.ni_tx_ba[tid];ba.ba_state=IEEE80211_BA_AGREED;ba.ba_winsize=16;
+        f.n.ni_ampdu_param=3U|(7U<<2);
+        CHECK(f.c.sendFrame(packet(tid,true,false,true),&f.n)==0);
+        const auto&b=f.c.last_transfer;
+        CHECK((word(b,5)&0x3fU)==(family==RTW_WIFI_RTL8188EU?19U:27U));
+        CHECK(((word(b,1)>>8)&31U)==tid);CHECK(word(b,4)&0x40U);CHECK(word(b,5)&0x40U);
+        CHECK(bool(word(b,4)&0x100U)==(family==RTW_WIFI_RTL8188EU));
+        CHECK(family==RTW_WIFI_RTL8188EU?(word(b,2)&0x1000U):(word(b,1)&0x20U));
+        CHECK(((word(b,2)>>20)&7U)==7U);CHECK(!(word(b,4)&0x02000000U));
+        CHECK(f.c.txHTPackets_==1&&f.c.txAMPDUPackets_==1&&effects.encryptions==1);
+        f.n.ni_rx_ba[tid].ba_buf=&f;f.n.ni_rx_ba[tid].ba_winsize=16;
+        CHECK(RTWUSBController::ampduRXStart(&f.c.core_.sc_ic,&f.n,tid)==0);
+        CHECK(RTWUSBController::ampduTXStart(&f.c.core_.sc_ic,&f.n,tid)==0);
+        CHECK(f.c.core_.ampdu_calls==1);
+        for(unsigned control=0;control<6;++control) {
+            auto*m=packet(tid,true,control==0,true,control==1);
+            if(control==2)m->bytes[24]|=0x20; // no-ACK policy.
+            if(control==3)m->bytes[1]|=IEEE80211_FC1_MORE_FRAG;
+            if(control==4)m->bytes[22]|=1;
+            if(control==5)f.c.core_.sc_ic.ic_tid_noack=1U<<tid;
+            CHECK(f.c.sendFrame(m,&f.n)==0);
+            const auto&special=f.c.last_transfer;
+            CHECK(!(word(special,1)&0x20U)&&!(word(special,2)&0x1000U));
+            if(control<=1)CHECK((word(special,5)&0x3fU)==0&&!(word(special,5)&0x40U)&&!(word(special,2)&0x80000U));
+        }
+    }
+}
 static void gen1_station_tx_paths() {
     for(auto family:{RTW_WIFI_RTL8192CU,RTW_WIFI_RTL8188EU}) {
         auto f=std::make_unique<fixture>();legacy_profile(*f,family);
@@ -383,7 +415,7 @@ int main(int argc,char**argv){
 
     if(argc>1&&!std::strcmp(argv[1],"au-ba")){ac8814_ampdu_ba();std::printf("AU native BA: %u checks passed\n",checks);return 0;}
     if(argc>1&&!std::strcmp(argv[1],"au-ampdu")){ac8814_ampdu_tx();std::printf("AU TX AMPDU: %u checks passed\n",checks);return 0;}
-    ac8814_ampdu_ba();ac8814_ampdu_tx();
+    gen1_ht20_tx();ac8814_ampdu_ba();ac8814_ampdu_tx();
  {fixture f;f.c.family_=RTW_WIFI_RTL8723BU;f.n.ni_port_valid=true;f.c.r23FirmwareReady_=true;f.c.r23Rates_.mask=0xff010;auto&ic=f.c.core_.sc_ic;auto&ba=f.n.ni_rx_ba[3];ba.ba_buf=&f;ba.ba_winsize=32;CHECK(RTWUSBController::ampduRXStart(&ic,&f.n,3)==0);CHECK(RTWUSBController::ampduTXStart(&ic,&f.n,3)==EINVAL&&f.c.core_.ampdu_calls==0);CHECK(f.c.sendFrame(packet(),&f.n)==ENOTSUP&&f.c.r23TXCalls==1&&f.c.submitted==0);}
 
  {fixture f;f.c.family_=RTW_WIFI_RTL8710BU;f.n.ni_port_valid=true;f.c.buFirmwareReady_=f.c.buHT_=true;auto&ic=f.c.core_.sc_ic;auto&ba=f.n.ni_rx_ba[3];ba.ba_buf=&f;ba.ba_winsize=32;CHECK(RTWUSBController::ampduRXStart(&ic,&f.n,3)==0);f.c.buHT_=false;CHECK(RTWUSBController::ampduRXStart(&ic,&f.n,3)==EINVAL);f.c.buHT_=true;CHECK(RTWUSBController::ampduTXStart(&ic,&f.n,3)==ENOTSUP&&f.c.buBACalls==1&&f.c.core_.ampdu_calls==0);CHECK(f.c.sendFrame(packet(),&f.n)==ENOTSUP&&f.c.buTXCalls==1&&f.c.submitted==0);}

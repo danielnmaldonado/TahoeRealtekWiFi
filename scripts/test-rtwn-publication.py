@@ -20,16 +20,20 @@ def main():
     host = (project / "tests/rtwn_rate_control_host.hpp").read_text()
     ioctl = (project / "vendor/itl80211/openbsd/net80211/ieee80211_ioctl.h").read_text()
     stats = block(ioctl, "struct ieee80211_stats {").replace("u_int32_t", "uint32_t") + ";\n"
-    host = host.replace("struct ieee80211com {", '#include "vendor/itl80211/openbsd/sys/_input_diagnostics.h"\n' + stats + "struct ieee80211com { struct { rtw_if_input_diagnostics if_input_diag{}; } ic_if;")
+    host = host.replace("struct { ieee80211com sc_ic;", "struct { int core_error=0; ieee80211com sc_ic;")
+    host = host.replace("struct ieee80211com {", '#include "vendor/itl80211/openbsd/sys/_input_diagnostics.h"\n' + stats + "struct ieee80211com { struct { rtw_if_input_diagnostics if_input_diag{}; void *iface=nullptr; } ic_if;")
     host = host.replace("struct { uint32_t is_rx_eapol_key = 0, is_rx_eapol_replay = 0, is_rx_eapol_badmic = 0; } ic_stats;", "ieee80211_stats ic_stats{};")
     # Minimal platform boundary only; the native Controller build checks the
     # actual KPI types. Keep portable host tests independent of the Mac SDK.
     native_host = '''
-struct ifnet_stats_param { uint64_t packets_in=0,bytes_in=0,errors_in=0; };
-struct publication_host_ifnet { ifnet_stats_param stats{}; int error=0; unsigned reads=0,index=7; };
+struct ifnet_stats_param { uint64_t packets_in=0,bytes_in=0,errors_in=0,packets_out=0,bytes_out=0,errors_out=0; };
+struct publication_host_ifnet { ifnet_stats_param stats{}; int error=0; unsigned reads=0,index=7,supported=0x400,enabled=0; };
 using ifnet_t=publication_host_ifnet*;
 inline int ifnet_stat(ifnet_t iface, ifnet_stats_param *out) { ++iface->reads; *out=iface->stats; return iface->error; }
 inline unsigned ifnet_index(ifnet_t iface) { return iface->index; }
+inline unsigned ifnet_capabilities_supported(ifnet_t iface) { return iface->supported; }
+inline unsigned ifnet_capabilities_enabled(ifnet_t iface) { return iface->enabled; }
+constexpr unsigned IFCAP_SKYWALK=0x400;
 struct publication_host_interface { ifnet_t iface=nullptr; ifnet_t getIfnet() const { return iface; } };
 '''
     host = host.replace("class RTWUSBController {", native_host + "class RTWUSBController {")
@@ -47,13 +51,15 @@ struct publication_host_interface { ifnet_t iface=nullptr; ifnet_t getIfnet() co
     struct { uint64_t inputPackets=0,inputErrors=0; } statsStorage_, *stats_=&statsStorage_;
     uint64_t txQueueDrops_=0,txUSBTransferErrors_=0,txLinkDrops_=0,rxPackets_=0;
     uint64_t diagnosticPublicationGeneration_=0,diagnosticPublicationMonotonicMS_=0;
-    bool attached_=true,closing_=false;
+    bool attached_=true,closing_=false,enabled_=false,present_=true,radioReady_=false,sleeping_=false;
     publication_host_interface *netif_=nullptr;
     static uint64_t nowMS() { return publicationHostNow; }
     void publishDiagnostics();
     void publishCalibrationDiagnostics() {}
     void publishScanDiagnostics() {}
     void publishRXRecoveryDiagnostics() {}
+    void publish8814RecoveryDiagnostics() {}
+    void publishFamilyRecoveryDiagnostics() {}
     void publishWpaRecoveryDiagnostics() {}
     void publishPerformanceDiagnostics() {}
 '''
@@ -74,6 +80,8 @@ struct publication_host_interface { ifnet_t iface=nullptr; ifnet_t getIfnet() co
     family = (project / "kext/RTWFamilyDataPath.inc").read_text()
     ht = (project / "kext/RTWHTDataPath.inc").read_text()
     methods += [block(ht, "bool RTWUSBController::usesFirmwareRate() const"),
+                block(family, "bool RTWUSBController::usesLegacyHighThroughput() const"),
+                block(family, "uint8_t RTWUSBController::legacyHostHTRate() const"),
                 block(family, "bool RTWUSBController::usesLegacyFirmwareRate() const"),
                 block(family, "bool RTWUSBController::uses8814FirmwareRate() const")]
     generated = args.out / "actual_publication.cpp"

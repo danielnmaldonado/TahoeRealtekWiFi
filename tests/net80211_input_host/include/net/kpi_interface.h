@@ -1,0 +1,1 @@
+/* Host KPI declarations are supplied by platform.hpp. */

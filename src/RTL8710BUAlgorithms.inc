@@ -1366,7 +1366,7 @@ static u32 rtl8710b_indirect_read32(struct rtw_r10bu *priv, u32 addr)
 		val32 = rtl8xxxu_read32(priv, REG_EFUSE_INDIRECT_CTRL_8710B);
 	while ((val32 & BIT(31)) && (--polling_count > 0));
 
-	if (polling_count == 0) priv->error=ETIMEDOUT;
+	if (polling_count == 0 && !priv->error) priv->error=ETIMEDOUT;
 	else
 		value = rtl8xxxu_read32(priv, REG_USB_HOST_INDIRECT_DATA_8710B);
 
@@ -1398,7 +1398,7 @@ static void rtl8710b_indirect_write32(struct rtw_r10bu *priv, u32 addr, u32 val)
 		val32 = rtl8xxxu_read32(priv, REG_EFUSE_INDIRECT_CTRL_8710B);
 	while ((val32 & BIT(31)) && (--polling_count > 0));
 
-	if (polling_count == 0) priv->error=ETIMEDOUT;
+	if (polling_count == 0 && !priv->error) priv->error=ETIMEDOUT;
 
 	
 
@@ -1420,7 +1420,7 @@ static void rtl8710bu_power_off(struct rtw_r10bu *priv)
 	u32 val32;
 	u8 val8;
 
-	rtl8xxxu_flush_fifo(priv);
+	shutdown_result(priv,rtl8xxxu_flush_fifo(priv));
 
 	rtl8xxxu_write32(priv, REG_HISR0_8710B, 0xffffffff);
 	rtl8xxxu_write32(priv, REG_HIMR0_8710B, 0x0);
@@ -1433,7 +1433,7 @@ static void rtl8710bu_power_off(struct rtw_r10bu *priv)
 	
 	rtl8xxxu_write8(priv, REG_CR, 0x00);
 
-	rtl8710bu_active_to_lps(priv);
+	shutdown_result(priv,rtl8710bu_active_to_lps(priv));
 
 	
 	val8 = rtl8xxxu_read8(priv, REG_8051FW_CTRL_V1_8710B + 3);
@@ -1443,7 +1443,7 @@ static void rtl8710bu_power_off(struct rtw_r10bu *priv)
 	
 	rtl8xxxu_write8(priv, REG_8051FW_CTRL_V1_8710B, 0x00);
 
-	rtl8710bu_active_to_emu(priv);
+	shutdown_result(priv,rtl8710bu_active_to_emu(priv));
 }
 
 static void rtl8710b_revise_cck_tx_psf(struct rtw_r10bu *priv, u8 channel)
@@ -2230,7 +2230,7 @@ static int rtl8710bu_active_to_lps(struct rtw_r10bu *priv)
 		udelay(10);
 	} while (retry--);
 
-	if (!retry) {
+	if (val32 != 0) {
 		(void)0;
 		retval = -EBUSY;
 		return retval;

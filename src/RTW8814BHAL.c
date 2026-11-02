@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * DNMTechLabs portable RTL8814B USB boundary around Realtek HALMAC1.6.6.6.
+ * MaLd0n portable RTL8814B USB boundary around Realtek HALMAC1.6.6.6.
  * Vendor algorithms and notices: rtl8814b/halmac; immutable provenance:
  * RTW8814BHAL-Upstream.json. Every transport error revokes authority.
  */

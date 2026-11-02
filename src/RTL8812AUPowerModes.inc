@@ -48,9 +48,11 @@ static int base_index(const u8 rom[42],unsigned band,unsigned group_index,unsign
   if(18+group_index>=32||rom[18+group_index]>63)return ENOTSUP;value=rom[18+group_index];
   if(section==1){if(rom[32]==255)return ENOTSUP;value+=signed4(rom[32]);}
   else if(width==2){
-   if(19+group_index>=32||rom[19+group_index]>63||rom[37]==255)return ENOTSUP;
-   value=((int)rom[18+group_index]+rom[19+group_index])/2+signed4(rom[37]);
-   if(section==3||section==5){if(rom[38]==255)return ENOTSUP;value+=signed4(rom[38]);}
+   /* main.h: ofdm_diff occupies bytes36..37; vht_1s/2s_diff
+    * occupy38/39, with BW80 in the high signed nibble (BW160 low). */
+   if(19+group_index>=32||rom[19+group_index]>63||rom[38]==255)return ENOTSUP;
+   value=((int)rom[18+group_index]+rom[19+group_index])/2+signed4(rom[38]>>4);
+   if(section==3||section==5){if(rom[39]==255)return ENOTSUP;value+=signed4(rom[39]>>4);}
   }else{
    if(width==0){if(rom[32]==255)return ENOTSUP;value+=signed4(rom[32]>>4);}
    if(section==3||section==5){if(rom[33]==255)return ENOTSUP;value+=signed4((u8)(rom[33]>>(width?4:0)));}

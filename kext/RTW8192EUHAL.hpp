@@ -9,6 +9,10 @@
  * working radio without completing its register/table operations.
  */
 int rtw92eu_power_on(struct rtwn_softc *);
+/* Caller serializes and drains USB ownership first. Returns shutdown status
+ * independently of a previous core_error; leaves that original error intact.
+ * A nonzero result forbids reinitialization of the persistent core. */
+int rtwLegacyPowerOffChecked(struct rtwn_softc *);
 int rtw92eu_dma_init(struct rtwn_softc *, unsigned outputEndpoints);
 int rtw92eu_mac_init(struct rtwn_softc *);
 int rtw92eu_bb_init(struct rtwn_softc *);

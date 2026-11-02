@@ -41,9 +41,22 @@ int rtw88_station_set_edca(rtw88_station_context*,int short_slot,
  const rtw88_station_edca[4]);
 /* Real four-box H2C register flow. No implicit retry after an I/O error. */
 int rtw88_station_h2c(rtw88_station_context*,const uint8_t command[8]);
-/* Common Linux rtw88 HT20 rate/H2C wire format, also used by8814A. This
- * shares a pure codec, never a device context. No VHT/40/80MHz claim. */
-typedef struct {rtw_8814au_rate_config rates;uint8_t command[8];} rtw88_station_rate;
+/* B/C firmware has one32-bit RA mask. VHT bits12..31 are MCS0..9 per
+ * stream; descriptor rates44..63 map to mask bits12..31. The retained
+ * rates.sgi20 member is the selected operating width's short-GI flag. */
+typedef struct {
+ rtw_8814au_rate_config rates;
+ uint8_t command[8],vht,width_mhz;
+} rtw88_station_rate;
+typedef struct {uint8_t primary,center,width_mhz,primary_index;} rtw88_station_operating;
+/* Conservative station geometry:2.4GHz/DFS/channel165 remain20MHz.
+ * Wider operation requires every20MHz constituent in36..48 or149..161.
+ * Regulatory/profile/ROM permission remains the controller's responsibility. */
+int rtw88_station_operating_validate(const rtw88_station_operating*);
+int rtw88_station_prepare_rate(rtw_wifi_family,uint8_t channel,unsigned tx_streams,uint16_t legacy,
+ const uint8_t mcs[2],uint16_t vht_rx_map,int ht,int vht,unsigned width_mhz,
+ int local_sgi,int peer_sgi,rtw88_station_rate*);
+int rtw88_station_rate_selected(const rtw88_station_rate*,uint8_t descriptor_rate);
 int rtw88_station_prepare_ht20(rtw_wifi_family,uint8_t channel,unsigned tx_streams,uint16_t legacy,
  const uint8_t mcs[2],int ht,int local_sgi,int peer_sgi,rtw88_station_rate*);
 #ifdef __cplusplus

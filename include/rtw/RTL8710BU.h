@@ -14,6 +14,7 @@ typedef struct {uint8_t bulk_in,bulk_out[3],bulk_out_count;uint16_t max_packet;}
 typedef struct {
  uint8_t mac[6],crystal,thermal,channel_plan,cut,vendor,rom_revision,package,boot_eeprom,has_eeprom;
  uint16_t vid,pid;uint8_t txpower[12];
+ uint8_t logical[512]; /* complete immutable OTP identity, including reserved bytes */
 } rtw_r10bu_board;
 typedef struct {uint16_t version,payload_bytes;uint8_t subversion;} rtw_r10bu_firmware;
 typedef struct {
@@ -42,6 +43,9 @@ int rtw_r10bu_resume(rtw_r10bu*);
 int rtw_r10bu_invalidate(rtw_r10bu*);
 void rtw_r10bu_forget(rtw_r10bu*);
 int rtw_r10bu_pause(rtw_r10bu*);
+#define RTW_R10BU_CHECKED_STOP 1
+/* Checked teardown preserves the original error and returns cleanup only. */
+int rtw_r10bu_stop_checked(rtw_r10bu*);
 int rtw_r10bu_stop(rtw_r10bu*);
 int rtw_r10bu_decode_phy(const rtw_r10bu*,uint8_t,const uint8_t*,size_t,int*);
 int rtw_r10bu_make_tx(const rtw_r10bu_tx_options*,const rtw_r10bu_rate*,uint8_t[40]);

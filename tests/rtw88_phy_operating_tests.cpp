@@ -116,7 +116,37 @@ static void cu_retune_clears_thermal_gain(){
  assert(!rtw88_phy_radio_calibrate(&phy)&&rtw88_phy_radio_ready(&phy));
  puts("22C changed power plan clears both stale signed thermal gain fields before RFK readiness");
 }
+static void wide_profiles(){
+ unsigned checks=0;alignas(8)std::array<uint8_t,RTW88_PHY_RADIO_SCRATCH_BYTES>scratch{};
+ for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU})for(unsigned rfe=0;rfe<=6;++rfe){
+  bool known=family==RTW_WIFI_RTL8821CU?(rfe==0||rfe==2||rfe==4||rfe==6):family==RTW_WIFI_RTL8822BU?(rfe==2||rfe==3||rfe==5):true;if(!known)continue;
+  for(unsigned paths=1;paths<=(family==RTW_WIFI_RTL8821CU?1U:2U);++paths){
+   OperatingBus bus(family);rtw88_boot_context boot{};rtw88_mac_context mac{};rtw88_phy_context phy{};operating_fixture(bus,boot,mac,phy);
+   boot.board.rfe_option=(uint8_t)rfe;boot.board.rfe_btg=(uint8_t)(family==RTW_WIFI_RTL8821CU&&(rfe==2||rfe==4));
+   boot.board.features_valid=1;boot.board.active_rf_paths=boot.board.tx_streams=(uint8_t)paths;
+   assert(!rtw88_phy_radio_initialize(&phy,scratch.data(),scratch.size(),RTW88_PHY_REGD_WORLD));
+   for(auto op:{std::array<uint8_t,4>{36,36,20,0},std::array<uint8_t,4>{36,38,40,2},std::array<uint8_t,4>{48,46,40,1},std::array<uint8_t,4>{36,42,80,4},std::array<uint8_t,4>{40,42,80,2},std::array<uint8_t,4>{44,42,80,1},std::array<uint8_t,4>{48,42,80,3},std::array<uint8_t,4>{149,155,80,4},std::array<uint8_t,4>{161,155,80,3}}){
+    assert(!rtw88_phy_radio_tune(&phy,op[0],op[1],op[2],op[3])&&!rtw88_phy_radio_ready(&phy));
+    for(unsigned path=0;path<paths;++path)assert((bus.rf[path][0x18]&255U)==op[1]);
+    auto s=rtw88_phy_radio_get_status(&phy);assert(s.primary_channel==op[0]&&s.center_channel==op[1]&&s.width_mhz==op[2]&&s.primary_index==op[3]);
+    assert(!rtw88_phy_radio_calibrate(&phy)&&rtw88_phy_radio_ready(&phy));s=rtw88_phy_radio_get_status(&phy);assert(s.iqk_complete);
+    if(family==RTW_WIFI_RTL8822CU)assert(s.dac_complete&&(s.dpk_paths&((1U<<paths)-1U))==((1U<<paths)-1U));
+    assert(!rtw88_phy_radio_set_tx_rate(&phy,(uint8_t)(paths==1?52:62))&&!rtw88_phy_radio_thermal_track(&phy));
+    if(op[2]>20)assert(!rtw88_phy_radio_set_tx_rate(&phy,(uint8_t)(paths==1?53:63))&&!rtw88_phy_radio_thermal_track(&phy));
+    if(paths==1)assert(rtw88_phy_radio_set_tx_rate(&phy,54)==EINVAL);
+    ++checks;
+   }
+   // Existing absolute and relative policy guards cannot be bypassed by width.
+   assert(!rtw88_phy_radio_set_power_limit_mbm(&phy,1700));auto writes=bus.writes;
+   assert(rtw88_phy_radio_tune(&phy,36,42,80,4)==ENOTSUP&&bus.writes==writes&&!rtw88_phy_radio_ready(&phy));
+   assert(!rtw88_phy_radio_set_power_limit_mbm(&phy,INT32_MAX)&&!rtw88_phy_radio_set_power_reduction(&phy,1));writes=bus.writes;
+   assert(rtw88_phy_radio_tune(&phy,36,38,40,2)==ENOTSUP&&bus.writes==writes&&!rtw88_phy_radio_ready(&phy));
+  }
+ }
+ printf("B/C actual wide PHY: %u RF/width/primary-index/RFE/active-chain/RFK/IQK-DAC-DPK/VHT-thermal cases; power-policy guards preserved\n",checks);
+}
 int main(){
+ wide_profiles();
  impossible_signed_cap();thermal_headroom_and_retune();cu_retune_clears_thermal_gain();
  power_reduction();dfs_profiles();
  liveHealthRegression();

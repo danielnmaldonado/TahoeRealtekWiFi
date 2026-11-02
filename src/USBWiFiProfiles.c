@@ -128,13 +128,13 @@ rtw_wifi_radio_capabilities rtw_wifi_radio_family_capabilities(rtw_wifi_family f
         c.family_bands=g2; c.family_max_nss=2;
         c.family_max_2g_width_mhz=40; c.family_max_phy_mbps=300;
         c.station_bands=g2; c.station_max_nss=2;
-        c.station_max_2g_width_mhz=20; c.station_max_phy_mbps=54;
+        c.station_max_2g_width_mhz=20; c.station_max_phy_mbps=144;
         break;
     case RTW_WIFI_RTL8188EU:
         c.family_bands=g2; c.family_max_nss=1;
         c.family_max_2g_width_mhz=40; c.family_max_phy_mbps=150;
         c.station_bands=g2; c.station_max_nss=1;
-        c.station_max_2g_width_mhz=20; c.station_max_phy_mbps=54;
+        c.station_max_2g_width_mhz=20; c.station_max_phy_mbps=72;
         break;
     case RTW_WIFI_RTL8192EU:
         c.family_bands=g2; c.family_max_nss=2;
@@ -173,8 +173,8 @@ rtw_wifi_radio_capabilities rtw_wifi_radio_family_capabilities(rtw_wifi_family f
         c.family_max_phy_mbps=867;
         c.station_bands=dual; c.station_max_nss=2;
         c.station_max_2g_width_mhz=(family==RTW_WIFI_RTL8812AU?40:20);
-        c.station_max_5g_width_mhz=(family==RTW_WIFI_RTL8812AU?80:20);
-        c.station_max_phy_mbps=(family==RTW_WIFI_RTL8812AU?867:144);
+        c.station_max_5g_width_mhz=80;
+        c.station_max_phy_mbps=867;
         break;
     case RTW_WIFI_RTL8814AU:
         c.family_bands=dual; c.family_max_nss=3;
@@ -192,8 +192,8 @@ rtw_wifi_radio_capabilities rtw_wifi_radio_family_capabilities(rtw_wifi_family f
         c.family_max_phy_mbps=433;
         c.station_bands=dual; c.station_max_nss=1;
         c.station_max_2g_width_mhz=(family==RTW_WIFI_RTL8821AU?40:20);
-        c.station_max_5g_width_mhz=(family==RTW_WIFI_RTL8821AU?80:20);
-        c.station_max_phy_mbps=(family==RTW_WIFI_RTL8821AU?433:72);
+        c.station_max_5g_width_mhz=80;
+        c.station_max_phy_mbps=433;
         break;
     case RTW_WIFI_RTL8814BU:
     default:

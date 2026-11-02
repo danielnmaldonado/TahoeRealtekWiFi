@@ -9,7 +9,7 @@ int rtw_8723bu_init(rtw_8723bu*c,uint16_t vid,uint16_t pid,const rtw_8723bu_bus*
  if(!bus->read||!bus->write||!bus->write_region||!bus->delay_us||!storage||n<sizeof(*p)||((uintptr_t)storage%_Alignof(struct rtw_8723bu_private)))return EINVAL;
  {uintptr_t x=(uintptr_t)c,y=(uintptr_t)storage;if(x<=y?y-x<sizeof(*c):x-y<sizeof(*p))return EINVAL;}
  if(!((vid==0x0bda&&pid==0xb720)||(vid==0x7392&&pid==0xa611)))return ENODEV;
- if(!(usb->bulk_in&0x80)||!(usb->bulk_in&15)||usb->bulk_out_count<1||usb->bulk_out_count>3||usb->high_speed>1||usb->bulk_max_packet!=(usb->high_speed?512:64))return EINVAL;
+ if(!(usb->bulk_in&0x80)||!(usb->bulk_in&15)||usb->bulk_out_count<1||usb->bulk_out_count>4||usb->high_speed>1||usb->bulk_max_packet!=(usb->high_speed?512:64))return EINVAL;
  for(unsigned i=0;i<usb->bulk_out_count;i++){if(!usb->bulk_out[i]||(usb->bulk_out[i]&0xf0))return EINVAL;for(unsigned j=0;j<i;j++)if(usb->bulk_out[i]==usb->bulk_out[j])return EINVAL;}
  memset(c,0,sizeof(*c));memset(storage,0,sizeof(*p));c->bus=*bus;c->usb=*usb;c->private_state=storage;c->vid=vid;c->pid=pid;p=storage;p->owner=c;p->rf_paths=p->tx_paths=p->rx_paths=1;p->rtl_chip=RTL8723B;p->fops=r23_ops();return 0;
 }
@@ -50,6 +50,7 @@ int rtw_8723bu_inspect_firmware(const u8*b,size_t n){return !b||n<=32||n-32>RTW_
 static int r23_power_clamp(int value){return value<0?0:value>63?63:value;}
 #include "RTL8723BUPlatform.inc"
 #include "RTL8723BUTables.inc"
+static void shutdown_result(struct rtw_8723bu_private*p,int result){if(result)fail(p->owner,result==-EBUSY?ETIMEDOUT:result<0?-result:result);}
 #include "RTL8723BUAlgorithms.inc"
 static const struct rtl8xxxu_fileops rtl8723_ops={
  .reset_8051=rtl8723bu_reset_8051,.adda_1t_init=0x01c00014,.adda_1t_path_on=0x01c00014,
@@ -65,7 +66,7 @@ int rtw_8723bu_h2c(rtw_8723bu*c,const u8*b,size_t n){
  struct rtw_8723bu_private*p;u32 words[2]={0,0};unsigned attempt;u8 box;
  if(!valid(c)||!b||n<1||n>8)return EINVAL;if(!c->firmware_running)return ENXIO;if(c->last_error)return c->last_error;
  p=c->private_state;box=c->mailbox;for(attempt=0;attempt<100;attempt++){if(!(rtl8xxxu_read8(p,REG_HMTFR)&(1U<<box)))break;if(c->last_error)return c->last_error;}
- if(attempt==100)return fail(c,EBUSY);memcpy(words,b,n);
+ if(attempt==100)return fail(c,ETIMEDOUT);memcpy(words,b,n);
  if(n>4)(void)rtl8xxxu_write32(p,(u16)(REG_HMBOX_EXT0_8723B+box*4U),words[1]);
  (void)rtl8xxxu_write32(p,(u16)(REG_HMBOX_0+box*4U),words[0]);if(c->last_error)return c->last_error;c->mailbox=(u8)((box+1U)&3U);return 0;
 }
@@ -75,9 +76,11 @@ static int r23_endpoints(rtw_8723bu*c){
  if(sie&NORMAL_SIE_EP_TX_HIGH_MASK){p->ep_tx_high_queue=1;p->ep_tx_count++;}
  if(sie&NORMAL_SIE_EP_TX_NORMAL_MASK){p->ep_tx_normal_queue=1;p->ep_tx_count++;}
  if(sie&NORMAL_SIE_EP_TX_LOW_MASK){p->ep_tx_low_queue=1;p->ep_tx_count++;}
- /* Actual rtl8xxxu no-SIE fallback for descriptor-count1/2/3. */
- if(!p->ep_tx_count){p->ep_tx_count=c->usb.bulk_out_count;p->ep_tx_high_queue=1;p->ep_tx_normal_queue=p->ep_tx_count>=2;p->ep_tx_low_queue=p->ep_tx_count==3;}
- if(c->last_error)return c->last_error;if(p->ep_tx_count!=c->usb.bulk_out_count)return EINVAL;memcpy(p->out_ep,c->usb.bulk_out,c->usb.bulk_out_count);return 0;
+ /* Linux rtl8xxxu_config_endpoints_no_sie caps logical TX queues at
+  * three even when the USB interface exposes four physical OUT pipes. */
+ const unsigned queues=c->usb.bulk_out_count>3?3:c->usb.bulk_out_count;
+ if(!p->ep_tx_count){p->ep_tx_count=(u8)queues;p->ep_tx_high_queue=1;p->ep_tx_normal_queue=queues>=2;p->ep_tx_low_queue=queues==3;}
+ if(c->last_error)return c->last_error;if(p->ep_tx_count!=queues)return EINVAL;memcpy(p->out_ep,c->usb.bulk_out,c->usb.bulk_out_count);return 0;
 }
 /* The RTL8723B branches of rtl8xxxu_init_device, with software CCMP and a
  * paused transmitter. Other families' branches are deliberately absent. */
@@ -124,7 +127,7 @@ int rtw_8723bu_boot(rtw_8723bu*c,const u8*fw,size_t n){
  if(!c->identified||!c->board_valid)return ENXIO;if(c->last_error)return c->last_error;p=c->private_state;
  c->powered=c->firmware_running=c->mac_initialized=c->phy_loaded=c->calibrated=c->associated=0;c->channel=0;++c->epoch;
  if((e=r23_endpoints(c)))return fail(c,e);
- p->power_attempted=true;e=rtl8723bu_power_on(p);if(e||c->last_error)return r23_paused(c,c->last_error?c->last_error:(e<0?-e:e));c->powered=1;
+ p->power_attempted=true;e=rtl8723bu_power_on(p);if(e||c->last_error)return r23_paused(c,c->last_error?c->last_error:e==-EBUSY?ETIMEDOUT:(e<0?-e:e));c->powered=1;
  (void)rtl8xxxu_write8(p,REG_TXPAUSE,0xff);rtl8xxxu_init_queue_reserved_page(p);
  if((e=rtl8xxxu_init_queue_priority(p)))return r23_paused(c,-e);(void)rtl8xxxu_write16(p,REG_TRXFF_BNDY+2,0x3f7f);
  p->fw_data=(const struct rtl8xxxu_firmware_header*)fw;p->fw_size=n-32;
@@ -169,11 +172,13 @@ failed:
   * healthy; a transport/restore failure stays sticky until reinitialization. */
  p->cleanup=true;(void)rtl8xxxu_write8(p,REG_TXPAUSE,0xff);p->cleanup=false;return c->last_error?c->last_error:e;
 }
-int rtw_8723bu_stop(rtw_8723bu*c){
- struct rtw_8723bu_private*p;int saved;if(!valid(c))return EINVAL;p=c->private_state;saved=c->last_error;c->calibrated=c->associated=0;++c->epoch;
+int rtw_8723bu_stop_checked(rtw_8723bu*c){
+ struct rtw_8723bu_private*p;int saved;if(!valid(c))return EINVAL;p=c->private_state;saved=c->last_error;c->last_error=0;c->calibrated=c->associated=0;++c->epoch;
  p->cleanup=true;(void)rtl8xxxu_write8(p,REG_TXPAUSE,0xff);if(c->powered||p->power_attempted)rtl8723bu_power_off(p);p->cleanup=false;p->power_attempted=false;
- c->powered=c->firmware_running=c->mac_initialized=c->phy_loaded=0;c->channel=0;c->rssi_valid=0;return saved?saved:c->last_error;
+ c->powered=c->firmware_running=c->mac_initialized=c->phy_loaded=0;c->channel=0;c->rssi_valid=0;int cleanup=c->last_error;if(saved)c->last_error=saved;if(!c->cleanup_error)c->cleanup_error=cleanup;return c->cleanup_error;
 }
+int rtw_8723bu_stop(rtw_8723bu*c){int original=c?c->last_error:0;int cleanup=rtw_8723bu_stop_checked(c);return original?original:cleanup;}
+
 static int r23_otp_byte(struct rtw_8723bu_private*p,unsigned offset,u8*out){
  u32 value;unsigned attempt;if(offset>=512)return EOVERFLOW;
  (void)rtl8xxxu_write8(p,REG_EFUSE_CTRL+1,(u8)offset);

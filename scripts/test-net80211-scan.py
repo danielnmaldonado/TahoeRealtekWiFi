@@ -26,7 +26,7 @@ parser.add_argument("--case", choices=["all", "au", "dual", "families", "8192du"
 args = parser.parse_args()
 args.out.mkdir(parents=True, exist_ok=True)
 source = args.node_source.read_text()
-closure = '#include "net80211_scan_host.hpp"\n#include "rtw/StationChannels.h"\n'
+closure = '#include "net80211_scan_host.hpp"\n#include "rtw/StationChannels.h"\n#include "rtw/RTW88Station.h"\n'
 for name in ["ieee80211_node_checkrssi", "ieee80211_reset_scan", "ieee80211_begin_scan", "ieee80211_next_scan",
              "ieee80211_node_choose_bss", "ieee80211_end_scan"]:
     closure += '\n// Verbatim production function\n' + helpers.function(source, name)
@@ -61,10 +61,18 @@ auto channel8812Modes=[](uint8_t) { return unsigned(IEEE80211_CHAN_HT20 | IEEE80
     closure += caps.group() + '\n' + registration + '\n}\n'
 closure += '\nunsigned au_scan_capabilities() { ieee80211com ic{}; register_8814_scan_channels(ic); return ic.ic_caps; }\n'
 (args.out / "actual_scan.cpp").write_text(closure)
+# The actual B/C initializer calls the production station geometry gate.
+# Link its real C dependency closure; do not replace it with a fixture model.
+objects=[]
+for name in ["RTW88Station", "RTL8814AUDataPath", "RTW88Firmware", "RTW88USBDataPath", "USBPackets"]:
+    obj=args.out/(name+".o");objects.append(str(obj))
+    subprocess.run([*compiler("c"), "-std=c11", "-g", "-O1", *sanitizer_flags(),
+                    "-I"+str(project/"include"), "-c", str(project/"src"/(name+".c")), "-o", str(obj)],check=True)
 command = [*compiler(), "-std=c++14", "-g", "-O1", *sanitizer_flags(),
            "-fno-omit-frame-pointer", "-DIEEE80211_STA_ONLY", "-Werror=return-type",
            "-I" + str(project / "include"), "-I" + str(project / "tests"), "-I" + str(project / "vendor/itl80211/openbsd"),
            str(args.out / "actual_scan.cpp"), str(project / "tests/net80211_scan_tests.cpp"),
+           *objects,
            "-o", str(args.out / "net80211-scan-tests")]
 subprocess.run(command, check=True)
 subprocess.run([str(args.out / "net80211-scan-tests"), args.case], check=True)
