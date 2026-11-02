@@ -27,7 +27,7 @@ void RTWUSBController::observeReceivedRate(const rtw_rx_packet &p) {
         const unsigned mcs=p.rate_index-12;
         ++perfDiag_.rxMCSPackets[mcs];perfDiag_.rxMCSBytes[mcs]+=p.mpdu_length;
         /* Supported native HT descriptor/PHY codes:0=20MHz,1=40MHz. */
-        if(is8723Family()){
+        if(is8723Family()||family_==RTW_WIFI_RTL8192CU||family_==RTW_WIFI_RTL8188EU){
             if(p.bandwidth_code==0)++perfDiag_.rxHT20Packets;
             else ++perfDiag_.rxHTUnknownBWPackets;
         }else if(family_==RTW_WIFI_RTL8192EU||family_==RTW_WIFI_RTL8814AU||family_==RTW_WIFI_RTL8192DU||is8812Family()||is88Family()||is8192FUFamily()||is8710BUFamily()){
@@ -35,7 +35,7 @@ void RTWUSBController::observeReceivedRate(const rtw_rx_packet &p) {
             else if(p.bandwidth_code==1)++perfDiag_.rxHT40Packets;
             else ++perfDiag_.rxHTUnknownBWPackets;
         }
-    }else if(is8812Family()&&p.rate_index>=44&&p.rate_index<64){
+    }else if((is8812Family()||is88Family())&&p.rate_index>=44&&p.rate_index<64){
         const unsigned index=p.rate_index-44;
         ++perfDiag_.rxVHTPackets[index];perfDiag_.rxVHTBytes[index]+=p.mpdu_length;
         if(p.bandwidth_code==0)++perfDiag_.rxVHT20Packets;
@@ -67,7 +67,7 @@ void RTWUSBController::publishPerformanceDiagnostics() {
         publish(name,perfDiag_.rxVHTPackets[i]);
         snprintf(name,sizeof(name),"RTWDiagRXVHT%uSSMCS%uBytes",i/10+1,i%10);publish(name,perfDiag_.rxVHTBytes[i]);
     }
-    const bool vhtLast=is8812Family()&&perfDiag_.rxLastCode>=44&&perfDiag_.rxLastCode<64;
+    const bool vhtLast=(is8812Family()||is88Family())&&perfDiag_.rxLastCode>=44&&perfDiag_.rxLastCode<64;
     publish("RTWDiagRXLastVHTNSS",vhtLast?(perfDiag_.rxLastCode-44)/10+1:0);
     publish("RTWDiagRXLastVHTMCS",vhtLast?(perfDiag_.rxLastCode-44)%10:255);
     publish("RTWDiagRXVHT20Packets",perfDiag_.rxVHT20Packets);publish("RTWDiagRXVHT40Packets",perfDiag_.rxVHT40Packets);

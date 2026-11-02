@@ -33,7 +33,11 @@ typedef struct {
     uint16_t firmware_version;
     uint8_t firmware_subversion;
     uint32_t rx_config;
-    int io_error;
+    int io_error,cleanup_error;
+    /* Last resident-firmware reset, retained through best-effort shutdown.
+     * Stages: 0 none,1 MCU,2 BB/RF,3 MAC-off,4 MAC-on,5 complete. */
+    uint32_t warm_reset_attempts,warm_reset_stage,warm_reset_mcu;
+    int warm_reset_error;
 } rtw_r12au_boot;
 int rtw_r12au_boot_init(rtw_r12au_boot *,rtw_r12au_chip,
     const rtw_usb_rw_transport *,const rtw_waiter *,const rtw_r12au_usb_config *);
@@ -55,6 +59,8 @@ int rtw_r12au_download_fw(rtw_r12au_boot *,const uint8_t *,size_t,rtw_boot_repor
 int rtw_r12au_h2c(rtw_r12au_boot *,const uint8_t command[8]);
 /* Best-effort bounded power-down is allowed after a latched transport error.
  * All readiness flags are invalidated before shutdown operations begin. */
+#define RTW_R12AU_CHECKED_STOP 1
+int rtw_r12au_power_off_checked(rtw_r12au_boot*);
 int rtw_r12au_power_off(rtw_r12au_boot *);
 /* Shared typed bus accessors for MAC/station adapters. Normal operations stop
  * after the first error; no implicit retry, power transition or RF operation. */

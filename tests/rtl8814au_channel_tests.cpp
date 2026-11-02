@@ -28,6 +28,9 @@ static uint16_t rtw8814RateMask(const rateset&,bool){std::abort();}
 class RTWUSBController {
 public:
  rtw_8814au acCore_{};
+ enum{AUChannel=7,AURFK=8};bool acStarting_=false;struct{uint32_t stage=0;}acRecoveryDiag_;
+ // The separate startup/control suite owns diagnostic/recovery behavior.
+ void record8814Failure(uint32_t,int){}
  struct {int core_error=0;int(*sc_newstate)(ieee80211com*,ieee80211_state,int)=generic_state;}core_;
  bool acMediaConnected_=false,acRateReady_=false;uint8_t acChannel_=0,acRSSI_=0;
  rtw_8814au_rate_config acRateConfig_{};

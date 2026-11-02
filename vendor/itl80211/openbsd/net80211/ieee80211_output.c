@@ -1221,12 +1221,40 @@ ieee80211_add_ht_ie(uint8_t *frm, struct ieee80211com *ic, struct ieee80211_node
 /*
  * Add an HT Capabilities element to a frame (see 7.3.2.57).
  */
-uint8_t *
-ieee80211_add_htcaps(uint8_t *frm, struct ieee80211com *ic)
+/* Emit only local capability bits supported by the registered target. */
+static uint16_t ieee80211_htcaps_for_channel(const struct ieee80211com *ic,
+    const struct ieee80211_channel *channel)
 {
-	*frm++ = IEEE80211_ELEMID_HTCAPS;
+    uint16_t cap = ic->ic_htcaps;
+    if (channel == NULL || channel == IEEE80211_CHAN_ANYC ||
+        !IEEE80211_IS_CHAN_HT40(channel))
+        cap &= ~(IEEE80211_HTCAP_CBW20_40 | IEEE80211_HTCAP_SGI40);
+    return cap;
+}
+
+static int ieee80211_vht_for_channel(const struct ieee80211com *ic,
+    const struct ieee80211_channel *channel)
+{
+    return channel != NULL && channel != IEEE80211_CHAN_ANYC &&
+        (ic->ic_flags & IEEE80211_F_HTON) &&
+        (ic->ic_flags & IEEE80211_F_VHTON) &&
+        !(ic->ic_userflags & IEEE80211_F_NOVHT) &&
+        IEEE80211_IS_CHAN_5GHZ(channel) &&
+        (channel->ic_flags & IEEE80211_CHAN_HT) &&
+        IEEE80211_IS_CHAN_VHT(channel);
+}
+
+static uint8_t *
+ieee80211_add_htcaps_channel(uint8_t *frm, struct ieee80211com *ic,
+    const struct ieee80211_channel *channel)
+{
+    if (channel == NULL || channel == IEEE80211_CHAN_ANYC ||
+        !(ic->ic_flags & IEEE80211_F_HTON) ||
+        !(channel->ic_flags & IEEE80211_CHAN_HT))
+        return frm;
+    *frm++ = IEEE80211_ELEMID_HTCAPS;
     *frm++ = sizeof(struct ieee80211_ie_htcap) - 2;
-    LE_WRITE_2(frm, ic->ic_htcaps); frm += 2;
+    LE_WRITE_2(frm, ieee80211_htcaps_for_channel(ic, channel)); frm += 2;
     *frm++ = ic->ic_ampdu_params;
     memcpy(frm, ic->ic_sup_mcs, 10); frm += 10;
     LE_WRITE_2(frm, (ic->ic_max_rxrate & IEEE80211_MCS_RX_RATE_HIGH));
@@ -1242,8 +1270,18 @@ ieee80211_add_htcaps(uint8_t *frm, struct ieee80211com *ic)
 }
 
 uint8_t *
-ieee80211_add_vhtcaps(uint8_t *frm, struct ieee80211com *ic)
+ieee80211_add_htcaps(uint8_t *frm, struct ieee80211com *ic)
 {
+    return ieee80211_add_htcaps_channel(frm, ic,
+        ic->ic_bss ? ic->ic_bss->ni_chan : NULL);
+}
+
+static uint8_t *
+ieee80211_add_vhtcaps_channel(uint8_t *frm, struct ieee80211com *ic,
+    const struct ieee80211_channel *channel)
+{
+    if (!ieee80211_vht_for_channel(ic, channel))
+        return frm;
     *frm++ = IEEE80211_ELEMID_VHT_CAP;
     *frm++ = sizeof(struct ieee80211_ie_vhtcap) - 2;
     /* 32-bit VHT capability */
@@ -1254,6 +1292,13 @@ ieee80211_add_vhtcaps(uint8_t *frm, struct ieee80211com *ic)
     LE_WRITE_2(frm, ic->ic_vht_tx_mcs_map); frm += 2;
     LE_WRITE_2(frm, ic->ic_vht_tx_highest); frm += 2;
     return frm;
+}
+
+uint8_t *
+ieee80211_add_vhtcaps(uint8_t *frm, struct ieee80211com *ic)
+{
+    return ieee80211_add_vhtcaps_channel(frm, ic,
+        ic->ic_bss ? ic->ic_bss->ni_chan : NULL);
 }
 
 uint8_t *
@@ -1395,11 +1440,11 @@ ieee80211_get_probe_req(struct ieee80211com *ic, struct ieee80211_node *ni)
 	if (rs->rs_nrates > IEEE80211_RATE_SIZE)
 		frm = ieee80211_add_xrates(frm, rs);
 	if (ic->ic_flags & IEEE80211_F_HTON) {
-		frm = ieee80211_add_htcaps(frm, ic);
+		frm = ieee80211_add_htcaps_channel(frm, ic, ni->ni_chan);
 		frm = ieee80211_add_wme_info(frm, ic);
 	}
     if (ic->ic_flags & IEEE80211_F_VHTON)
-        frm = ieee80211_add_vhtcaps(frm, ic);
+        frm = ieee80211_add_vhtcaps_channel(frm, ic, ni->ni_chan);
     size_t l = frm - mtod(m, u_int8_t *);
     mbuf_pkthdr_setlen(m, l);
     mbuf_setlen(m, l);
@@ -1622,12 +1667,12 @@ ieee80211_get_assoc_req(struct ieee80211com *ic, struct ieee80211_node *ni,
 		frm = ieee80211_add_wpa(frm, ic, ni);
 	}
 	if (ic->ic_flags & IEEE80211_F_HTON) {
-		frm = ieee80211_add_htcaps(frm, ic);
+		frm = ieee80211_add_htcaps_channel(frm, ic, ni->ni_chan);
 		frm = ieee80211_add_wme_info(frm, ic);
 	}
     
     if (ic->ic_flags & IEEE80211_F_VHTON)
-        frm = ieee80211_add_vhtcaps(frm, ic);
+        frm = ieee80211_add_vhtcaps_channel(frm, ic, ni->ni_chan);
     
     if (ic->ic_flags & IEEE80211_F_HEON)
         frm = ieee80211_add_hecaps(frm, ic);

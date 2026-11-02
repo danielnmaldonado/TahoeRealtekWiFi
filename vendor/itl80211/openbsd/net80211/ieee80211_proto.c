@@ -558,10 +558,11 @@ ieee80211_ht_negotiate_chw(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
     int ht_param;
 
-    if (!ni || !ni->ni_chan)
+    if (!ni)
         return;
-    
     ni->ni_chw = IEEE80211_CHAN_WIDTH_20;
+    if (!ni->ni_chan || ni->ni_chan == IEEE80211_CHAN_ANYC)
+        return;
     ni->ni_chan->ic_center_freq1 = ni->ni_chan->ic_freq;
 
     if (((ic->ic_htcaps & IEEE80211_HTCAP_40INTOLERANT) || (ni->ni_htcaps & IEEE80211_HTCAP_40INTOLERANT) || (ic->ic_userflags & IEEE80211_F_NOHT40))
@@ -569,8 +570,10 @@ ieee80211_ht_negotiate_chw(struct ieee80211com *ic, struct ieee80211_node *ni)
         ni->ni_chw = IEEE80211_CHAN_WIDTH_20;
     } else if ((ni->ni_htcaps & IEEE80211_HTCAP_CBW20_40) && IEEE80211_IS_CHAN_HT40(ni->ni_chan) && (ic->ic_htcaps & IEEE80211_HTCAP_CBW20_40)) {
         ht_param = ni->ni_htop0 & IEEE80211_HTOP0_SCO_MASK;
-        if ((ht_param == IEEE80211_HTOP0_SCO_SCA) ||
-            (ht_param == IEEE80211_HTOP0_SCO_SCB))
+        if ((ht_param == IEEE80211_HTOP0_SCO_SCA &&
+             IEEE80211_IS_CHAN_HT40U(ni->ni_chan)) ||
+            (ht_param == IEEE80211_HTOP0_SCO_SCB &&
+             IEEE80211_IS_CHAN_HT40D(ni->ni_chan)))
             ni->ni_chw = IEEE80211_CHAN_WIDTH_40;
     }
     
@@ -658,9 +661,22 @@ ieee80211_vht_negotiate(struct ieee80211com *ic, struct ieee80211_node *ni)
     int ccf0, ccf1;
     bool support_80_80 = false;
     bool support_160 = false;
-    
+    if (ni == NULL)
+        return;
     ni->ni_flags &= ~(IEEE80211_NODE_VHT | IEEE80211_NODE_VHT_SGI80 |
                       IEEE80211_NODE_VHT_SGI160);
+    /* An AP operation element cannot widen the registered local map. */
+    if (!(ni->ni_flags & IEEE80211_NODE_HT)) {
+        ni->ni_chw = IEEE80211_CHAN_WIDTH_20;
+        return;
+    }
+    ieee80211_ht_negotiate_chw(ic, ni);
+    if (ni->ni_chan == NULL || ni->ni_chan == IEEE80211_CHAN_ANYC ||
+        !(ni->ni_flags & IEEE80211_NODE_HT) ||
+        !(ic->ic_flags & IEEE80211_F_HTON) ||
+        !(ni->ni_chan->ic_flags & IEEE80211_CHAN_HT) ||
+        !IEEE80211_IS_CHAN_VHT(ni->ni_chan))
+        return;
     /* Check if we support VHT. */
     if ((ic->ic_modecaps & (1 << IEEE80211_MODE_11AC)) == 0)
         return;
@@ -792,6 +808,23 @@ ieee80211_vht_negotiate(struct ieee80211com *ic, struct ieee80211_node *ni)
             return;
     }
     
+    /* Fall back to the valid HT primary/sideband when the registered
+     * channel lacks the AP's wider VHT mode. Keep VHT20 where admitted. */
+    if ((ni->ni_chw == IEEE80211_CHAN_WIDTH_80 &&
+         !IEEE80211_IS_CHAN_VHT80(ni->ni_chan)) ||
+        (ni->ni_chw == IEEE80211_CHAN_WIDTH_160 &&
+         !IEEE80211_IS_CHAN_VHT160(ni->ni_chan)) ||
+        (ni->ni_chw == IEEE80211_CHAN_WIDTH_80P80 &&
+         !IEEE80211_IS_CHAN_VHT80_80(ni->ni_chan)))
+        ieee80211_ht_negotiate_chw(ic, ni);
+    if (ni->ni_chw == IEEE80211_CHAN_WIDTH_40 &&
+        (((ni->ni_htop0 & IEEE80211_HTOP0_SCO_MASK) ==
+          IEEE80211_HTOP0_SCO_SCA && !IEEE80211_IS_CHAN_VHT40U(ni->ni_chan)) ||
+         ((ni->ni_htop0 & IEEE80211_HTOP0_SCO_MASK) ==
+          IEEE80211_HTOP0_SCO_SCB && !IEEE80211_IS_CHAN_VHT40D(ni->ni_chan)))) {
+        ni->ni_chw = IEEE80211_CHAN_WIDTH_20;
+        ni->ni_chan->ic_center_freq1 = ni->ni_chan->ic_freq;
+    }
     ni->ni_flags |= IEEE80211_NODE_VHT;
     
     if (ieee80211_node_supports_vht_sgi80(ni))

@@ -2,18 +2,24 @@
 #ifndef RTW_92C_DATA_PATH_H
 #define RTW_92C_DATA_PATH_H
 #include "RTL8192EUDataPath.h"
+#include "RTL8192EUHT.h"
 #include "USBPackets.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 #define RTW_92C_TX_DESCRIPTOR_BYTES 32U
-/* Gen1 RAID values: mixed 11b/g=4, 11g=5, 11b=6. No HT or AMPDU.
- * CU data unicast can set firmware_rate only after its H2C rate masks and
- * initial rates are configured; 88E requires explicit rates and CCX/AMRR.
+/* Legacy-only wrapper: mixed 11b/g=4, 11g=5, 11b=6.
+ * The extended encoder implements HT20 BGN=0/GN=1, QoS, SGI and per-TID
+ * AMPDU with generation-specific aggregation bits. CU data unicast can set
+ * firmware_rate after H2C masks; 88E uses explicit negotiated CCX/AMRR rates.
  * Explicit rates retain software sequence numbers and complete software
  * crypto IV/MIC; hardware crypto and hardware sequence replacement stay off.
  * Always call tx_report_request after encoding to select CU/88E AGGBK bits. */
 int rtw_92c_make_tx_descriptor(size_t, const rtw_92e_tx_options *, uint8_t[32]);
+int rtw_92c_make_tx_descriptor_ex(size_t, int is_88e, int qos,
+    const rtw_92e_tx_options *, uint8_t[32]);
+int rtw_92c_build_rate_config(uint16_t, const uint8_t[2], unsigned,
+    int ht, int local_sgi, int peer_sgi, rtw_92e_rate_config *);
 int rtw_92c_tx_protection(unsigned mode, uint8_t[32]);
 /* Only 8188EU has this CCX feedback path. Normalizes the family-specific
  * aggregation-break bit even when requested=0. CU requests must be zero. */
@@ -31,7 +37,7 @@ typedef struct {
     rtw_92e_tx_report report;
     uint8_t packet_ok;
 } rtw_88e_tx_report;
-/* Exact eight-byte 88E CCX payload for MACID0/unicast/EDCA/legacy rates.
+/* Exact eight-byte 88E CCX payload for MACID0/unicast/EDCA, legacy/MCS0..7.
  * packet_ok is actual RF completion, independent of the failure flags.
  * No gen2 event header/sequence exists; report.event_sequence is zero.
  * report.queue_time preserves the raw 88E field; its unit is not asserted

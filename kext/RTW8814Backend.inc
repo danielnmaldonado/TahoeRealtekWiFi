@@ -41,6 +41,7 @@ int RTWUSBController::attach8814()
      * MAC/DMA still use SuperSpeed programming where applicable. */
     acCore_.board.tx_streams=acCore_.board.rx_streams=2;
     acCore_.board.antenna_tx=acCore_.board.antenna_rx=3;
+    if(!capture8814RecoveryIdentity())return ENODEV;
     acPHYSize_=rtw_8814au_phy_size();
     acPHYStorage_=IOMalloc(acPHYSize_);if(!acPHYStorage_)return ENOMEM;
     bzero(acPHYStorage_,acPHYSize_);
@@ -102,41 +103,82 @@ int RTWUSBController::start8814()
 {
     auto&ic=core_.sc_ic;auto&ifp=ic.ic_if;
     if(ic.ic_opmode!=IEEE80211_M_STA||!ic.ic_bss||!acCore_.board_valid||!acPHYStorage_)return ENXIO;
+    /* Only the manual recovery gate can retire an earlier core failure after
+     * checked teardown and identity revalidation. Watchdog/ioctl cannot skip it. */
+    if(core_.core_error)return core_.core_error;
+    if(rxRecovery_.initialDrainError!=kIOReturnSuccess)return EIO;
+    if(!present_||sleeping_||closing_||usbError_!=kIOReturnSuccess||!completionLock_)return ENXIO;
+    IOInterruptState lock=IOSimpleLockLockDisableInterrupt(completionLock_);
+    const bool drained=rtw_transfer_drained(&ledger_)!=0&&!rxRecovery_.initialDrainMask;
+    IOSimpleLockUnlockEnableInterrupt(completionLock_,lock);
+    if(!drained)return EBUSY;
+    /* A previous stop can defer power-off while abort callbacks still own
+     * the old epoch. Finish that checked stop before any new bootstrap. */
+    if(acRecoveryDiag_.cleanupResult==EBUSY)stop8814();
     if(acCore_.io_error)return acCore_.io_error;
+    if(acRecoveryBlocked_)return acRecoveryDiag_.cleanupResult?(int)acRecoveryDiag_.cleanupResult:EIO;
+    acStarting_=true;auto&d=acRecoveryDiag_;++d.starts;d.result=0;d.stage=AUAllocate;
     acMediaConnected_=acRateReady_=false;acRateConfig_={};acChannel_=0;acRSSI_=0;
     int e=allocateTransfers();if(e)goto fail;
-    e=rtw_8814au_power_on(&acCore_);if(e)goto fail;
-    e=rtw_8814au_download_fw(&acCore_,RTW8814AUFirmware,sizeof(RTW8814AUFirmware));if(e)goto fail;
-    e=rtw_8814au_init_mac(&acCore_,endpoints_.num_bulk_out,acSpeed());if(e)goto fail;
-    e=rtw_8814au_phy_init(&acCore_,acPHYStorage_,acPHYSize_);if(e)goto fail;
-    e=rtw_8814au_phy_load_tables(&acCore_);if(e)goto fail;
+    d.stage=AUPower;e=rtw_8814au_power_on(&acCore_);if(e)goto fail;
+    d.stage=AUFirmware;e=rtw_8814au_download_fw(&acCore_,RTW8814AUFirmware,sizeof(RTW8814AUFirmware));if(e)goto fail;
+    d.stage=AUMAC;e=rtw_8814au_init_mac(&acCore_,endpoints_.num_bulk_out,acSpeed());if(e)goto fail;
+    d.stage=AUPHYContext;e=rtw_8814au_phy_init(&acCore_,acPHYStorage_,acPHYSize_);if(e)goto fail;
+    d.stage=AUPHYTables;e=rtw_8814au_phy_load_tables(&acCore_);if(e)goto fail;
     ic.ic_bss->ni_chan=ic.ic_ibss_chan;
     e=set8814Channel((uint8_t)ieee80211_chan2ieee(&ic,ic.ic_ibss_chan));if(e)goto fail;
     {
-        auto params=station8814Params();
+        d.stage=AUStation;auto params=station8814Params();
         e=rtw_8814au_station_initialize(&acCore_,&params);if(e)goto fail;
     }
-    e=busInitialize(this);if(e)goto fail;
-    e=rtw_8814au_send_startup_info(&acCore_);if(e)goto fail;
+    d.stage=AURX;e=busInitialize(this);if(e)goto fail;
+    d.stage=AUStartupInfo;e=rtw_8814au_send_startup_info(&acCore_);if(e)goto fail;
     ifq_clr_oactive(&ifp.if_snd);ifp.if_flags|=IFF_RUNNING;
-    e=ic.ic_newstate(&ic,IEEE80211_S_SCAN,-1);if(e)goto fail;
-    radioReady_=true;return 0;
+    d.stage=AUScan;e=ic.ic_newstate(&ic,IEEE80211_S_SCAN,-1);if(e)goto fail;
+    radioReady_=true;acStarting_=false;acFailureEligible_=false;d.stage=AUReady;
+    d.consecutiveRecoveries=0;
+    if(acRecoveryRestartPending_){++d.recoverySuccesses;acRecoveryRestartPending_=false;}
+    return 0;
 fail:
+    record8814Failure(d.stage,e);d.result=(uint32_t)e;acStarting_=false;
     stop8814();if(acCore_.io_error)core_.core_error=acCore_.io_error;
     return e;
 }
 void RTWUSBController::stop8814()
 {
+    /* Retire only the deferred marker before abort invokes completion drain;
+     * a completion-side finalizer must not recursively enter this same stop. */
+    if(acRecoveryDiag_.cleanupResult==EBUSY)acRecoveryDiag_.cleanupResult=0;
     auto&ic=core_.sc_ic;auto&ifp=ic.ic_if;
     core_.sc_tx_timer=0;ifp.if_timer=0;ifp.if_flags&=~IFF_RUNNING;ifq_clr_oactive(&ifp.if_snd);
     /* Generic INIT must flush host keys and authorization even after USB loss. */
-    if(core_.sc_newstate)(void)state8814(&ic,IEEE80211_S_INIT,-1);
+    if(core_.sc_newstate){
+        if(rxRecovery_.initialDrainError!=kIOReturnSuccess)
+            (void)core_.sc_newstate(&ic,IEEE80211_S_INIT,-1);
+        else (void)state8814(&ic,IEEE80211_S_INIT,-1);
+    }
     cancelScan(this);cancelCalibration(this);task_del(systq,&core_.init_task);
     abortTransfers();
-    if(present_&&!sleeping_&&usbError_==kIOReturnSuccess){
+    IOInterruptState lock=IOSimpleLockLockDisableInterrupt(completionLock_);
+    const bool drained=rtw_transfer_drained(&ledger_)!=0&&!rxRecovery_.initialDrainMask;
+    IOSimpleLockUnlockEnableInterrupt(completionLock_,lock);
+    if(!drained){
+        /* A missing abort callback retains its old USB epoch. Do not power
+         * cycle or release that epoch while hardware ownership is pending. */
+        acRecoveryDiag_.cleanupResult=EBUSY;
+        acMediaConnected_=acRateReady_=false;acChannel_=0;acRateConfig_={};
+        return;
+    }
+    if(present_&&!sleeping_&&usbError_==kIOReturnSuccess&&rxRecovery_.initialDrainError==kIOReturnSuccess){
         if(acCore_.phy&&acCore_.mac_initialized)(void)rtw_8814au_phy_stop(&acCore_);
-        (void)rtw_8814au_stop(&acCore_);
-    }else acCore_.powered=acCore_.fw_running=acCore_.mac_initialized=acCore_.phy_initialized=0;
+        const int cleanup=rtw_8814au_stop_checked(&acCore_);
+        if(!acRecoveryDiag_.cleanupResult)acRecoveryDiag_.cleanupResult=(uint32_t)cleanup;
+        if(cleanup)acRecoveryBlocked_=true;
+    }else {
+        acCore_.powered=acCore_.fw_running=acCore_.mac_initialized=acCore_.phy_initialized=0;
+        if(!acRecoveryDiag_.cleanupResult)acRecoveryDiag_.cleanupResult=ENXIO;
+        acRecoveryBlocked_=true;
+    }
     acMediaConnected_=acRateReady_=false;acChannel_=0;acRateConfig_={};
     freeTransfers();
 }
@@ -146,10 +188,12 @@ int RTWUSBController::set8814Channel(uint8_t channel)
     if(!band5g&&(channel<1||channel>11))return EINVAL;
     if(!permitsDFSChannelByCountry(channel))return EACCES;
     if(!rtw_8814au_phy_channel_supported(&acCore_,channel,20))return ENOTSUP;
+    if(acStarting_)acRecoveryDiag_.stage=AUChannel;
     int e=rtw_8814au_phy_set_channel(&acCore_,channel,20);
-    if(!e)e=rtw_8814au_phy_calibrate(&acCore_);
+    const uint32_t stage=e?AUChannel:AURFK;
+    if(!e){if(acStarting_)acRecoveryDiag_.stage=AURFK;e=rtw_8814au_phy_calibrate(&acCore_);}
     if(!e)acChannel_=channel;
-    else {acChannel_=0;core_.core_error=e;}
+    else {acChannel_=0;core_.core_error=e;if(!acStarting_)record8814Failure(stage,e);}
     return e;
 }
 int RTWUSBController::state8814(ieee80211com *ic,ieee80211_state state,int argument)
@@ -272,7 +316,7 @@ void RTWUSBController::initTask8814(void *p)
     auto*s=owner(p);auto&core=s->core_;auto&ifp=core.sc_ic.ic_if;
     if(core.sc_flags&RTWN_FLAG_BUSY)return;
     core.sc_flags|=RTWN_FLAG_BUSY;s->stop8814();
-    if(ifp.if_flags&IFF_UP){int e=s->start8814();if(e)core.core_error=e;}
+    if(ifp.if_flags&IFF_UP){int e=s->start8814();if(e&&e!=EAGAIN&&e!=EBUSY)core.core_error=e;}
     core.sc_flags&=~RTWN_FLAG_BUSY;
 }
 int RTWUSBController::ioctl8814(_ifnet *ifp,u_long command,caddr_t data)

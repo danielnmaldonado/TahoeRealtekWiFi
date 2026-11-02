@@ -1,0 +1,15 @@
+captura,usb,familia,funcionava_na55,modo_observado55,correcao_no_source61,pendencias,validacao61,coleta_parcial
+18:49:15,0BDA:B812,RTL8822BU,sim,HT20/2 fluxos; canal 157,HT40/VHT20/40/80 não DFS implementados,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,sim
+18:54:14,2357:010C,RTL8188EU,sim,"b/g, sem HT; canal 6",HT20/MCS/QoS/BA implementados,divergência RX nativo / entrega Ethernet; causa de replay CCMP +2 não esclarecida,regressão de conexão/tráfego e velocidade da build61 pendente,não
+18:58:06,2357:0107,RTL8192EU,sim,HT40/2 fluxos; canal 6,HT40/2 fluxos já observado; sem nova correção causal isolada,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,não
+19:00:28,2357:0109,RTL8192EU,sim,HT40/2 fluxos; canal 6,HT40/2 fluxos já observado; sem nova correção causal isolada,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,não
+19:02:05,0BDA:0179,RTL8188EU,sim,"b/g, sem HT; canal 6",HT20/MCS/QoS/BA implementados,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,não
+19:03:36,0BDA:C811,RTL8821CU,sim,HT20/1 fluxos; canal 157,HT40/VHT20/40/80 não DFS implementados,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,não
+19:04:55,0BDA:C811,RTL8821CU,sim,HT20/1 fluxos; canal 157,HT40/VHT20/40/80 não DFS implementados,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,não
+19:06:32,0BDA:8179,RTL8188EU,sim,"b/g, sem HT; canal 6",HT20/MCS/QoS/BA implementados,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,não
+19:08:00,20F4:808A,RTL8822BU,sim,HT20/2 fluxos; canal 157,HT40/VHT20/40/80 não DFS implementados,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,não
+19:09:42,0BDA:8178,RTL8192CU,sim,"b/g, sem HT; canal 6",HT20/MCS/QoS/BA implementados,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,sim
+19:11:07,2357:0115,RTL8822BU,sim,HT20/2 fluxos; canal 157,HT40/VHT20/40/80 não DFS implementados,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,sim
+19:13:20,7392:A611,RTL8723BU (perfil),não,sem controlador,USB quatro OUT / três filas DMA,causa física da descoberta USB não confirmada,"carregamento, busca, WPA2 e tráfego pendentes",sim
+19:15:01,2357:0108,RTL8192EU,sim,HT40/2 fluxos; canal 6,HT40/2 fluxos já observado; sem nova correção causal isolada,divergência RX nativo / entrega Ethernet,regressão de conexão/tráfego e velocidade da build61 pendente,sim
+19:20:26,2357:0120,RTL8821AU,não,"sem canal, busca ou associação",reset de MCU residente AU; calibração de potência VHT80 AU,"causa da falha não identificada; omissão de 2,4 GHz não explicada; resultado de enable/scan não capturado","carregamento funcional do rádio, busca, WPA2 e tráfego pendentes",não

@@ -47,3 +47,12 @@ int rtw88_rx_parse_rate_report(const uint8_t*b,size_t n,const rtw_8814au_rate_co
  if(n!=9||!c||!c->mask||c->tx_streams<1||c->tx_streams>2||b[3]||b[8]||((b[2]&0x80)&&!c->sgi20))return-1;
  uint8_t r=b[2]&127U;if(r>27||!(c->mask&(UINT64_C(1)<<r))||(r>=12&&!c->ht)||(r>=20&&c->tx_streams<2))return-1;*rate=r;return 1;
 }
+int rtw88_rx_parse_station_rate_report(const uint8_t*b,size_t n,const rtw88_station_rate*c,uint8_t*rate){
+ unsigned width;if(rate)*rate=0;if(!b||!rate||n<2||n>257)return-1;if(b[0]!=0xc)return 0;
+ if(n!=9||!c||b[3]||((b[2]&0x80U)&&!c->rates.sgi20))return-1;
+ width=c->width_mhz==80?2U:c->width_mhz==40?1U:0U;
+ if(b[8]>width||(b[8]&&((b[2]&127U)<12U))||
+    (b[8]==2U&&((b[2]&127U)<44U))||!rtw88_station_rate_selected(c,b[2]&127U))return-1;
+ if(!b[8]&&(b[2]&127U)>=44U&&(((b[2]&127U)-44U)%10U)==9U)return-1;
+ *rate=b[2]&127U;return 1;
+}

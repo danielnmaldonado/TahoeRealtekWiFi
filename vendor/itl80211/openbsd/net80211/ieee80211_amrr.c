@@ -55,27 +55,27 @@
     do { (amn)->amn_txcnt = (amn)->amn_retrycnt = 0; } while (0)
 
 static inline int
-is_min_rate(struct ieee80211_node *ni)
+is_min_rate(uint8_t rate)
 {
-    return (ni->ni_txrate == 0);
+    return (rate == 0);
 }
 
 static inline int
-is_max_rate(struct ieee80211_node *ni)
+is_max_rate(uint8_t rate, unsigned count)
 {
-    return (ni->ni_txrate == ni->ni_rates.rs_nrates - 1);
+    return (rate == count - 1);
 }
 
 static inline void
-increase_rate(struct ieee80211_node *ni)
+increase_rate(uint8_t *rate)
 {
-    ni->ni_txrate++;
+    (*rate)++;
 }
 
 static inline void
-decrease_rate(struct ieee80211_node *ni)
+decrease_rate(uint8_t *rate)
 {
-    ni->ni_txrate--;
+    (*rate)--;
 }
 
 void
@@ -92,21 +92,22 @@ ieee80211_amrr_node_init(const struct ieee80211_amrr *amrr,
  * Update ni->ni_txrate.
  */
 void
-ieee80211_amrr_choose(struct ieee80211_amrr *amrr, struct ieee80211_node *ni,
+ieee80211_amrr_choose_index(struct ieee80211_amrr *amrr, uint8_t *rate, unsigned count,
     struct ieee80211_amrr_node *amn)
 {
-#define RV(rate)    ((rate) & IEEE80211_RATE_VAL)
     int need_change = 0;
+    if (!amrr || !rate || !amn || !count || count > 256 || *rate >= count)
+        return;
 
     if (is_success(amn) && is_enough(amn)) {
         amn->amn_success++;
         if (amn->amn_success >= amn->amn_success_threshold &&
-            !is_max_rate(ni)) {
+            !is_max_rate(*rate, count)) {
             amn->amn_recovery = 1;
             amn->amn_success = 0;
-            increase_rate(ni);
-            DPRINTF(("increase rate=%d,#tx=%d,#retries=%d\n",
-                RV(ni->ni_rates.rs_rates[ni->ni_txrate]),
+            increase_rate(rate);
+            DPRINTF(("increase rate index=%u,#tx=%d,#retries=%d\n",
+                *rate,
                 amn->amn_txcnt, amn->amn_retrycnt));
             need_change = 1;
         } else {
@@ -114,7 +115,7 @@ ieee80211_amrr_choose(struct ieee80211_amrr *amrr, struct ieee80211_node *ni,
         }
     } else if (is_failure(amn)) {
         amn->amn_success = 0;
-        if (!is_min_rate(ni)) {
+        if (!is_min_rate(*rate)) {
             if (amn->amn_recovery) {
                 amn->amn_success_threshold *= 2;
                 if (amn->amn_success_threshold >
@@ -125,9 +126,9 @@ ieee80211_amrr_choose(struct ieee80211_amrr *amrr, struct ieee80211_node *ni,
                 amn->amn_success_threshold =
                     amrr->amrr_min_success_threshold;
             }
-            decrease_rate(ni);
-            DPRINTF(("decrease rate=%d,#tx=%d,#retries=%d\n",
-                RV(ni->ni_rates.rs_rates[ni->ni_txrate]),
+            decrease_rate(rate);
+            DPRINTF(("decrease rate index=%u,#tx=%d,#retries=%d\n",
+                *rate,
                 amn->amn_txcnt, amn->amn_retrycnt));
             need_change = 1;
         }
@@ -136,5 +137,15 @@ ieee80211_amrr_choose(struct ieee80211_amrr *amrr, struct ieee80211_node *ni,
 
     if (is_enough(amn) || need_change)
         reset_cnt(amn);
-#undef RV
+}
+
+void
+ieee80211_amrr_choose(struct ieee80211_amrr *amrr, struct ieee80211_node *ni,
+    struct ieee80211_amrr_node *amn)
+{
+    if (ni && (unsigned)ni->ni_txrate < 256U) {
+        uint8_t rate = (uint8_t)ni->ni_txrate;
+        ieee80211_amrr_choose_index(amrr, &rate, ni->ni_rates.rs_nrates, amn);
+        ni->ni_txrate = rate;
+    }
 }

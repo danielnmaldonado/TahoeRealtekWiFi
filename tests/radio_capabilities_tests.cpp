@@ -17,8 +17,8 @@ struct FamilyExpectation {
     unsigned family_nss;
 };
 static constexpr std::array<FamilyExpectation,14> expected{{
-    {RTW_WIFI_RTL8192CU,1,300,1,54,2},
-    {RTW_WIFI_RTL8188EU,1,150,1,54,1},
+    {RTW_WIFI_RTL8192CU,1,300,1,144,2},
+    {RTW_WIFI_RTL8188EU,1,150,1,72,1},
     {RTW_WIFI_RTL8192EU,1,300,1,300,2},
     {RTW_WIFI_RTL8192DU,3,300,3,144,2},
     {RTW_WIFI_RTL8192FU,1,300,1,300,2},
@@ -28,9 +28,9 @@ static constexpr std::array<FamilyExpectation,14> expected{{
     {RTW_WIFI_RTL8814AU,3,1300,3,144,3},
     {RTW_WIFI_RTL8814BU,0,0,0,0,0},
     {RTW_WIFI_RTL8821AU,3,433,3,433,1},
-    {RTW_WIFI_RTL8821CU,3,433,3,72,1},
-    {RTW_WIFI_RTL8822BU,3,867,3,144,2},
-    {RTW_WIFI_RTL8822CU,3,867,3,144,2}
+    {RTW_WIFI_RTL8821CU,3,433,3,433,1},
+    {RTW_WIFI_RTL8822BU,3,867,3,867,2},
+    {RTW_WIFI_RTL8822CU,3,867,3,867,2}
 }};
 int main() {
     assert(rtw_usb_wifi_profile_count()==270);
@@ -66,7 +66,8 @@ int main() {
         assert(c.station_max_nss<=c.family_max_nss);
         assert(c.station_max_2g_width_mhz<=c.family_max_2g_width_mhz);
         assert(c.station_max_5g_width_mhz<=c.family_max_5g_width_mhz);
-        assert(c.station_max_5g_width_mhz==((e.driver_bands&RTW_WIFI_BAND_5GHZ)?((e.family==RTW_WIFI_RTL8812AU||e.family==RTW_WIFI_RTL8821AU)?80:20):0));
+        const bool wide=e.family==RTW_WIFI_RTL8812AU||e.family==RTW_WIFI_RTL8821AU||e.family==RTW_WIFI_RTL8821CU||e.family==RTW_WIFI_RTL8822BU||e.family==RTW_WIFI_RTL8822CU;
+        assert(c.station_max_5g_width_mhz==((e.driver_bands&RTW_WIFI_BAND_5GHZ)?(wide?80:20):0));
         assert(!c.identity_verified); // A family name cannot verify a USB ID
         rtw_r12au_channel_plan plan{};
         assert(rtw_family_radio_prepare(e.family,6,6,20,&plan)==

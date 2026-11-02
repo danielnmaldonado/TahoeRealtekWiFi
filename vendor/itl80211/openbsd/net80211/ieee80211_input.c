@@ -1630,17 +1630,28 @@ ieee80211_save_ie(const u_int8_t *frm, u_int8_t **ie)
 int
 ieee80211_save_ie_tlv(const u_int8_t *frm, u_int8_t **ie, uint32_t *accept_len, uint32_t len)
 {
-    int olen = *accept_len;
-    
-    if (*ie == NULL || olen != len) {
-        if (*ie != NULL && *accept_len > 0)
+    uint32_t olen = *accept_len;
+    u_int8_t *replacement;
+
+    if (len == 0) {
+        if (*ie != NULL)
             free(*ie);
-        *ie = (u_int8_t *)malloc(len, 1, 1);
-        if (*ie == NULL)
+        *ie = NULL;
+        *accept_len = 0;
+        return 0;
+    }
+    if (*ie == NULL || olen != len) {
+        replacement = (u_int8_t *)malloc(len, 1, 1);
+        if (replacement == NULL)
             return ENOMEM;
+        memcpy(replacement, frm, len);
+        if (*ie != NULL)
+            free(*ie);
+        *ie = replacement;
+    } else {
+        memcpy(*ie, frm, len);
     }
     *accept_len = len;
-    memcpy(*ie, frm, len);
     return 0;
 }
 
@@ -1666,7 +1677,7 @@ ieee80211_recv_probe_resp(struct ieee80211com *ic, mbuf_t m,
 {
     struct ieee80211_node *ni = NULL;
     const struct ieee80211_frame *wh;
-    const u_int8_t *frm, *efrm;
+    const u_int8_t *frm, *efrm, *ie_start;
     const u_int8_t *tstamp, *ssid, *rates, *xrates, *edcaie, *wmmie;
     const u_int8_t *rsnie, *wpaie, *htcaps, *htop;
     const uint8_t *csa;
@@ -1712,6 +1723,7 @@ ieee80211_recv_probe_resp(struct ieee80211com *ic, mbuf_t m,
     tstamp  = frm; frm += 8;
     bintval = LE_READ_2(frm); frm += 2;
     capinfo = LE_READ_2(frm); frm += 2;
+    ie_start = frm;
     
     ssid = rates = xrates = edcaie = wmmie = rsnie = wpaie = csa = vhtcap = vhtopmode = hecap = heopmode = NULL;
     htcaps = htop = NULL;
@@ -1722,8 +1734,8 @@ ieee80211_recv_probe_resp(struct ieee80211com *ic, mbuf_t m,
     chan = bchan;
     erp = 0;
     dtim_count = dtim_period = 0;
-    while (frm + 2 <= efrm) {
-        if (frm + 2 + frm[1] > efrm) {
+    while (efrm - frm >= 2) {
+        if (frm[1] > efrm - frm - 2) {
             ic->ic_stats.is_rx_elem_toosmall++;
             break;
         }
@@ -1792,6 +1804,10 @@ ieee80211_recv_probe_resp(struct ieee80211com *ic, mbuf_t m,
                 }
                 break;
             case IEEE80211_ELEMID_EXTENSION:
+                if (frm[1] < 1) {
+                    ic->ic_stats.is_rx_elem_toosmall++;
+                    break;
+                }
                 switch (frm[2]) {
                     case IEEE80211_ELEMID_EXT_HE_MU_EDCA:
                         break;
@@ -2030,8 +2046,14 @@ ieee80211_recv_probe_resp(struct ieee80211com *ic, mbuf_t m,
         (ic->ic_flags & IEEE80211_F_BGSCAN)) {
         struct ieee80211_rsnparams rsn, wpa;
         
-        uint32_t tlv_len = (mtod(m, u_int8_t *) + mbuf_len(m)) - (u_int8_t *)&wh[1] + 1 - 8 - 2 - 2;
-        ieee80211_save_ie_tlv(((u_int8_t *)&wh[1]) + 8 + 2 + 2, &ni->ni_rsnie_tlv, &ni->ni_rsnie_tlv_len, tlv_len);
+        size_t tlv_len = (size_t)(efrm - ie_start);
+        if (tlv_len > UINT32_MAX ||
+            ieee80211_save_ie_tlv(ie_start, &ni->ni_rsnie_tlv,
+                &ni->ni_rsnie_tlv_len, (uint32_t)tlv_len) != 0) {
+            /* This optional raw cache must not retain stale scan bytes. */
+            ieee80211_save_ie_tlv(NULL, &ni->ni_rsnie_tlv,
+                &ni->ni_rsnie_tlv_len, 0);
+        }
         ni->ni_rsnprotos = IEEE80211_PROTO_NONE;
         ni->ni_supported_rsnprotos = IEEE80211_PROTO_NONE;
         ni->ni_rsnakms = 0;

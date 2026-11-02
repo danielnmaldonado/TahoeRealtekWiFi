@@ -4,6 +4,7 @@
 #include "Model.hpp"
 #include "SignalHistory.hpp"
 #include "PollPolicy.hpp"
+#include "NetworkRefreshPolicy.hpp"
 #include "WorkEpoch.hpp"
 #import "LoginItem.h"
 #include "LoginPolicy.hpp"
@@ -11,9 +12,11 @@
 #import "DriverConnection.h"
 #import "CodeIdentity.h"
 #include "ReconnectPolicy.hpp"
+#import "AdapterPreference.h"
 #include "InstanceLock.hpp"
 #include "Transport.hpp"
 #import "AdapterDiagnostics.h"
+#import "DiagnosticCLI.h"
 #import "EnglishErrors.h"
 #include <arpa/inet.h>
 #include <ifaddrs.h>
@@ -22,6 +25,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <memory>
+#include <map>
 
 static NSString* text(const std::string& value) {
     return [[NSString alloc] initWithBytes:value.data() length:value.size() encoding:NSUTF8StringEncoding] ?: @"[SSID]";
@@ -99,6 +103,24 @@ static NSString* interfaceInfo(const uint8_t* mac) {
     return ip.empty()?[NSString stringWithFormat:@"%@ · waiting for DHCP",text(name)]:
         [NSString stringWithFormat:@"%@ · %@",text(name),text(ip)];
 }
+// Older app versions did not save the chosen USB. Adopt an already confirmed
+// sole link once, rather than infer user intent from enumeration or route order.
+// Called only on the control queue, and every listed adapter must be readable.
+static NSDictionary* existingAdapterLink(RTWDriverConnection* driver,const rtwui::DeviceList& list,NSData* preferredSSID) {
+    if(!rtwui::validDevices(list)||!list.count)return nil;
+    NSDictionary* result=nil;
+    for(unsigned i=0;i<list.count;++i) {
+        RTWControlRequest request{};request.version=RTW_CONTROL_VERSION;RTWControlStatus status{};
+        if([driver exchangeRegistryID:list.devices[i].registryID selector:RTW_CONTROL_STATUS
+            input:&request length:sizeof(request) output:&status capacity:sizeof(status)]||
+           status.version!=RTW_CONTROL_VERSION||status.ssidLength>32||status.state>4)return nil;
+        if(rtwui::phase(status)!=rtwui::Phase::Connected)continue;
+        if(result||!status.ssidLength)return nil;
+        NSData* ssid=[NSData dataWithBytes:status.ssid length:status.ssidLength];
+        result=@{@"registryID":@(list.devices[i].registryID),@"ssid":ssid};
+    }
+    return result&&(!preferredSSID||[result[@"ssid"] isEqual:preferredSSID])?result:nil;
+}
 
 @interface WiFiApp : NSObject <NSApplicationDelegate,NSMenuDelegate> {
     NSStatusItem* _item;
@@ -120,8 +142,19 @@ static NSString* interfaceInfo(const uint8_t* mac) {
     BOOL _savedNetworksLoaded,_loadingSavedNetworks,_reloadSavedAgain;
     NSArray<NSData*>* _savedNetworks;
     NSData* _preferredSSID;
+    NSData* _legacyPreferredSSID;
+    NSDictionary* _preferredAdapter;
+    NSArray<NSDictionary*>* _adapterProfiles;
+    NSDictionary<NSNumber*,NSDictionary*>* _adapterIdentities;
+    NSDictionary* _existingAdapterLink;
+    BOOL _connectionPreferencesLoaded;
+    uint64_t _preferredAdapterPendingID;
+    NSData* _pendingNetworkSSID;
+    uint64_t _pendingNetworkRegistryID;
     double _lastLinkedAt,_lastAutoScanAt,_lastSavedReloadAt;
     BOOL _rememberCurrentJoin,_soleAdapterRecovery;
+    BOOL _automaticCurrentJoin;
+    std::atomic<uint64_t> _autoJoinEpoch;
     BOOL _authorizedSession,_authorizing,_busy,_hasStatus,_menuOpen,_joining,_joinAccepted,_diagnostic,_diagnosticPrinted;
     uint64_t _joinGeneration;
     rtwui::DeviceSelection _selection;
@@ -134,6 +167,8 @@ static NSString* interfaceInfo(const uint8_t* mac) {
     std::atomic<uint64_t> _adapterEpoch;
     rtwui::WorkEpoch _workEpoch;
     BOOL _commandPending,_refreshingNetworks;
+    std::map<uint64_t,rtwui::NetworkRefreshPolicy> _networkRefresh;
+    double _refreshStartedAt;
     NSInteger _displayedIconKind;
     rtwui::SignalMemory _signal;
     rtwui::SignalHistory _signalHistory;
@@ -156,6 +191,91 @@ static NSString* interfaceInfo(const uint8_t* mac) {
 - (NSUserDefaults*)preferences {
     if(!_preferences)_preferences=NSUserDefaults.standardUserDefaults;
     return _preferences;
+}
+- (void)loadConnectionPreferences {
+    if(_connectionPreferencesLoaded)return;
+    _connectionPreferencesLoaded=YES;
+    NSUserDefaults* defaults=[self preferences];
+    [defaults registerDefaults:@{@"RTWAutoJoinEnabled":@YES}];
+    _autoJoinEnabled=[defaults boolForKey:@"RTWAutoJoinEnabled"];
+    _autoJoin.paused=[defaults boolForKey:@"RTWAutoJoinPaused"];
+    id ssid=[defaults objectForKey:@"RTWLastConnectedSSID"];
+    if([ssid isKindOfClass:NSData.class]&&[ssid length]>0&&[ssid length]<=32)
+        _preferredSSID=_legacyPreferredSSID=[ssid copy];
+    _preferredAdapter=rtwui::adapterIdentity([defaults objectForKey:@"RTWPreferredAdapter"]);
+    NSMutableArray* profiles=[NSMutableArray array];
+    id saved=[defaults objectForKey:@"RTWAdapterNetworkPreferences"];
+    if([saved isKindOfClass:NSArray.class]&&[saved count]<=rtwui::maxDevices)
+        for(id profile in saved) {
+            if(![profile isKindOfClass:NSDictionary.class])continue;
+            NSDictionary* identity=rtwui::adapterIdentity(profile[@"identity"]);id network=profile[@"ssid"];
+            if(identity&&[network isKindOfClass:NSData.class]&&[network length]>0&&[network length]<=32)
+                [profiles addObject:@{@"identity":identity,@"ssid":network}];
+        }
+    _adapterProfiles=[profiles copy];
+}
+- (NSDictionary*)adapterIdentityForRegistryID:(uint64_t)registryID {
+    return _adapterIdentities[@(registryID)];
+}
+- (void)restoreAdapterNetworkPreference {
+    NSDictionary* identity=rtwui::adapterIdentity([self adapterIdentityForRegistryID:_selection.registryID]);
+    unsigned best=0,matches=0;NSData* ssid=nil;
+    for(NSDictionary* profile in _adapterProfiles) {
+        const unsigned score=rtwui::adapterIdentityMatch(profile[@"identity"],identity);
+        if(score>best){best=score;matches=1;ssid=profile[@"ssid"];}
+        else if(score&&score==best)++matches;
+    }
+    _preferredSSID=matches==1?ssid:!_adapterProfiles.count?_legacyPreferredSSID:nil;
+}
+- (void)rememberAdapter:(uint64_t)registryID {
+    NSDictionary* identity=rtwui::adapterIdentity([self adapterIdentityForRegistryID:registryID]);
+    if(!identity&&registryID==_selection.registryID&&_selectedPresent)identity=_preferredAdapter;
+    if(registryID==_selection.registryID&&_selectedPresent&&
+       rtwui::adapterIdentityMatch(identity,_preferredAdapter)) {
+        NSMutableDictionary* strongest=[_preferredAdapter mutableCopy];
+        [strongest addEntriesFromDictionary:identity];identity=[strongest copy];
+    }
+    _preferredAdapterPendingID=identity?0:registryID;_preferredAdapter=identity;
+    if(identity)[[self preferences] setObject:identity forKey:@"RTWPreferredAdapter"];
+    else [[self preferences] removeObjectForKey:@"RTWPreferredAdapter"];
+}
+- (void)rememberConnectedNetwork:(NSData*)ssid {
+    if(!ssid.length||ssid.length>32)return;
+    _preferredSSID=[ssid copy];
+    [[self preferences] setObject:_preferredSSID forKey:@"RTWLastConnectedSSID"];
+    NSDictionary* identity=rtwui::adapterIdentity([self adapterIdentityForRegistryID:_selection.registryID]);
+    if(!identity){_pendingNetworkSSID=_preferredSSID;_pendingNetworkRegistryID=_selection.registryID;return;}
+    _pendingNetworkSSID=nil;_pendingNetworkRegistryID=0;
+    [self rememberAdapter:_selection.registryID];
+    identity=_preferredAdapter;
+    NSMutableArray* profiles=[NSMutableArray array];
+    for(NSDictionary* profile in _adapterProfiles)
+        if(!rtwui::adapterIdentityMatch(profile[@"identity"],identity))[profiles addObject:profile];
+    while(profiles.count>=rtwui::maxDevices)[profiles removeObjectAtIndex:0];
+    [profiles addObject:@{@"identity":identity,@"ssid":_preferredSSID}];
+    _adapterProfiles=[profiles copy];
+    [[self preferences] setObject:_adapterProfiles forKey:@"RTWAdapterNetworkPreferences"];
+}
+- (void)strengthenSelectedAdapterIdentity {
+    NSDictionary* current=rtwui::adapterIdentity([self adapterIdentityForRegistryID:_selection.registryID]);
+    if(!rtwui::adapterIdentityMatch(_preferredAdapter,current))return;
+    NSMutableDictionary* strongest=[_preferredAdapter mutableCopy];[strongest addEntriesFromDictionary:current];
+    if([strongest isEqual:_preferredAdapter])return;
+    // Metadata can appear after the controller itself. Upgrade only this
+    // still-selected instance and never discard an already recorded ID.
+    unsigned best=0,matches=0;NSUInteger index=NSNotFound;
+    for(NSUInteger i=0;i<_adapterProfiles.count;++i) {
+        const unsigned score=rtwui::adapterIdentityMatch(_adapterProfiles[i][@"identity"],_preferredAdapter);
+        if(score>best){best=score;matches=1;index=i;}else if(score&&score==best)++matches;
+    }
+    _preferredAdapter=[strongest copy];
+    [[self preferences] setObject:_preferredAdapter forKey:@"RTWPreferredAdapter"];
+    if(matches==1) {
+        NSMutableArray* profiles=[_adapterProfiles mutableCopy];
+        profiles[index]=@{@"identity":_preferredAdapter,@"ssid":_adapterProfiles[index][@"ssid"]};
+        _adapterProfiles=[profiles copy];
+        [[self preferences] setObject:_adapterProfiles forKey:@"RTWAdapterNetworkPreferences"];
+    }
 }
 - (void)applicationDidFinishLaunching:(NSNotification*)notification {
     (void)notification;
@@ -183,12 +303,7 @@ static NSString* interfaceInfo(const uint8_t* mac) {
     _item.button.toolTip=@"Tahoe Wi-Fi USB · connecting to service";
     _menu=menuForControl();_menu.delegate=self;_item.menu=_menu;
     NSUserDefaults* defaults=[self preferences];
-    [defaults registerDefaults:@{@"RTWAutoJoinEnabled":@YES}];
-    _autoJoinEnabled=[defaults boolForKey:@"RTWAutoJoinEnabled"];
-    _autoJoin.paused=[defaults boolForKey:@"RTWAutoJoinPaused"];
-    id preferred=[defaults objectForKey:@"RTWLastConnectedSSID"];
-    if([preferred isKindOfClass:NSData.class]&&[preferred length]>0&&[preferred length]<=32)
-        _preferredSSID=[preferred copy];
+    [self loadConnectionPreferences];
     _notice=@"Connecting to the driver service automatically…";
     [self rebuildMenu];
     [self refreshPollingTimer];
@@ -253,6 +368,7 @@ static NSString* interfaceInfo(const uint8_t* mac) {
     _workEpoch.invalidate();++_pollToken;
     _channelMap.clear();
     _busy=NO;_authorizing=NO;_commandPending=NO;_refreshingNetworks=NO;
+    _refreshStartedAt=-1;
 }
 - (rtwui::LinkIndicator)linkIndicator {
     return rtwui::linkIndicator(_authorizedSession,_selection.registryID!=0,_selectedPresent,
@@ -473,11 +589,15 @@ static NSString* interfaceInfo(const uint8_t* mac) {
     if(!_serviceRetry.due([self uptime]))return;
     _authorizing=YES;[self updateAppearance];
     const auto epoch=_workEpoch.snapshot();
+    const BOOL discoverExisting=!_preferredAdapter&&!_preferredAdapterPendingID&&!_selection.everSelected;
+    NSData* legacySSID=_legacyPreferredSSID;
     dispatch_async(_queue,^{
         if(!self->_workEpoch.matches(epoch))return;
         rtwui::DeviceList devices{};
         uint32_t result=[self->_driver exchangeRegistryID:0 selector:rtwui::listSelector
             input:nullptr length:0 output:&devices capacity:sizeof(devices)];
+        NSDictionary* identities=!result?rtwui::readAdapterIdentities(devices):nil;
+        NSDictionary* existing=!result&&discoverExisting?existingAdapterLink(self->_driver,devices,legacySSID):nil;
         dispatch_async(dispatch_get_main_queue(),^{
             if(self->_terminating||!self->_workEpoch.matches(epoch))return;
             self->_authorizing=NO;
@@ -488,6 +608,8 @@ static NSString* interfaceInfo(const uint8_t* mac) {
             }else {
                 self->_serviceRetry.reset();self->_notice=nil;
                 self->_forceDeviceList=YES;self->_forceNetworkCache=YES;
+                self->_adapterIdentities=identities;
+                self->_existingAdapterLink=existing;
                 [self applyAdapters:devices];[self poll:nil];
             }
             [self updateAppearance];
@@ -522,6 +644,7 @@ static NSString* interfaceInfo(const uint8_t* mac) {
     _signal.clear();_signalHistory.clear();
     _forceDeviceList=YES;_forceNetworkCache=YES;_hasStatus=NO;
     _lastLinkedAt=-1;_lastAutoScanAt=-1;
+    for(auto& entry:_networkRefresh)entry.second.lastFinishedAt=-1;
     [self refreshPollingTimer];[self reloadSavedNetworks];[self poll:nil];
 }
 - (void)workspaceWillSleep:(NSNotification*)notification {
@@ -538,6 +661,11 @@ static NSString* interfaceInfo(const uint8_t* mac) {
 }
 - (void)toggleAutoJoin:(id)sender {
 _autoJoinEnabled=!_autoJoinEnabled;
+    _autoJoinEpoch.fetch_add(1);
+    if(_joining&&_automaticCurrentJoin) {
+        ++_joinGeneration;_joining=NO;_joinAccepted=NO;_joinSSID=nil;
+        _joinStartedAt=-1;_rememberCurrentJoin=NO;_automaticCurrentJoin=NO;
+    }
     [[self preferences] setBool:_autoJoinEnabled forKey:@"RTWAutoJoinEnabled"];
     if(_autoJoinEnabled) {
         _autoJoin.paused=false;_autoJoin.reset();
@@ -586,7 +714,8 @@ _autoJoinEnabled=!_autoJoinEnabled;
         if([_savedNetworks containsObject:ssid]){candidate=ssid;break;}
     }
     if(!candidate) {
-        if(_lastAutoScanAt<0||now-_lastAutoScanAt>=30.0) {
+        if((_lastAutoScanAt<0||now-_lastAutoScanAt>=30.0)&&
+           _networkRefresh[_selection.registryID].due(now)) {
             _lastAutoScanAt=now;[self command:RTW_CONTROL_SCAN];
         }
         return;
@@ -605,36 +734,107 @@ _autoJoinEnabled=!_autoJoinEnabled;
 }
 - (void)useAdapter:(uint64_t)registryID {
     if(!_selection.select(registryID))return;
+    if(registryID!=_pendingNetworkRegistryID){_pendingNetworkSSID=nil;_pendingNetworkRegistryID=0;}
     _adapterEpoch.store(_selection.generation);
     [self clearAdapterState];_selectedPresent=NO;_autoJoin.reset();_lastLinkedAt=-1;
     for(const auto& adapter:_adapters)if(adapter.registryID==registryID)_selectedPresent=YES;
+    [self restoreAdapterNetworkPreference];
+    if(!_preferredAdapter&&_selectedPresent&&[self adapterIdentityForRegistryID:registryID])
+        [self rememberAdapter:registryID];
     _notice=_selectedPresent?nil:@"The selected adapter was disconnected. Choose another from the menu.";
     [self updateAppearance];if(_queue)[self poll:nil];
 }
 - (void)selectAdapter:(NSMenuItem*)item {
     if(!_authorizedSession||![item.representedObject isKindOfClass:NSNumber.class])return;
     const uint64_t id=[item.representedObject unsignedLongLongValue];
-    for(const auto& adapter:_adapters)if(adapter.registryID==id){[self useAdapter:id];return;}
+    for(const auto& adapter:_adapters)if(adapter.registryID==id){[self rememberAdapter:id];[self useAdapter:id];return;}
 }
 - (void)applyAdapters:(const rtwui::DeviceList&)list {
     if(!rtwui::validDevices(list))return;
+    [self loadConnectionPreferences];
     const unsigned previousCount=static_cast<unsigned>(_adapters.size());
     if(!list.count)_soleAdapterRecovery=YES;
     _adapters.assign(list.devices,list.devices+list.count);
+    for(auto entry=_networkRefresh.begin();entry!=_networkRefresh.end();) {
+        const bool present=std::any_of(_adapters.begin(),_adapters.end(),
+            [&](const auto& adapter){return adapter.registryID==entry->first;});
+        if(!present)entry=_networkRefresh.erase(entry);else ++entry;
+    }
     BOOL present=NO;for(const auto& adapter:_adapters)if(adapter.registryID==_selection.registryID)present=YES;
     if(_selectedPresent&&!present){_soleAdapterRecovery=previousCount==1||list.count==0;_selection.invalidate();_adapterEpoch.store(_selection.generation);[self clearAdapterState];_notice=@"The selected adapter was disconnected. Choose another from the menu.";}
     _selectedPresent=present;
+    if(present)[self strengthenSelectedAdapterIdentity];
+    if(present&&_pendingNetworkRegistryID==_selection.registryID&&_pendingNetworkSSID&&
+       [self adapterIdentityForRegistryID:_selection.registryID])
+        [self rememberConnectedNetwork:_pendingNetworkSSID];
+    if(present&&!_preferredAdapter&&
+       (!_preferredAdapterPendingID||_preferredAdapterPendingID==_selection.registryID)&&
+       [self adapterIdentityForRegistryID:_selection.registryID]) {
+        [self rememberAdapter:_selection.registryID];
+        [self restoreAdapterNetworkPreference];
+    }
+    if(present&&rtwui::adapterIdentityMatch(_preferredAdapter,
+       rtwui::adapterIdentity([self adapterIdentityForRegistryID:_selection.registryID])))
+        [self restoreAdapterNetworkPreference];
     if(present&&_selection.invalidated) {
         // LIST can confirm the same controller after a temporary absence or
         // service restart. Renew its token before polling; marking it present
         // alone would leave every STATUS result invalidated forever.
         _soleAdapterRecovery=NO;[self useAdapter:_selection.registryID];return;
     }
+    if(_preferredAdapter) {
+        unsigned best=0,matches=0;uint64_t preferredID=0;
+        for(const auto& adapter:_adapters) {
+            const unsigned score=rtwui::adapterIdentityMatch(_preferredAdapter,
+                rtwui::adapterIdentity([self adapterIdentityForRegistryID:adapter.registryID]));
+            if(score>best){best=score;matches=1;preferredID=adapter.registryID;}
+            else if(score&&score==best)++matches;
+        }
+        if(!present&&matches==1){_soleAdapterRecovery=NO;[self useAdapter:preferredID];}
+        // Keep the preferred USB through delayed boot enumeration or an
+        // ambiguous duplicate. A different sole adapter cannot replace it.
+        return;
+    }
+    if(_preferredAdapterPendingID)return;
+    if(!_selection.everSelected&&_existingAdapterLink) {
+        const uint64_t linkedID=[_existingAdapterLink[@"registryID"] unsignedLongLongValue];
+        for(const auto& adapter:_adapters)if(adapter.registryID==linkedID) {
+            [self rememberAdapter:linkedID];[self useAdapter:linkedID];
+            [self rememberConnectedNetwork:_existingAdapterLink[@"ssid"]];return;
+        }
+    }
     if((!_selection.everSelected&&list.count==1)||
        (_soleAdapterRecovery&&rtwui::recoverSoleAdapter(present,1,list.count))) {
         _soleAdapterRecovery=NO;
         [self useAdapter:list.devices[0].registryID];
     }
+}
+- (void)considerNetworkRefresh {
+    if(_terminating||_sleeping||_inactiveSession||!_authorizedSession||!_selectedPresent||
+       !_selection.registryID||!_queue||!_hasStatus||_statusReadDelayed||_status.usbError||
+       _joining||_credentialBusy||_commandPending||_refreshingNetworks)return;
+    if(!(_status.flags&RTW_CONTROL_DEVICE)||
+       (_status.flags&RTW_CONTROL_AUTHORIZED))return;
+    auto& policy=_networkRefresh[_selection.registryID];
+    const double now=[self uptime];
+    if(!policy.due(now))return;
+    if(_status.flags&RTW_CONTROL_SCANNING) {
+        // Observe an existing driver scan instead of starting a duplicate.
+        _refreshingNetworks=YES;_refreshStartedAt=now;_forceNetworkCache=YES;
+        return;
+    }
+    // RUNNING means the interface is initialized, not that it has a link.
+    // Association/authentication states still belong to kernel recovery.
+    if(_status.state>=2)return;
+    const auto* map=[self stationChannelMap];
+    bool channels=false;
+    for(unsigned channel=1;channel<256&&!channels;++channel)
+        channels=map?rtw_control_channel_map_contains(map,channel):
+            rtw_control_channel_supported(channel,[self stationFlags]);
+    if(!channels)return;
+    // An attached idle adapter can have RADIO clear until SCAN enables it.
+    // Freshness is measured from completed RF scans, never cache reads.
+    [self refresh:nil];
 }
 - (void)poll:(id)sender {
     (void)sender;
@@ -656,10 +856,14 @@ _autoJoinEnabled=!_autoJoinEnabled;
     if(listDue){_forceDeviceList=NO;_lastDeviceListAt=now;}
     if(scanDue){_forceNetworkCache=NO;_lastNetworkCacheAt=now;}
     if(interfaceDue)_lastInterfaceAt=now;
+    const BOOL discoverExisting=!_preferredAdapter&&!_preferredAdapterPendingID&&!_selection.everSelected;
+    NSData* legacySSID=_legacyPreferredSSID;
     dispatch_async(_queue,^{
         if(!self->_workEpoch.matches(epoch))return;
         rtwui::DeviceList devices{};
         const uint32_t listCode=listDue?[self->_driver exchangeRegistryID:0 selector:rtwui::listSelector input:nullptr length:0 output:&devices capacity:sizeof(devices)]:0;
+        NSDictionary* identities=listDue&&!listCode?rtwui::readAdapterIdentities(devices):nil;
+        NSDictionary* existing=listDue&&!listCode&&discoverExisting?existingAdapterLink(self->_driver,devices,legacySSID):nil;
         RTWControlRequest request{};request.version=1;
         RTWControlStatus status{};RTWControlScanResults scan{};RTWControlChannelMap channels{};
         const bool listBroken=listDue&&(listCode==rtwui::transportError||listCode==rtwui::protocolError);
@@ -688,7 +892,7 @@ _autoJoinEnabled=!_autoJoinEnabled;
             if(broken){self->_authorizedSession=NO;self->_serviceRetry.fail([self uptime]);}
             if(listDue&&listCode)self->_forceDeviceList=YES;
             if(scanDue&&(code||scanCode||mapError))self->_forceNetworkCache=YES;
-            if(listDue&&!listCode)[self applyAdapters:devices];
+            if(listDue&&!listCode){self->_adapterIdentities=identities;self->_existingAdapterLink=existing;[self applyAdapters:devices];}
             if(!self->_selection.matches(registryID,adapterGeneration)){[self updateAppearance];return;}
             if(!registryID){
                 if(listCode){self->_notice=errorText(listCode);self->_pollNotice=YES;}
@@ -726,12 +930,23 @@ _autoJoinEnabled=!_autoJoinEnabled;
                 self->_scan=scan;self->_networks=rtwui::networks(scan,status.flags,[self stationChannelMap]);
             }
             if(listCode||code||scanCode||mapError){
+                if(self->_refreshingNetworks)
+                    self->_networkRefresh[registryID].failed([self uptime]);
                 self->_refreshingNetworks=NO;
+                self->_refreshStartedAt=-1;
                 self->_notice=errorText(listCode?:code?:scanCode?:mapError);self->_pollNotice=YES;
             }else if(self->_refreshingNetworks&&!self->_commandPending&&requestScan&&
                      !(status.flags&RTW_CONTROL_SCANNING)){
                 self->_refreshingNetworks=NO;
+                self->_refreshStartedAt=-1;
+                self->_networkRefresh[registryID].finished([self uptime]);
+                self->_lastAutoScanAt=[self uptime];
                 self->_notice=@"Network refresh finished.";self->_pollNotice=NO;
+            }else if(self->_refreshingNetworks&&!self->_commandPending&&
+                     rtwui::refreshDue([self uptime],self->_refreshStartedAt,30.0)){
+                self->_refreshingNetworks=NO;self->_refreshStartedAt=-1;
+                self->_networkRefresh[registryID].failed([self uptime]);
+                self->_notice=@"Network refresh timed out. Retrying automatically.";self->_pollNotice=YES;
             }else if(self->_pollNotice){
                 self->_notice=nil;self->_pollNotice=NO;
             }
@@ -739,8 +954,7 @@ _autoJoinEnabled=!_autoJoinEnabled;
                 BOOL matched=rtwui::confirmsJoin(status,static_cast<const uint8_t*>(self->_joinSSID.bytes),self->_joinSSID.length,generation,self->_joinGeneration,self->_joinAccepted);
                 if(matched){
                     if(self->_rememberCurrentJoin&&self->_joinSSID) {
-                        self->_preferredSSID=[self->_joinSSID copy];
-                        [[self preferences] setObject:self->_preferredSSID forKey:@"RTWLastConnectedSSID"];
+                        [self rememberConnectedNetwork:self->_joinSSID];
                     }
                     self->_autoJoin.reset();
                     self->_joining=NO;self->_joinSSID=nil;self->_joinStartedAt=-1;
@@ -759,7 +973,7 @@ _autoJoinEnabled=!_autoJoinEnabled;
                 self->_autoJoin.retry.fail([self uptime]);
                 self->_notice=@"The connection timed out while the driver was unavailable.";
             }
-            [self considerAutoJoin];
+            [self considerNetworkRefresh];[self considerAutoJoin];
             if(self->_diagnostic&&!self->_diagnosticPrinted){
                 self->_diagnosticPrinted=YES;
                 printf("{\"menuBar\":%s,\"helper\":true,\"registryID\":%llu,\"statusError\":%u,\"scanError\":%u,\"flags\":%u,\"state\":%u,\"channel\":%u,\"usbError\":%u,\"accessPoints\":%u,\"networks\":%zu}\n",self->_item.visible?"true":"false",(unsigned long long)registryID,code,scanCode,status.flags,status.state,status.channel,status.usbError,self->_scan.count,self->_networks.size());fflush(stdout);
@@ -773,6 +987,10 @@ _autoJoinEnabled=!_autoJoinEnabled;
        !_authorizedSession||!_selectedPresent||!_selection.registryID)return;
     _commandPending=YES;
     const auto registryID=_selection.registryID,adapterGeneration=_selection.generation;
+    if(selector==RTW_CONTROL_SCAN) {
+        _refreshingNetworks=YES;_refreshStartedAt=[self uptime];
+        _lastAutoScanAt=_refreshStartedAt;
+    }
     const auto epoch=_workEpoch.snapshot();
     dispatch_async(_queue,^{
         if(self->_adapterEpoch.load()!=adapterGeneration||!self->_workEpoch.matches(epoch))return;
@@ -783,7 +1001,10 @@ _autoJoinEnabled=!_autoJoinEnabled;
                !self->_selection.matches(registryID,adapterGeneration))return;
             self->_commandPending=NO;
             if(result){
-                if(selector==RTW_CONTROL_SCAN)self->_refreshingNetworks=NO;
+                if(selector==RTW_CONTROL_SCAN) {
+                    self->_refreshingNetworks=NO;self->_refreshStartedAt=-1;
+                    self->_networkRefresh[registryID].failed([self uptime]);
+                }
                 self->_notice=errorText(result);self->_pollNotice=NO;
                 if(result==rtwui::transportError||result==rtwui::protocolError) {
                     self->_authorizedSession=NO;self->_serviceRetry.fail([self uptime]);
@@ -862,6 +1083,7 @@ _autoJoinEnabled=!_autoJoinEnabled;
     if(_credentialBusy||_terminating||!ssid.length||ssid.length>32)return;
     const auto registryID=_selection.registryID,adapterGeneration=_selection.generation;
     const auto connectionGeneration=_joinGeneration;
+    const auto automaticEpoch=_autoJoinEpoch.load();
     NSData* network=[ssid copy];
     id<RTWCredentialStoring> store=[self credentials];
     _credentialBusy=YES;[self updateAppearance];
@@ -882,8 +1104,9 @@ _autoJoinEnabled=!_autoJoinEnabled;
             if(self->_terminating){RTWWipePassword(saved);self->_credentialBusy=NO;return;}
             // A Keychain lookup can finish after the user turned automatic
             // reconnection off. Do not launch a stale automatic JOIN.
-            if(!rtwui::credentialJoinStillAllowed(automatic,self->_autoJoinEnabled,
-                                                 self->_autoJoin.paused)) {
+            if((automatic&&automaticEpoch!=self->_autoJoinEpoch.load())||
+               !rtwui::credentialJoinStillAllowed(automatic,self->_autoJoinEnabled,
+                                                  self->_autoJoin.paused)) {
                 RTWWipePassword(saved);self->_credentialBusy=NO;
                 [self updateAppearance];return;
             }
@@ -899,7 +1122,8 @@ _autoJoinEnabled=!_autoJoinEnabled;
                 [self updateAppearance];return;
             }
             if(useSaved&&validSaved) {
-                self->_credentialBusy=NO;self->_rememberCurrentJoin=YES;
+                self->_credentialBusy=NO;self->_rememberCurrentJoin=!automatic;
+                self->_automaticCurrentJoin=automatic;
                 [self startJoin:prepared ssid:network registryID:registryID adapterGeneration:adapterGeneration];
                 return;
             }
@@ -999,7 +1223,8 @@ _autoJoinEnabled=!_autoJoinEnabled;
                 self->_notice=save?@"Password saved. The adapter changed; select the network again.":
                     @"The adapter changed; select the network again.";self->_pollNotice=NO;
             } else {
-                self->_rememberCurrentJoin=save;
+                self->_rememberCurrentJoin=YES;
+                self->_automaticCurrentJoin=NO;
                 [self startJoin:join ssid:ssid registryID:registryID adapterGeneration:adapterGeneration];
             }
             if(save&&persisted)[self reloadSavedNetworks];
@@ -1013,10 +1238,13 @@ _autoJoinEnabled=!_autoJoinEnabled;
        !_authorizedSession||!_selectedPresent||_joining||
        !_selection.matches(registryID,adapterGeneration))return;
     const auto generation=++_joinGeneration,epoch=_workEpoch.snapshot();
+    const bool automatic=_automaticCurrentJoin;
+    const auto automaticEpoch=_autoJoinEpoch.load();
     _signal.clear();_joining=YES;_joinAccepted=NO;_joinStartedAt=[self uptime];
     _joinSSID=[ssid copy];_notice=nil;_pollNotice=NO;[self updateAppearance];
     dispatch_async(_queue,^{
-        if(self->_adapterEpoch.load()!=adapterGeneration||!self->_workEpoch.matches(epoch)){
+        if(self->_adapterEpoch.load()!=adapterGeneration||!self->_workEpoch.matches(epoch)||
+           (automatic&&automaticEpoch!=self->_autoJoinEpoch.load())){
             rtwui::wipe(join.get(),sizeof(*join));return;
         }
         RTWControlReply reply{};
@@ -1254,7 +1482,7 @@ _autoJoinEnabled=!_autoJoinEnabled;
 }
 - (void)openLoginSettings:(id)sender {(void)sender;[[self loginItems] openSystemSettings];}
 - (void)about:(id)sender {
-    (void)sender;[self showMessage:@"Tahoe Wi-Fi USB 0.3.5" detail:[NSString stringWithFormat:@"Menu-bar controller for TahoeRealtekWiFi (ABI v1).\nRealtek USB adapters · macOS Tahoe · Intel\n\nWPA2-Personal/CCMP. Selected driver channels: %@. Low, DFS (52–64 and 100–140) and upper 5 GHz each require their own live station capability. DFS is managed-station HT20, with passive discovery and AP channel-switch recovery; channel 144 is not enabled. Other bands or catalog entries do not imply connection support. Experimental driver. WPA2 passwords can be saved in macOS Keychain. Automatic reconnection after login, sleep and USB reconnection. The background helper requires initial approval in macOS Login Items; the app never saves your administrator password.\n\n© 2026 DNMTechLabs.\nContact: dnmtechlabs@gmail.com.\n\nCredits: Linux kernel/Realtek wireless drivers (rtw88, rtl8xxxu, rtlwifi); OpenBSD, FreeBSD, OpenIntelWireless/itlwm, Realtek and Acidanthera/MacKernelSDK.\nApple AppKit and SF Symbols.\nApp source: GPL-2.0-only. Full notices: CREDITS.md and docs/SOURCES.md.",text(rtwui::stationChannelDescription([self stationFlags],[self stationChannelMap]))]];
+    (void)sender;[self showMessage:@"Tahoe Wi-Fi USB 0.3.11" detail:[NSString stringWithFormat:@"Menu-bar controller for TahoeRealtekWiFi (ABI v1).\nRealtek USB adapters · macOS Ventura 13 / Sonoma 14 / Sequoia 15 / Tahoe 26 · Intel\n\nWPA2-Personal/CCMP. Selected driver channels: %@. Low, DFS (52–64 and 100–140) and upper 5 GHz each require their own live station capability. DFS is managed-station HT20, with passive discovery and AP channel-switch recovery; channel 144 is not enabled. Other bands or catalog entries do not imply connection support. Experimental driver. WPA2 passwords can be saved in macOS Keychain. Automatic reconnection after login, sleep and USB reconnection. The background helper requires initial approval in macOS Login Items; the app never saves your administrator password.\n\nProject and macOS development: MaLd0n.\nApple AppKit and SF Symbols.\nApp source: GPL-2.0-only.",text(rtwui::stationChannelDescription([self stationFlags],[self stationChannelMap]))]];
 }
 - (void)quit:(id)sender {(void)sender;[NSApp terminate:nil];}
 - (void)applicationWillTerminate:(NSNotification*)notification {
@@ -1273,8 +1501,10 @@ _autoJoinEnabled=!_autoJoinEnabled;
 @end
 
 int main(int argc,const char** argv) {
-    (void)argc;(void)argv;rlimit core{0,0};setrlimit(RLIMIT_CORE,&core);
+    rlimit core{0,0};setrlimit(RLIMIT_CORE,&core);
     @autoreleasepool {
+        const int diagnosticExit=RTWHandleAdapterDiagnosticCLI(argc,argv);
+        if(diagnosticExit>=0)return diagnosticExit;
         if([NSProcessInfo.processInfo.arguments containsObject:@"--prepare-update"]) {
             if(geteuid()==0)return 77;
             RTWDriverServiceManager* service=[RTWDriverServiceManager new];

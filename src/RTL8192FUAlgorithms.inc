@@ -1535,7 +1535,7 @@ rtl8192f_set_tx_power(struct rtw_r92fu *priv, int channel, bool ht40)
 
 static void rtl8192fu_power_off(struct rtw_r92fu *priv)
 {
-	rtl8xxxu_flush_fifo(priv);
+	shutdown_result(priv,rtl8xxxu_flush_fifo(priv));
 
 	
 	rtl8xxxu_write8_clear(priv, REG_TX_REPORT_CTRL,
@@ -1544,7 +1544,7 @@ static void rtl8192fu_power_off(struct rtw_r92fu *priv)
 	
 	rtl8xxxu_write8(priv, REG_CR, 0x00);
 
-	rtl8192fu_active_to_lps(priv);
+	shutdown_result(priv,rtl8192fu_active_to_lps(priv));
 
 	
 	if (rtl8xxxu_read8(priv, REG_MCU_FW_DL) & MCU_FW_RAM_SEL)
@@ -1556,8 +1556,8 @@ static void rtl8192fu_power_off(struct rtw_r92fu *priv)
 	
 	rtl8xxxu_write8(priv, REG_MCU_FW_DL, 0x00);
 
-	rtl8192fu_active_to_emu(priv);
-	rtl8192fu_emu_to_disabled(priv);
+	shutdown_result(priv,rtl8192fu_active_to_emu(priv));
+	shutdown_result(priv,rtl8192fu_emu_to_disabled(priv));
 }
 
 static void rtl8192f_revise_cck_tx_psf(struct rtw_r92fu *priv, u8 channel)
@@ -2807,7 +2807,7 @@ static int rtl8192fu_active_to_lps(struct rtw_r92fu *priv)
 		udelay(10);
 	} while (retry--);
 
-	if (!retry) {
+	if (val32 != 0) {
 		(void)0;
 		return -EBUSY;
 	}

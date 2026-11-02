@@ -32,12 +32,12 @@ BUNDLE="$DESTINATION/Tahoe Wi-Fi USB.app"
 
 build_app() (
   cd "$APP_DIR"
-  printf 'Tahoe Wi-Fi USB v0.3.5 - macOS build (Intel x86_64)\n'
+  printf 'Tahoe Wi-Fi USB v0.3.11 - macOS build (Intel x86_64)\n'
   printf 'Source: %s\nDestination: %s\nLog: %s\n' "$ROOT" "$BUNDLE" "$LOG"
   printf 'Started: %s\n' "$(date '+%Y-%m-%d %H:%M:%S %z')"
 
   [[ "$(uname -s)" == "Darwin" ]] || { printf '[ERROR] This AppKit application must be built on macOS.\n' >&2; return 1; }
-  local required_tools=(xcrun iconutil codesign plutil lipo)
+  local required_tools=(xcrun iconutil codesign plutil lipo python3)
   for command_name in "${required_tools[@]}"; do
     command -v "$command_name" >/dev/null 2>&1 || {
       printf '[ERROR] Missing tool: %s (install/select the full Xcode application).\n' "$command_name" >&2
@@ -57,7 +57,7 @@ build_app() (
   trap 'if [[ -d "$previous" && ! -e "$BUNDLE" ]]; then mv "$previous" "$BUNDLE"; fi; rm -rf "$staging"' EXIT
 
   mkdir -p "$staged_bundle/Contents/MacOS" "$staged_bundle/Contents/Helpers" "$staged_bundle/Contents/Resources" "$staged_bundle/Contents/Library/LaunchDaemons"
-  local flags=(-std=c++17 -O2 -arch x86_64 -mmacosx-version-min=26.0 -Wall -Wextra -Werror -I. -I../kext -I../include)
+  local flags=(-std=c++17 -O2 -arch x86_64 -mmacosx-version-min=13.0 -Wall -Wextra -Werror -Werror=unguarded-availability -Werror=unguarded-availability-new -I. -I../kext -I../include)
 
   printf '\n[1/5] Building the privileged helper...\n'
   xcrun clang++ "${flags[@]}" -fobjc-arc PrivilegedService.mm \
@@ -65,7 +65,7 @@ build_app() (
     -o "$staged_bundle/Contents/Helpers/TahoeWiFiHelper"
 
   printf '\n[2/5] Building the menu-bar application...\n'
-  xcrun clang++ "${flags[@]}" -fobjc-arc Main.mm LoginItem.mm CredentialStore.mm DriverConnection.mm AdapterDiagnostics.mm USBWiFiProfiles.cpp Transport.cpp \
+  xcrun clang++ "${flags[@]}" -fobjc-arc Main.mm LoginItem.mm CredentialStore.mm DriverConnection.mm ControlDiagnostics.mm DiagnosticCLI.mm AdapterDiagnostics.mm USBWiFiProfiles.cpp Transport.cpp \
     -framework AppKit -framework ServiceManagement -framework Security -framework CoreServices -framework IOKit -framework CoreFoundation \
     -o "$staged_bundle/Contents/MacOS/TahoeUSBWiFi"
 
@@ -74,7 +74,7 @@ build_app() (
   cp "$ROOT/LICENSE-GPL-2.0.txt" "$staged_bundle/Contents/Resources/LICENSE-GPL-2.0.txt"
 
   printf '\n[3/5] Generating the icon...\n'
-  xcrun swift icon.swift "$iconset"
+  xcrun swift -target x86_64-apple-macosx13.0 -warnings-as-errors icon.swift "$iconset"
   iconutil -c icns "$iconset" -o "$staged_bundle/Contents/Resources/AppIcon.icns"
 
   printf '\n[4/5] Signing the application and helper...\n'
@@ -99,6 +99,10 @@ build_app() (
   plutil -lint "$staged_bundle/Contents/Info.plist"
   plutil -lint "$staged_bundle/Contents/Library/LaunchDaemons/org.research.TahoeUSBWiFi.driver.plist"
   rtw_verify_app "$staged_bundle"
+  # Validate the actual staged executables before replacing the previous app.
+  python3 "$APP_DIR/check-macos-compatibility.py" --max-minos 13.0 \
+    "$staged_bundle/Contents/MacOS/TahoeUSBWiFi" \
+    "$staged_bundle/Contents/Helpers/TahoeWiFiHelper"
   if [[ "$CHECK_ONLY" -eq 1 ]]; then
     printf '\n[OK] Native compilation, ad-hoc signing and verification completed.\n'
     printf '[OK] Check only: the temporary signed bundle is removed; nothing was published or installed.\n'

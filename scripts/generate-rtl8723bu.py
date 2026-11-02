@@ -113,6 +113,9 @@ def main():
    # a2dp_only flag, making the HID+A2DP coexistence branch unreachable.
    at=text.index('\n\tif (!btcoex->has_sco')
    text=text[:at]+text[at:].replace('btcoex->has_a2dp =','btcoex->a2dp_only =')
+  if name=='rtl8723bu_power_off':
+   for callee in ['rtl8xxxu_flush_fifo','rtl8xxxu_active_to_lps','rtl8723bu_active_to_emu']:text=text.replace(callee+'(priv);','shutdown_result(priv,'+callee+'(priv));')
+  if name=='rtl8xxxu_active_to_lps':text=text.replace('u8 val32;','u32 val32;')
   if name=='rtl8xxxu_download_firmware':
    text=text.replace('fw_abort:\n','fw_abort:\n priv->cleanup=true;\n')
    text=text.replace('\n\treturn ret;','\n priv->cleanup=false;\n\treturn ret;')

@@ -2,6 +2,8 @@
 /* Include inside RTWUSBController's private section, after the AU public
  * headers have been included at file scope. Parent owns controller routing. */
     rtw_r12au_boot auCore_{};
+    uint64_t auBootstrapFailures_=0;
+    uint32_t auBootstrapFirstError_=0;
     /* Retained after positive identify for every AU board, including no-BT.
      * Dynamic readiness/mailbox fields in this copy are not identity. */
     rtw_r12au_boot auAuthority_{};

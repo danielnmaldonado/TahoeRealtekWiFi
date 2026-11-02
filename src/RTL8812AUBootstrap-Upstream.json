@@ -24,6 +24,7 @@
     "USB-only power branches; all upstream cut masks are ALL.",
     "Distinct 8812/8821 MAC tables, FIFO/page geometry and endpoint maps.",
     "Bounded allocation-free OTP, LLT, firmware and H2C operations.",
+    "Resident RAM firmware follows rtw88xxau_hw_reset before cold power-on; MAC-off is bounded and must succeed, with original stage/error retained through shutdown.",
     "TX remains paused; hardware crypto disabled for software net80211 CCMP."
   ]
 }

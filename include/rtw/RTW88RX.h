@@ -16,6 +16,9 @@ int rtw88_rx_parse_phy(const rtw88_rx_phy_config*,const rtw_rx_packet*,rtw88_rx_
 /* C2H RA0x0c:2-byte header +7-byte payload. Validated HT20 station telemetry,
  * never a per-packet ACK/retry outcome. Returns1=RA,0=ignored,-1=malformed. */
 int rtw88_rx_parse_rate_report(const uint8_t*,size_t,const rtw_8814au_rate_config*,uint8_t*rate);
+/* B/C negotiated HT/VHT report. Reject foreign MACID,unsupported NSS/MCS,
+ * impossible SGI and widths exceeding the currently calibrated channel. */
+int rtw88_rx_parse_station_rate_report(const uint8_t*,size_t,const rtw88_station_rate*,uint8_t*rate);
 #ifdef __cplusplus
 }
 #endif

@@ -262,6 +262,7 @@ class RTWUSBController : public IOEthernetController, public OSObject {
 #endif
     rtwn_softc core_;
     rtw::ScanDiagnostics scanDiag_{};
+    bool browseScanComplete_=false;
     int transitionError=0;
     bool clearChannelOnTransitionError=false;
     void publishScanDiagnostics();
@@ -347,6 +348,12 @@ class RTWUSBController : public IOEthernetController, public OSObject {
     }
     int state8814(ieee80211com *, ieee80211_state, int);
     void stop8814();
+    // AU recovery has its own actual-startup/control/native-HAL fixture.
+    int recover8814ForControl(){return core_.core_error;}
+    int recoverFamilyForControl(){return core_.core_error;}
+    void finish8814StopAfterDrain(){}
+    enum{AUThermal=19};
+    void record8814Failure(uint32_t,int){}
     bool setLinkStatus(UInt32, const IONetworkMedium * = nullptr, UInt64 = 0, OSData * = nullptr);
     static int stateTransition(ieee80211com *, ieee80211_state, int);
     void observeScanTransition(ieee80211_state,ieee80211_state,unsigned,int);

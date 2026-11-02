@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import plistlib
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,20 @@ import unittest
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def macho_fixture(minos=0x000D0000, *, command=0x32, platform=1,
+                  cpu=0x01000007, filetype=2):
+    """Hand-assembled 64-bit Mach-O; no SDK or parser under test creates it."""
+    load = (struct.pack("<6I", command, 24, platform, minos, 0x001A0500, 0)
+            if command == 0x32 else struct.pack("<4I", command, 16, minos, 0x001A0500))
+    return struct.pack("<8I", 0xFEEDFACF, cpu, 3, filetype, 1, len(load), 0, 0) + load
+
+
+def fat_fixture(slice_bytes):
+    return (struct.pack(">7I", 0xCAFEBABE, 1, 0x01000007, 3, 32, len(slice_bytes), 2)
+            + bytes(4) + slice_bytes)
+
 TOOLS = {
     "/usr/bin/id", "/usr/bin/uname", "/usr/bin/sw_vers", "/usr/sbin/sysctl",
     "/usr/bin/stat", "/bin/launchctl", "/usr/bin/sudo", "/usr/bin/open",
@@ -90,6 +105,8 @@ elif tool == "launchctl":
     sys.exit(91)
 elif tool == "sudo":
     if args[:3] != ["-H", "-u", "#501"]: sys.exit(92)
+    if args[-1:] == ["--prepare-update"]:
+        sys.exit(subprocess.call([flag("OLD_APP"), "--prepare-update"]))
     sys.exit(subprocess.call(args[4:]))
 elif tool == "open":
     sys.exit(int(flag("OPEN_STATUS", "0")))
@@ -142,7 +159,7 @@ class PackageContractTests(unittest.TestCase):
             "enable_anywhere":"false", "enable_currentUserHome":"false",
             "enable_localSystem":"true"})
         self.assertEqual(dist.find("options").get("hostArchitectures"), "x86_64")
-        self.assertEqual(dist.find("volume-check/allowed-os-versions/os-version").get("min"), "26.0")
+        self.assertEqual(dist.find("volume-check/allowed-os-versions/os-version").get("min"), "13.0")
 
     def test_bundle_cannot_be_relocated_or_merged(self):
         component = plistlib.loads((ROOT/"app/pkg/components.plist").read_bytes())[0]
@@ -196,9 +213,13 @@ class PackageScriptTests(unittest.TestCase):
         self.bundle = self.apps/"Tahoe Wi-Fi USB.app"
         self.events = self.folder/"events.jsonl"
         self.service = self.folder/"service"
+        old_app = self.folder/"old-app"
+        old_app.write_text("#!"+sys.executable+" -S\n"+FAKE_APP)
+        old_app.chmod(0o755)
         self.environment = os.environ.copy()
         self.environment.update({
             "PKG_TEST_EVENTS":str(self.events), "PKG_TEST_SERVICE":str(self.service),
+            "PKG_TEST_OLD_APP":str(old_app),
             "PKG_TEST_REAL_FIND":shutil.which("find") or "/usr/bin/find",
             "PKG_TEST_REAL_CHMOD":shutil.which("chmod") or "/bin/chmod",
             "RTW_INSTALLER_SIGN_IDENTITY":"", "RTW_NOTARY_PROFILE":"", "RTW_SIGN_IDENTITY":"-",
@@ -212,6 +233,9 @@ class PackageScriptTests(unittest.TestCase):
         shutil.copytree(ROOT/"app/pkg", self.appdir/"pkg")
         (self.appdir/"package.command").write_bytes((ROOT/"app/package.command").read_bytes())
         (self.appdir/"signing.sh").write_bytes((ROOT/"app/signing.sh").read_bytes())
+        checker = ROOT/"app/check-macos-compatibility.py"
+        if checker.exists():
+            shutil.copyfile(checker, self.appdir/checker.name)
         (self.appdir/"pkg/scripts/signing.sh").write_bytes((ROOT/"app/signing.sh").read_bytes())
         # Rewrite ONLY disposable script copies, never the production scripts.
         for file in [self.appdir/"package.command", self.appdir/"signing.sh",
@@ -244,9 +268,11 @@ class PackageScriptTests(unittest.TestCase):
         daemon = self.bundle/"Contents/Library/LaunchDaemons/org.research.TahoeUSBWiFi.driver.plist"
         daemon.write_bytes((ROOT/"app/org.research.TahoeUSBWiFi.driver.plist").read_bytes())
         exe = self.bundle/"Contents/MacOS/TahoeUSBWiFi"
-        exe.write_text("#!"+sys.executable+" -S\n"+FAKE_APP)
+        exe.write_bytes(macho_fixture())
         exe.chmod(0o755)
-        (self.bundle/"Contents/Helpers/TahoeWiFiHelper").chmod(0o755)
+        helper = self.bundle/"Contents/Helpers/TahoeWiFiHelper"
+        helper.write_bytes(macho_fixture())
+        helper.chmod(0o755)
         for path in self.bundle.rglob("*"):
             if path.is_dir(): path.chmod(0o755)
 
@@ -314,9 +340,16 @@ class PackageScriptTests(unittest.TestCase):
         self.assertEqual(self.history("old-app"),[])
 
     def test_preinstall_refuses_rootless_hook_or_wrong_platform(self):
-        for values in ({"EUID":"501"},{"OS_VERSION":"25.0"},{"ARM":"1"},{"OS":"Linux"}):
+        for values in ({"EUID":"501"},{"OS_VERSION":"12.7"},{"ARM":"1"},{"OS":"Linux"}):
             with self.subTest(values=values):
                 self.assertNotEqual(self.run_hook("preinstall",**values).returncode,0)
+
+    def test_preinstall_accepts_all_four_requested_intel_systems(self):
+        shutil.rmtree(self.bundle)
+        for version in ("13.0", "14.0", "15.0", "26.0"):
+            with self.subTest(version=version):
+                result = self.run_hook("preinstall", OS_VERSION=version)
+                self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
 
     def test_preinstall_rejects_symlink_destination(self):
         target=self.apps/"Elsewhere.app"
@@ -441,6 +474,27 @@ class PackageScriptTests(unittest.TestCase):
         (self.bundle/"Contents/Helpers/TahoeWiFiHelper").unlink()
         self.assertNotEqual(self.run_builder().returncode,0)
 
+    def test_builder_rejects_app_requiring_macos26_despite_plist13(self):
+        (self.bundle/"Contents/MacOS/TahoeUSBWiFi").write_bytes(macho_fixture(0x001A0000))
+        result = self.run_builder()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("minimum macOS 26.0", result.stdout+result.stderr)
+        self.assertEqual(self.history("pkgbuild"), [])
+
+    def test_builder_rejects_helper_requiring_macos14(self):
+        (self.bundle/"Contents/Helpers/TahoeWiFiHelper").write_bytes(macho_fixture(0x000E0000))
+        result = self.run_builder()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("minimum macOS 14.0", result.stdout+result.stderr)
+        self.assertEqual(self.history("pkgbuild"), [])
+
+    def test_builder_rejects_non_macho_despite_lipo_double(self):
+        (self.bundle/"Contents/Helpers/TahoeWiFiHelper").write_bytes(b"not Mach-O")
+        result = self.run_builder()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Mach-O", result.stdout+result.stderr)
+        self.assertEqual(self.history("pkgbuild"), [])
+
     def test_builder_accepts_existing_version_025(self):
         info_path=self.bundle/"Contents/Info.plist"
         info=plistlib.loads(info_path.read_bytes())
@@ -498,6 +552,135 @@ class PackageScriptTests(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         self.assertIn("--sign",self.history("productbuild")[0]["args"])
         self.assertEqual(self.history("xcrun"),[])
+
+class MachOCompatibilityTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="rtw-macos-compatibility-")
+        self.addCleanup(temporary.cleanup)
+        self.folder = Path(temporary.name)
+        self.binary = self.folder/"executable with spaces"
+
+    def check(self, data, *arguments):
+        self.binary.write_bytes(data)
+        return subprocess.run([sys.executable, str(ROOT/"app/check-macos-compatibility.py"),
+            "--json", *arguments, str(self.binary)], capture_output=True, text=True, timeout=10)
+
+    def test_accepts_ventura_with_newer_sdk_and_emits_version_evidence(self):
+        result = self.check(macho_fixture())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertTrue(report["compatible"])
+        self.assertEqual(report["files"][0]["slices"], [{"arch":"x86_64", "filetype":"executable",
+            "platform":"macOS", "minos":"13.0", "sdk":"26.5", "command":"LC_BUILD_VERSION"}])
+
+    def test_accepts_legacy_version_load_command_and_fat_container(self):
+        for data in (macho_fixture(command=0x24), fat_fixture(macho_fixture())):
+            with self.subTest(data=data):
+                result = self.check(data)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_rejects_newer_minimum_even_with_supported_cpu(self):
+        for version, expected in ((0x000D0001,"13.0.1"), (0x000E0000,"14.0"), (0x001A0000,"26.0")):
+            with self.subTest(version=version):
+                result = self.check(macho_fixture(version))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("minimum macOS "+expected, result.stderr)
+                self.assertFalse(json.loads(result.stdout)["compatible"])
+
+    def test_rejects_wrong_arch_platform_and_non_executable(self):
+        for data, expected in ((macho_fixture(cpu=0x0100000C),"x86_64"),
+                (macho_fixture(platform=6),"macOS"), (macho_fixture(filetype=6),"executable")):
+            with self.subTest(expected=expected):
+                result = self.check(data)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(expected, result.stderr)
+
+    def test_rejects_foreign_deployment_commands_without_macos(self):
+        for command, name in ((0x25, "LC_VERSION_MIN_IPHONEOS"),
+                (0x2F, "LC_VERSION_MIN_TVOS"), (0x30, "LC_VERSION_MIN_WATCHOS")):
+            with self.subTest(command=name):
+                result = self.check(macho_fixture(0x001A0000, command=command))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(name, result.stderr)
+                self.assertFalse(json.loads(result.stdout)["compatible"])
+
+    def test_rejects_foreign_commands_before_or_after_either_macos_command(self):
+        for foreign, name in ((0x25, "LC_VERSION_MIN_IPHONEOS"),
+                (0x2F, "LC_VERSION_MIN_TVOS"), (0x30, "LC_VERSION_MIN_WATCHOS")):
+            for macos in (0x24, 0x32):
+                for foreign_first in (False, True):
+                    with self.subTest(foreign=name, macos=macos, foreign_first=foreign_first):
+                        commands = [macho_fixture(command=macos)[32:],
+                            macho_fixture(0x001A0000, command=foreign)[32:]]
+                        if foreign_first:
+                            commands.reverse()
+                        load = b"".join(commands)
+                        header = struct.pack("<8I", 0xFEEDFACF, 0x01000007, 3, 2, 2, len(load), 0, 0)
+                        result = self.check(header + load)
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn(name, result.stderr)
+                        self.assertFalse(json.loads(result.stdout)["compatible"])
+
+    def test_rejects_missing_duplicate_or_malformed_version_commands(self):
+        valid = macho_fixture()
+        duplicate = struct.pack("<8I", 0xFEEDFACF, 0x01000007, 3, 2, 2, 48, 0, 0) + valid[32:]*2
+        missing = struct.pack("<8I", 0xFEEDFACF, 0x01000007, 3, 2, 0, 0, 0, 0)
+        undersized = valid[:36] + struct.pack("<I", 8) + valid[40:]
+        for data in (b"not Mach-O", valid[:20], valid[:-1], duplicate, missing,
+                     undersized, fat_fixture(valid)[:-1], macho_fixture(0)):
+            with self.subTest(data=data):
+                result = self.check(data)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("Mach-O", result.stderr)
+
+    def test_optional_limit_cannot_hide_an_incompatible_second_file(self):
+        self.binary.write_bytes(macho_fixture(0x001A0000))
+        other = self.folder/"helper"
+        other.write_bytes(macho_fixture(0x000E0000))
+        result = subprocess.run([sys.executable, str(ROOT/"app/check-macos-compatibility.py"),
+            "--json", "--max-minos", "14.0", str(other), str(self.binary)],
+            capture_output=True, text=True, timeout=10)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("minimum macOS 26.0", result.stderr)
+        self.assertEqual(len(json.loads(result.stdout)["files"]), 2)
+
+
+@unittest.skipUnless(sys.platform == "darwin" and shutil.which("xcrun"), "requires native macOS/Xcode")
+class NativeBuildDeploymentTests(unittest.TestCase):
+    def test_incompatible_staged_helper_does_not_replace_previous_app(self):
+        # Compile real production sources and sign normally. Only force the
+        # helper compiler's target upward, modelling a stale/wrong build flag.
+        with tempfile.TemporaryDirectory(prefix="rtw-native-deployment-") as folder:
+            project = Path(folder)/"project with spaces"
+            shutil.copytree(ROOT/"app", project/"app")
+            shutil.copyfile(ROOT/"LICENSE-GPL-2.0.txt", project/"LICENSE-GPL-2.0.txt")
+            for relative in ("include", "kext", "src"):
+                (project/relative).symlink_to(ROOT/relative, target_is_directory=True)
+            commands = project/"commands"
+            commands.mkdir()
+            real_xcrun = shutil.which("xcrun")
+            wrapper = commands/"xcrun"
+            wrapper.write_text("#!"+sys.executable+" -S\nimport os,sys\n"
+                "args=sys.argv[1:]\n"
+                "if args[:1]==['clang++'] and 'PrivilegedService.mm' in args:\n"
+                "    args=[('-mmacosx-version-min=26.0' if arg.startswith('-mmacosx-version-min=') else arg) for arg in args]\n"
+                "os.execv("+repr(real_xcrun)+", ["+repr(real_xcrun)+"]+args)\n")
+            wrapper.chmod(0o755)
+            output = project/"output with spaces"
+            previous = output/"Tahoe Wi-Fi USB.app"
+            previous.mkdir(parents=True)
+            sentinel = previous/"previous-app"
+            sentinel.write_bytes(b"keep this previous app")
+            environment = dict(os.environ, PATH=str(commands)+os.pathsep+os.environ["PATH"],
+                RTW_SIGN_IDENTITY="-", RTW_NOTARY_PROFILE="")
+            result = subprocess.run(["bash", str(project/"app/build.command"), str(output)],
+                capture_output=True, text=True, env=environment, timeout=90)
+            self.assertNotEqual(result.returncode, 0, result.stdout+result.stderr)
+            self.assertIn("minimum macOS 26.0", result.stdout+result.stderr)
+            self.assertEqual(sentinel.read_bytes(), b"keep this previous app")
+            self.assertEqual(list(output.glob(".TahoeWiFi-build.*")), [])
+            self.assertEqual(list(output.glob(".Tahoe-WiFi-USB-previous.*")), [])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

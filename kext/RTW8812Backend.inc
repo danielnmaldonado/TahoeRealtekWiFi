@@ -91,7 +91,7 @@ int RTWUSBController::initialize8812Core()
     for(unsigned i=0;i<config.bulk_out_count;++i){if(!txPipes_[i]||txMPS_[i]!=config.bulk_max_packet)return EINVAL;config.bulk_out[i]=endpoints_.bulk_out[i];}
     const rtw_usb_rw_transport bus{this,auControlIn,auControlOut};const rtw_waiter wait{this,auWait};
     int e=rtw_r12au_boot_init(&auCore_,family_==RTW_WIFI_RTL8812AU?RTW_R12AU_CHIP_8812AU:RTW_R12AU_CHIP_8821AU,&bus,&wait,&config);
-    if(!e)e=rtw_r12au_identify(&auCore_);if(!e)remember8812Authority();return e;
+    if(!e)e=rtw_r12au_identify(&auCore_);if(!e&&!validateFamilyRecoveryBoard())e=ENODEV;if(!e)remember8812Authority();return e;
 }
 void RTWUSBController::refresh8812Modes()
 {
@@ -223,63 +223,111 @@ int RTWUSBController::attach8812()
     setProperty("RTWAUCut",(unsigned long long)auCore_.board.phy.cut,8);
     setProperty("RTWAURFE",(unsigned long long)auCore_.board.phy.rfe,8);
     setProperty("RTWAURFPaths",(unsigned long long)auCore_.board.phy.rf_paths,8);
+    /* Expose the actual factory-power preflight without publishing MAC/OTP
+     * identity. These reference-channel results do not bypass per-channel
+     * admission or claim that a whole band is calibrated. */
+    {rtw_r12au_power_plan plan{};rtw_r12au_operating op{1,1,20,RTW_R12AU_MODE_LEGACY};
+     setProperty("RTWAU2GHzChannel1PowerResult",(unsigned long long)(uint32_t)rtw_r12au_phy_power_plan(&auCore_.board.phy,&op,&plan),32);
+     op={36,36,20,RTW_R12AU_MODE_LEGACY};
+     setProperty("RTWAU5GHzChannel36PowerResult",(unsigned long long)(uint32_t)rtw_r12au_phy_power_plan(&auCore_.board.phy,&op,&plan),32);}
+    setProperty("RTWAUFactoryPower",auCore_.board.phy.txpwr_idx,sizeof(auCore_.board.phy.txpwr_idx));
+    setProperty("RTWAUBootstrapStage",(unsigned long long)0,32);
+    setProperty("RTWAUBootstrapStageName","not-started");
+    setProperty("RTWAUBootstrapResult",(unsigned long long)0,32);
+    setProperty("RTWAUBootstrapFirstError",(unsigned long long)0,32);
+    setProperty("RTWAUBootstrapFailures",(unsigned long long)0,64);
+    setProperty("RTWAUWarmResetAttempts",(unsigned long long)0,32);
+    setProperty("RTWAUWarmResetStage",(unsigned long long)0,32);
+    setProperty("RTWAUWarmResetStageName","none");
+    setProperty("RTWAUWarmResetMCU",(unsigned long long)0,32);
+    setProperty("RTWAUWarmResetResult",(unsigned long long)0,32);
     return 0;
 }
 int RTWUSBController::start8812()
 {
+    unsigned bootStage=1;const char*bootName="admission";
+    auto report=[&](unsigned stage,const char*name,int error){
+        bootStage=stage;bootName=name;
+        if(error){++auBootstrapFailures_;if(!auBootstrapFirstError_)auBootstrapFirstError_=(uint32_t)error;}
+        setProperty("RTWAUBootstrapStage",(unsigned long long)stage,32);
+        setProperty("RTWAUBootstrapStageName",name);
+        setProperty("RTWAUBootstrapResult",(unsigned long long)(uint32_t)error,32);
+        setProperty("RTWAUBootstrapFirstError",(unsigned long long)auBootstrapFirstError_,32);
+        setProperty("RTWAUBootstrapFailures",(unsigned long long)auBootstrapFailures_,64);
+        /* Keep the last warm-reset result across a later cold re-identify. */
+        if(auCore_.warm_reset_attempts){
+            static const char*const names[]={"none","mcu","bb-rf","mac-off","mac-on","complete"};
+            setProperty("RTWAUWarmResetAttempts",(unsigned long long)auCore_.warm_reset_attempts,32);
+            setProperty("RTWAUWarmResetStage",(unsigned long long)auCore_.warm_reset_stage,32);
+            setProperty("RTWAUWarmResetStageName",auCore_.warm_reset_stage<6?names[auCore_.warm_reset_stage]:"unknown");
+            setProperty("RTWAUWarmResetMCU",(unsigned long long)auCore_.warm_reset_mcu,32);
+            setProperty("RTWAUWarmResetResult",(unsigned long long)(uint32_t)auCore_.warm_reset_error,32);
+        }
+    };
+    report(1,"admission",0);
+    const int lifecycle=beginFamilyStart();if(lifecycle){report(bootStage,bootName,lifecycle);return lifecycle;}
+
     auto&ic=core_.sc_ic;auto&ifp=ic.ic_if;
-    if(!is8812Family()||!owns8812Authority()||ic.ic_opmode!=IEEE80211_M_STA||!ic.ic_bss||!auPHYStorage_||ioError(this))return ENXIO;
-    if(auCore_.powered||auCore_.firmware_running||auCore_.mac_initialized)return EBUSY;
+    if(!is8812Family()||!owns8812Authority()||ic.ic_opmode!=IEEE80211_M_STA||!ic.ic_bss||!auPHYStorage_||ioError(this)){report(bootStage,bootName,ENXIO);return ENXIO;}
+    if(auCore_.powered||auCore_.firmware_running||auCore_.mac_initialized){report(bootStage,bootName,EBUSY);return EBUSY;}
     refresh8812Modes();auCoex_=nullptr;auCoexTxBytes_=auCoexRxBytes_=0;auCoexTxFrames_=auCoexRxFrames_=0;auCoexRxRate_=auCoexTxRate_=2;auMediaConnected_=auRateReady_=auRSSIValid_=false;auRateConfig_={};auChannel_=auRSSI_=0;auOperating_={};auPHY_=nullptr;radioReady_=false;core_.core_error=0;
     int e=0;if(auCore_.io_error||!auCore_.identified){e=initialize8812Core();if(e)goto fail;}
-    e=allocateTransfers();if(e)goto fail;
+    report(2,"transfers",0);e=allocateTransfers();if(e)goto fail;
     {
         const uint8_t*firmware=auCore_.chip==RTW_R12AU_CHIP_8812AU?RTW8812AUFirmware:RTW8821AUFirmware;
         const size_t size=auCore_.chip==RTW_R12AU_CHIP_8812AU?sizeof(RTW8812AUFirmware):sizeof(RTW8821AUFirmware);
-        rtw_fw_image header{};rtw_boot_report report{};
-        e=rtw_r12au_fw_inspect(auCore_.chip,firmware,size,&header);if(e)goto fail;
-        e=rtw_r12au_power_on(&auCore_);if(e)goto fail;
-        e=rtw_r12au_dma_prepare(&auCore_);if(e)goto fail;
-        e=rtw_r12au_download_fw(&auCore_,firmware,size,&report);if(e)goto fail;
+        rtw_fw_image header{};rtw_boot_report firmwareReport{};
+        report(3,"firmware-image",0);e=rtw_r12au_fw_inspect(auCore_.chip,firmware,size,&header);if(e)goto fail;
+        report(4,"power-on",0);e=rtw_r12au_power_on(&auCore_);if(e)goto fail;
+        report(5,"dma-llt",0);e=rtw_r12au_dma_prepare(&auCore_);if(e)goto fail;
+        report(6,"firmware-download",0);e=rtw_r12au_download_fw(&auCore_,firmware,size,&firmwareReport);if(e)goto fail;
     }
-    e=rtw_r12au_mac_init(&auCore_);if(e)goto fail;
-    e=rtw_r12au_phy_init(auPHYStorage_,auPHYSize_,&auCore_.board.phy,&auCore_.bus,&auCore_.waiter,&auPHY_);if(e)goto fail;
-    e=rtw_r12au_phy_load_tables(auPHY_);if(e)goto fail;
-    {uint32_t report=0;e=rtw_r12au_read(&auCore_,0x804,4,&report);if(e)goto fail;auCckHighPower_=(report&(1U<<16))!=0;}
-    ic.ic_bss->ni_chan=ic.ic_ibss_chan;e=set8812Channel((uint8_t)ieee80211_chan2ieee(&ic,ic.ic_ibss_chan));if(e)goto fail;
-    e=busInitialize(this);if(e)goto fail;
+    report(7,"mac",0);e=rtw_r12au_mac_init(&auCore_);if(e)goto fail;
+    report(8,"phy-init",0);e=rtw_r12au_phy_init(auPHYStorage_,auPHYSize_,&auCore_.board.phy,&auCore_.bus,&auCore_.waiter,&auPHY_);if(e)goto fail;
+    report(9,"phy-tables",0);e=rtw_r12au_phy_load_tables(auPHY_);if(e)goto fail;
+    report(10,"cck-report",0);{uint32_t value=0;e=rtw_r12au_read(&auCore_,0x804,4,&value);if(e)goto fail;auCckHighPower_=(value&(1U<<16))!=0;}
+    report(11,"channel-rfk",0);ic.ic_bss->ni_chan=ic.ic_ibss_chan;e=set8812Channel((uint8_t)ieee80211_chan2ieee(&ic,ic.ic_ibss_chan));if(e)goto fail;
+    report(12,"rx-start",0);familyRecovery_.diag.stage=rtw::StationRecovery::RX;e=busInitialize(this);if(e)goto fail;
+    familyRecovery_.diag.stage=rtw::StationRecovery::Start;
     if(auCore_.board.phy.btcoex){
+        report(13,"coex-init",0);
         if(!auCoexStorage_){e=ENOMEM;goto fail;}
         e=rtw_r21au_coex_init(auCoexStorage_,auCoexSize_,&auCore_,&auCoex_);if(e)goto fail;
+        report(14,"coex-start-bind",0);
         {auto input=input8812Coex();e=rtw_r21au_coex_start(auCoex_,&input);}if(e)goto fail;
         e=rtw_r21au_coex_bind_phy(auCoex_,auPHY_);if(e)goto fail;
     }
 
     ifq_clr_oactive(&ifp.if_snd);ifp.if_flags|=IFF_RUNNING;
-    e=ic.ic_newstate(&ic,IEEE80211_S_SCAN,-1);if(e)goto fail;
-    radioReady_=true;if(auCoex_)nextCalibration(this);return 0;
+    report(15,"scan",0);e=ic.ic_newstate(&ic,IEEE80211_S_SCAN,-1);if(e)goto fail;
+    radioReady_=true;if(auCoex_)nextCalibration(this);finishFamilyStart();report(16,"ready",0);return 0;
 fail:
-    stop8812();core_.core_error=e;return e;
+    report(bootStage,bootName,e);failFamilyStart(e);stop8812();if(!familyRecovery_.transient(e))core_.core_error=e;return e;
 }
 void RTWUSBController::stop8812()
 {
+    familyRecovery_.inStop=true;
     auto&ifp=core_.sc_ic.ic_if;radioReady_=false;core_.sc_tx_timer=0;ifp.if_timer=0;
     bool owned=owns8812Authority();if(auCoex_){rtw_r21au_coex_status status{};rtw_r21au_coex_get_status(auCoex_,&status);owned=owned&&status.owner_valid!=0;}
-    if(!owned||!present_||sleeping_||usbError_!=kIOReturnSuccess||auCore_.io_error){
-        if(auCoex_)rtw_r21au_coex_forget(auCoex_);if(auPHY_)rtw_r12au_phy_forget(auPHY_);
-        auCore_.powered=auCore_.dma_prepared=auCore_.firmware_running=auCore_.mac_initialized=auCore_.associated=0;
-    }
     ifp.if_flags&=~IFF_RUNNING;ifq_clr_oactive(&ifp.if_snd);
-    /* Generic INIT must always flush host keys and controlled-port state,
-     * including USB loss. No legacy rtwn hardware stop is called. */
-    if(core_.sc_newstate)(void)state8812(&core_.sc_ic,IEEE80211_S_INIT,-1);
+    if(core_.sc_newstate)(void)core_.sc_newstate(&core_.sc_ic,IEEE80211_S_INIT,-1);
     cancelScan(this);cancelCalibration(this);task_del(systq,&core_.init_task);abortTransfers();
-    /* Ownership rejection remains authoritative through the last cleanup:
-     * even a typed PHY/power helper may contain direct USB writes. */
-    if(auCoex_){if(owned&&present_&&!sleeping_&&usbError_==kIOReturnSuccess&&!auCore_.io_error)(void)rtw_r21au_coex_stop(auCoex_);else rtw_r21au_coex_forget(auCoex_);auCoex_=nullptr;}
-    if(owned&&present_&&!sleeping_&&usbError_==kIOReturnSuccess&&!auCore_.io_error){if(auPHY_)(void)rtw_r12au_phy_stop(auPHY_);if(auCore_.identified)(void)rtw_r12au_power_off(&auCore_);}
-    else auCore_.powered=auCore_.dma_prepared=auCore_.firmware_running=auCore_.mac_initialized=auCore_.associated=0;
-    auPHY_=nullptr;auMediaConnected_=auRateReady_=auRSSIValid_=false;auRateConfig_={};auChannel_=auRSSI_=0;auOperating_={};freeTransfers();
+    auMediaConnected_=auRateReady_=auRSSIValid_=false;auRateConfig_={};auChannel_=auRSSI_=0;auOperating_={};
+    if(!familyStopDrained())return;
+    int cleanup=0,admission=0;
+    if(!owned||!present_||sleeping_||usbError_!=kIOReturnSuccess)admission=ENXIO;
+    else if(auCore_.io_error&&!familyRecovery_.eligible)admission=auCore_.io_error;
+    else if(auCore_.firmware_running&&!auCore_.io_error){
+        uint32_t ready=0;admission=rtw_r12au_read(&auCore_,0x80,1,&ready);
+        if(!admission&&(ready&0xc7U)!=0xc6U)admission=ENXIO;
+    }
+    if(admission&&!core_.core_error)core_.core_error=admission;
+    if(owned&&present_&&!sleeping_&&usbError_==kIOReturnSuccess&&(!auCore_.io_error||familyRecovery_.eligible)){
+        if(!auCore_.io_error){if(auCoex_)cleanup=rtw_r21au_coex_stop(auCoex_);if(auPHY_){const int e=rtw_r12au_phy_stop(auPHY_);if(!cleanup)cleanup=e;}}
+        if(auCore_.identified){const int e=rtw_r12au_power_off_checked(&auCore_);if(!cleanup)cleanup=e;}
+    }else{auCore_.powered=auCore_.dma_prepared=auCore_.firmware_running=auCore_.mac_initialized=auCore_.associated=0;cleanup=ENXIO;}
+    if(auCoex_)rtw_r21au_coex_forget(auCoex_);if(auPHY_)rtw_r12au_phy_forget(auPHY_);
+    auCoex_=nullptr;auPHY_=nullptr;recordFamilyCleanup(cleanup);freeTransfers();
 }
 void RTWUSBController::release8812Storage()
 {
@@ -563,7 +611,7 @@ void RTWUSBController::watchdog8812(_ifnet*ifp)
 void RTWUSBController::initTask8812(void*p)
 {
     auto*s=owner(p);auto&core=s->core_;auto&ifp=core.sc_ic.ic_if;if(core.sc_flags&RTWN_FLAG_BUSY)return;
-    core.sc_flags|=RTWN_FLAG_BUSY;s->stop8812();if(ifp.if_flags&IFF_UP){int e=s->start8812();if(e)core.core_error=e;}core.sc_flags&=~(uint32_t)RTWN_FLAG_BUSY;
+    core.sc_flags|=RTWN_FLAG_BUSY;s->stop8812();if(ifp.if_flags&IFF_UP){int e=s->start8812();if(e&&!s->familyRecovery_.transient(e))core.core_error=e;}core.sc_flags&=~(uint32_t)RTWN_FLAG_BUSY;
 }
 int RTWUSBController::ioctl8812(_ifnet*ifp,u_long command,caddr_t data)
 {

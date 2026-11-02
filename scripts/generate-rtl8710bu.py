@@ -105,9 +105,12 @@ for file,name in functions:
   s=re.sub(r'set_bit\([^;]+;','',s)
  s=prune(s)
  s=re.sub(r'if \(rtl8xxxu_debug[^)]*\)\s*\(void\)0;','',s)
+ if name=='rtl8710bu_power_off':
+  for callee in ['rtl8xxxu_flush_fifo', 'rtl8710bu_active_to_lps', 'rtl8710bu_active_to_emu']:s=s.replace(callee+'(priv);','shutdown_result(priv,'+callee+'(priv));')
+ if name=='rtl8710bu_active_to_lps':s=s.replace('if (!retry)','if (val32 != 0)')
  if name=='rtl8xxxu_download_firmware':s=s.replace('u8 *fwptr;','const u8 *fwptr;')
  if name in ['rtl8710b_indirect_read32','rtl8710b_indirect_write32']:
-  s=s.replace('if (polling_count == 0)\n\t\t(void)0;', 'if (polling_count == 0) priv->error=ETIMEDOUT;')
+  s=s.replace('if (polling_count == 0)\n\t\t(void)0;', 'if (polling_count == 0 && !priv->error) priv->error=ETIMEDOUT;')
  if name=='rtl8188f_phy_lc_calibrate':
   s=s.replace('u32 val32;','u32 val32;\n u8 saved_pause=rtl8xxxu_read8(priv,REG_TXPAUSE);').replace('if (i == 100)\n\t\t(void)0;','if (i == 100) priv->cal_timeout=true;').replace('rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);','rtl8xxxu_write8(priv, REG_TXPAUSE, saved_pause);')
  if name=='rtl8710bu_phy_iqcalibrate':

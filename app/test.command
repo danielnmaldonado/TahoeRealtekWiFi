@@ -2,6 +2,11 @@
 # Native regression tests. Keychain/login backends are mocked; user settings
 # and real passwords are not changed. The menu suite needs a GUI session.
 set -euo pipefail
+# Foundation logging in production-method fixtures must stay out of the user's
+# normal diagnostic file. Set its process home before any test binary starts.
+rtw_test_home="$(mktemp -d "${TMPDIR:-/tmp}/tahoe-wifi-app-tests.XXXXXX")"
+trap 'rm -rf -- "$rtw_test_home"' EXIT
+export CFFIXED_USER_HOME="$rtw_test_home"
 cd "$(dirname "$0")"
 [[ "$(uname -s)" == "Darwin" ]] || { printf '[ERROR] Requires macOS and Xcode.\n' >&2; exit 1; }
 # Compile/link the production app and helper before tests using mocks.
@@ -12,7 +17,7 @@ sanitizers="${RTW_HOST_SANITIZERS:-address,undefined}"
 case "$sanitizers" in address,undefined|undefined) ;;
   *) printf '[ERROR] Invalid RTW_HOST_SANITIZERS selection.\n' >&2; exit 2;;
 esac
-flags=(-fsanitize="$sanitizers" -fno-sanitize-recover=all -fno-omit-frame-pointer -std=c++17 -Wall -Wextra -Werror -UNDEBUG -mmacosx-version-min=26.0 -I. -I../kext -I../include)
+flags=(-fsanitize="$sanitizers" -fno-sanitize-recover=all -fno-omit-frame-pointer -std=c++17 -Wall -Wextra -Werror -Werror=unguarded-availability -Werror=unguarded-availability-new -UNDEBUG -mmacosx-version-min=13.0 -I. -I../kext -I../include)
 for suite in model signal-policy poll-policy work-epoch credential-policy reconnect-policy instance-lock; do
     xcrun clang++ "${flags[@]}" "tests/$suite-tests.cpp" -o "../out/menu-tests/$suite-tests"
     "../out/menu-tests/$suite-tests"
@@ -31,11 +36,20 @@ xcrun clang++ "${flags[@]}" -fobjc-arc tests/login-item-tests.mm LoginItem.mm \
 xcrun clang++ "${flags[@]}" -fobjc-arc tests/credential-store-tests.mm CredentialStore.mm \
     -framework Foundation -framework Security -o ../out/menu-tests/credential-store-tests
 ../out/menu-tests/credential-store-tests
-for suite in menu credential-flow channel-map-reconnect; do
-    xcrun clang++ "${flags[@]}" -fobjc-arc "tests/$suite-tests.mm" LoginItem.mm CredentialStore.mm DriverConnection.mm AdapterDiagnostics.mm USBWiFiProfiles.cpp Transport.cpp \
+for suite in menu credential-flow channel-map-reconnect adapter-preference; do
+    xcrun clang++ "${flags[@]}" -fobjc-arc "tests/$suite-tests.mm" LoginItem.mm CredentialStore.mm DriverConnection.mm ControlDiagnostics.mm DiagnosticCLI.mm AdapterDiagnostics.mm USBWiFiProfiles.cpp Transport.cpp \
         -framework AppKit -framework ServiceManagement -framework Security -framework CoreServices -framework IOKit -framework CoreFoundation \
         -o "../out/menu-tests/$suite-tests"
     "../out/menu-tests/$suite-tests"
 done
 xcrun clang++ "${flags[@]}" tests/cli-tests.cpp -framework IOKit -framework CoreFoundation -o ../out/menu-tests/cli-tests
 ../out/menu-tests/cli-tests
+
+xcrun clang++ "${flags[@]}" -fobjc-arc tests/diagnostic-cli-tests.mm DiagnosticCLI.mm ControlDiagnostics.mm DriverConnection.mm \
+    -framework Foundation -framework ServiceManagement -framework Security -framework IOKit -framework CoreFoundation \
+    -o ../out/menu-tests/diagnostic-cli-tests
+../out/menu-tests/diagnostic-cli-tests
+
+xcrun clang++ "${flags[@]}" -fobjc-arc tests/control-diagnostics-tests.mm ControlDiagnostics.mm \
+    -framework Foundation -o ../out/menu-tests/control-diagnostics-tests
+../out/menu-tests/control-diagnostics-tests

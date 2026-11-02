@@ -21,6 +21,12 @@ struct BTFixture {
  ~BTFixture(){f.c.stop88();f.c.r88Storage_=nullptr;f.c.r88CoexTimer_=nullptr;}
 };
 static void controllerTraces(){
+ for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU})for(bool shared:{false,true}){
+  BTFixture b(family,shared);b.run();auto&c=b.f.c;auto*coex=c.r88Coex_;const auto calls=ioCalls;const auto powers=std::count(events.begin(),events.end(),91);
+  c.recoveryDrained_=false;c.stop88();assert(ioCalls==calls&&c.r88Coex_==coex&&!b.timer.queued);
+  assert(c.familyRecovery_.pendingStop&&!c.running_);c.recoveryDrained_=true;c.stop88();
+  assert(!c.r88Coex_&&!c.running_&&!c.familyRecovery_.pendingStop&&std::count(events.begin(),events.end(),91)==powers+1);
+ }
  unsigned cases=0;
  for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU})for(bool shared:{false,true}){
   BTFixture b(family,shared);auto&f=b.f;
@@ -116,4 +122,15 @@ static void recoveryDefersTimerHardwareUntilResume(){
  std::printf("B/C RX recovery: %u family/antenna timer pause/resume/error traces passed\n",cases);
 }
 
-int main(){recoveryDefersTimerHardwareUntilResume();controllerTraces();cleanupAuthority();smpsFrames();smpsAuthority();lifecycle();runtimeFailures();}
+static void wideCoexistence(){
+ unsigned cases=0;
+ for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU})for(bool shared:{false,true})for(unsigned width:{20U,40U,80U}){
+  BTFixture b(family,shared);auto&f=b.f;f.five();f.n.ni_flags|=IEEE80211_NODE_VHT;f.n.ni_vht_mcsinfo.rx_mcs_map=0xfffa;
+  f.n.ni_chw=width==80?IEEE80211_CHAN_WIDTH_80:width==40?IEEE80211_CHAN_WIDTH_40:IEEE80211_CHAN_WIDTH_20;f.n.ni_htop0=IEEE80211_HTOP0_SCO_SCA;f.n.ni_vht_chan1=42;b.run();
+  auto input=f.c.coex88Input(IEEE80211_S_RUN);assert(input.primary==36&&input.center==(width==80?42:width==40?38:36)&&input.width_mhz==width&&f.c.r88Rates_.vht&&f.c.coex88Ready());
+  if(family==RTW_WIFI_RTL8822CU){assert(!RTWUSBController::coex88Mimo(&f.c,1));b.ack();assert(f.c.r88Rates_.rates.tx_streams==1&&f.c.r88Rates_.vht&&f.c.r88Rates_.width_mhz==width&&f.c.r88RX_.rf_paths==1);assert(!RTWUSBController::coex88Mimo(&f.c,0));b.ack();assert(f.c.r88Rates_.rates.tx_streams==2&&f.c.r88Rates_.vht&&f.c.r88RX_.rf_paths==2);}
+  ++cases;
+ }
+ printf("B/C actual wide coexistence: %u family/antenna/width calibrated tuple and VHT RA/MIMO/SMPS cases passed\n",cases);
+}
+int main(){wideCoexistence();recoveryDefersTimerHardwareUntilResume();controllerTraces();cleanupAuthority();smpsFrames();smpsAuthority();lifecycle();runtimeFailures();}

@@ -14771,7 +14771,12 @@
         "url": "https://github.com/chris1111/Wireless-USB-Big-Sur-Adapter/blob/b6a9b67393c22bd4f52055f34960a655db1efae6/Package sources/Notarized Wireless USB Big Sur Adapter/drivers/RtWlanU.kext/Contents/Info.plist",
         "sha256": "c2bd3f14756ba765b851305a2091eee41c56b2b7961c4951959e7e421de3733b"
       },
-      "additional_primary_usb_table_evidence": []
+      "additional_primary_usb_table_evidence": [],
+      "interface_matching": {
+        "bInterfaceClass": 255,
+        "bInterfaceSubClass": 255,
+        "bInterfaceProtocol": 255
+      }
     },
     {
       "vid_pid": "7392:a811",

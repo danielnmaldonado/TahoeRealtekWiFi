@@ -78,6 +78,9 @@ int rtw_8814au_init_mac(struct rtw_8814au *, unsigned endpoints, enum rtw_8814au
 int rtw_8814au_inspect_fw(const uint8_t *, size_t, struct rtw_8814au_fw_info *);
 int rtw_8814au_download_fw(struct rtw_8814au *, const uint8_t *, size_t);
 int rtw_8814au_stop(struct rtw_8814au *);
+/* Return the new power-off result separately; retain the original io_error.
+ * Successful cleanup does not itself authorize reuse of a failed context. */
+int rtw_8814au_stop_checked(struct rtw_8814au *);
 int rtw_8814au_h2c_mailbox(struct rtw_8814au *, const uint8_t command[8]);
 int rtw_8814au_h2c_packet(struct rtw_8814au *, const uint8_t packet[32]);
 /* After MAC queues, PHY tables and RX transfers are established. */

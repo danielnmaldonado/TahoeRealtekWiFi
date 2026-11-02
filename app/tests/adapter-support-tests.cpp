@@ -120,8 +120,9 @@ int main() {
                       "VHT20/40/80") != nullptr, "8821AU reports implemented one-stream modes");
     for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU}) {
         const char* description=rtwui::adapterCapabilityDescription(family);
-        check(std::strstr(description,"HT20") && !std::strstr(description,"VHT"),
-              "B/C does not advertise unimplemented wide modes");
+        check(std::strstr(description,"HT20") && std::strstr(description,"VHT20/40/80") &&
+              std::strstr(description,"non-DFS") && std::strstr(description,"2.4 GHz/DFS"),
+              "B/C wide modes retain the implemented band/DFS limits");
     }
     check(implemented == 262 && missing == 1 && unverified == 7, "complete activation accounting");
     rtwui::USBAdapterObservation unknown;

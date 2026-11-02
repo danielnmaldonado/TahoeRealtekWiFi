@@ -26,6 +26,8 @@ public:
     static int acBulk(void *,uint8_t,const uint8_t *,size_t) {std::abort();}
     static void delayUS(void *,uint32_t) {std::abort();}
     rtw_8814au_speed acSpeed()const{return configured_speed;}
+    // Descriptor/identity preservation has the real HAL recovery fixture.
+    bool capture8814RecoveryIdentity(){return true;}
     int attach8814();
 };
 /* ACTUAL_CONTEXT_INITIALIZER */

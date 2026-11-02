@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * DNMTechLabs read-only RTL8822B/C discovery. Hardware codes and pre-power USB read:
+ * MaLd0n read-only RTL8822B/C discovery. Hardware codes and pre-power USB read:
  * Realtek HALMAC, RinCat/RTL88x2BU-Linux-Driver@465ae7cb522a382adc85ea5c31f228af8d172148,
  * hal/halmac/halmac_api.c65,72,518-534. Provenance: ChipIdentity-Upstream.json.
  * No power, firmware, RF, register-write or generic unverified-ID fallback.

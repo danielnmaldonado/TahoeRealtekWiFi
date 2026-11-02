@@ -251,28 +251,31 @@ bool RTWUSBController::supports8192DUBand(bool five) const
 }
 int RTWUSBController::start8192DU()
 {
+    const int lifecycle=beginFamilyStart();if(lifecycle)return lifecycle;
+
     auto&ic=core_.sc_ic;auto&ifp=ic.ic_if;
     if(ic.ic_opmode!=IEEE80211_M_STA||!ic.ic_bss||ioError(this)||!duWholeDeviceOwned_||!duPHYStorage_)return ENXIO;
     duRSSIValid_=false;duRSSIPWDB_=0;core_.core_error=0;
     if(duROM_.board.mode==RTW_92DU_DUAL_MAC){
         const uint8_t target=ieee80211_chan2ieee(&ic,ic.ic_ibss_chan)>14?0:1;
-        const int selected=select8192DUPort(target);if(selected)return selected;
+        const int selected=select8192DUPort(target);if(selected){failFamilyStart(selected);return selected;}
     }
-    int error=initialize8192DUCore();if(error)return error;
+    int error=initialize8192DUCore();if(error){failFamilyStart(error);return error;}
     error=allocateTransfers();if(error)goto fail;
     error=start8192DUHardware();if(error)goto fail;
     ic.ic_bss->ni_chan=ic.ic_ibss_chan;
     error=set8192DUChannel((uint8_t)ieee80211_chan2ieee(&ic,ic.ic_ibss_chan));if(error)goto fail;
     error=rtw8192DUError(rtw_92du_mac_set_state(&duMAC_,RTW_92DU_ST_INIT,nullptr));if(error)goto fail;
-    error=busInitialize(this);if(error)goto fail;
+    familyRecovery_.diag.stage=rtw::StationRecovery::RX;error=busInitialize(this);if(error)goto fail;
+    familyRecovery_.diag.stage=rtw::StationRecovery::Start;
     ifq_clr_oactive(&ifp.if_snd);ifp.if_flags|=IFF_RUNNING;
     error=ic.ic_newstate(&ic,IEEE80211_S_SCAN,-1);if(error)goto fail;
     radioReady_=true;
     setProperty("RTW8192DUFirmwareHeaderVersion",(unsigned long long)duCore_.firmware_version,16);
-    setProperty("RTW8192DUFirmwareReused",duCore_.firmware_reused!=0);return 0;
+    setProperty("RTW8192DUFirmwareReused",duCore_.firmware_reused!=0);finishFamilyStart();return 0;
 fail:
     setProperty("RTW8192DULastHALResult",(unsigned long long)duCore_.last_error,32);
-    stop8192DU();core_.core_error=error;return error;
+    failFamilyStart(error);stop8192DU();if(!familyRecovery_.transient(error))core_.core_error=error;return error;
 }
 int RTWUSBController::start8192DUHardware()
 {
@@ -312,14 +315,18 @@ int RTWUSBController::switch8192DUBand(uint8_t channel)
 }
 void RTWUSBController::stop8192DU()
 {
+    familyRecovery_.inStop=true;
     auto&ic=core_.sc_ic;auto&ifp=ic.ic_if;
     core_.sc_tx_timer=0;ifp.if_timer=0;ifp.if_flags&=~IFF_RUNNING;ifq_clr_oactive(&ifp.if_snd);
-    if(core_.sc_newstate)(void)state8192DU(&ic,IEEE80211_S_INIT,-1);
+    if(core_.sc_newstate)(void)core_.sc_newstate(&ic,IEEE80211_S_INIT,-1);
     cancelScan(this);cancelCalibration(this);task_del(systq,&core_.init_task);abortTransfers();
-    if(present_&&!sleeping_&&usbError_==kIOReturnSuccess&&duWholeDeviceOwned_){
-        const int error=rtw8192DUError(rtw_92du_mac_stop(&duMAC_));if(error&&!core_.core_error)core_.core_error=error;
-    }else {duCore_.power_ready=duCore_.firmware_ready=0;duMAC_.prepared=duMAC_.started=0;}
-    duMAC_.rate_ready=duMAC_.joined=0;duRSSIValid_=false;duPowerReductionDB_=0;duPowerLimitMBM_=INT32_MAX;freeTransfers();
+    duMAC_.rate_ready=duMAC_.joined=0;duRSSIValid_=false;duPowerReductionDB_=0;duPowerLimitMBM_=INT32_MAX;
+    if(!familyStopDrained())return;
+    int cleanup=0;
+    const int original=rtw8192DUError(duCore_.last_error);if(original&&!core_.core_error)core_.core_error=original;
+    if(present_&&!sleeping_&&usbError_==kIOReturnSuccess&&duWholeDeviceOwned_)cleanup=rtw8192DUError(rtw_92du_mac_stop_checked(&duMAC_));
+    else{duCore_.power_ready=duCore_.firmware_ready=0;duMAC_.prepared=duMAC_.started=0;cleanup=ENXIO;}
+    recordFamilyCleanup(cleanup);freeTransfers();
 }
 int RTWUSBController::set8192DUPowerLimitMBM(int32_t mbm)
 {
@@ -530,7 +537,7 @@ void RTWUSBController::initTask8192DU(void *p)
     auto*s=owner(p);auto&core=s->core_;auto&ifp=core.sc_ic.ic_if;
     if(core.sc_flags&RTWN_FLAG_BUSY)return;
     core.sc_flags|=RTWN_FLAG_BUSY;s->stop8192DU();
-    if(ifp.if_flags&IFF_UP){const int error=s->start8192DU();if(error)core.core_error=error;}
+    if(ifp.if_flags&IFF_UP){const int error=s->start8192DU();if(error&&!s->familyRecovery_.transient(error))core.core_error=error;}
     core.sc_flags&=~(uint32_t)RTWN_FLAG_BUSY;
 }
 int RTWUSBController::ioctl8192DU(_ifnet *ifp,u_long command,caddr_t data)

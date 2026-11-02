@@ -56,6 +56,215 @@ static void urtwn_write_4(rtwn_softc *sc,uint16_t a,uint32_t v) { sc->sc_ops.wri
 #define urtwn_bb_write urtwn_write_4
 static bool valid(rtwn_softc *sc) { return sc && (sc->chip & RTWN_CHIP_USB) && (sc->chip & (RTWN_CHIP_92C | RTWN_CHIP_88C | RTWN_CHIP_88E | RTWN_CHIP_92E)) && sc->sc_ops.read_1 && sc->sc_ops.read_2 && sc->sc_ops.read_4 && sc->sc_ops.write_1 && sc->sc_ops.write_2 && sc->sc_ops.write_4 && sc->sc_ops.delay_us && sc->sc_ops.io_error; }
 
+/* GPL-2.0-only shutdown adaptation from Linux rtl8xxxu, commit
+ * f47d223627f80cb7a1eb14c585fe6cb35de5e984:
+ * 8192c.c:rtl8192cu_power_off; 8188e.c:rtl8188eu_power_off and transitions;
+ * 8192e.c:rtl8192eu_power_off and transitions; core.c:flush_fifo,
+ * firmware_self_reset, reset_8051, read_rfreg, write_rfreg_mask.
+ * Copyright (c) 2014-2017 Jes Sorensen <Jes.Sorensen@gmail.com>
+ * Portions Copyright (c) 2007-2011 Realtek Corporation.
+ *
+ * Keep a bootstrap failure separate from cleanup. Every callback is checked
+ * through the transport's sticky error, never rtwn_io_error (which also sees
+ * the original core_error). A failed transport ends I/O immediately. Bounded
+ * FIFO/TX/MAC poll failures remain cleanup failures, while independent reset
+ * steps still execute. A graceful firmware-reset timeout uses the upstream
+ * forced reset fallback. No error state is cleared by this interface.
+ */
+class RTWLegacyPowerIO {
+    rtwn_softc *sc_;
+    int result_ = 0;
+    bool transportOK() {
+        int error = sc_->sc_ops.io_error(sc_->sc_ops.cookie);
+        if (error && !result_) result_ = error;
+        return error == 0;
+    }
+public:
+    explicit RTWLegacyPowerIO(rtwn_softc *sc) : sc_(sc) {}
+    int result() const { return result_; }
+    bool read(uint16_t address, unsigned width, uint32_t &value) {
+        if (!transportOK()) return false;
+        if (width == 1) value = sc_->sc_ops.read_1(sc_->sc_ops.cookie, address);
+        else if (width == 2) value = sc_->sc_ops.read_2(sc_->sc_ops.cookie, address);
+        else value = sc_->sc_ops.read_4(sc_->sc_ops.cookie, address);
+        return transportOK();
+    }
+    bool write(uint16_t address, unsigned width, uint32_t value) {
+        if (!transportOK()) return false;
+        if (width == 1) sc_->sc_ops.write_1(sc_->sc_ops.cookie, address, uint8_t(value));
+        else if (width == 2) sc_->sc_ops.write_2(sc_->sc_ops.cookie, address, uint16_t(value));
+        else sc_->sc_ops.write_4(sc_->sc_ops.cookie, address, value);
+        return transportOK();
+    }
+    bool update(uint16_t address, unsigned width, uint32_t clear, uint32_t set) {
+        uint32_t value;
+        return read(address, width, value) && write(address, width, (value & ~clear) | set);
+    }
+    void delay(uint32_t us) {
+        if (transportOK()) sc_->sc_ops.delay_us(sc_->sc_ops.cookie, us);
+    }
+    bool poll(uint16_t address, unsigned width, uint32_t mask,
+              uint32_t expected, unsigned count, uint32_t delayUS,
+              bool required = true) {
+        for (unsigned i = 0; i < count; ++i) {
+            uint32_t value;
+            if (!read(address, width, value)) return false;
+            if ((value & mask) == expected) return true;
+            if (delayUS) delay(delayUS);
+        }
+        if (required && !result_) result_ = ETIMEDOUT;
+        return false;
+    }
+};
+
+static void rtwLegacyResetFirmware(RTWLegacyPowerIO &io) {
+    io.write(R92C_HMETFR + 3, 1, 0x20);
+    if (!io.poll(R92C_SYS_FUNC_EN, 2, R92C_SYS_FUNC_EN_CPUEN, 0, 100, 50, false))
+        io.update(R92C_SYS_FUNC_EN, 2, R92C_SYS_FUNC_EN_CPUEN, 0);
+}
+
+static void rtwLegacyCUPowerOff(rtwn_softc *sc, RTWLegacyPowerIO &io) {
+    uint32_t value;
+    /* Linux identifies the 8188RU high-PA board from ROM RF option bit5. */
+    if (!(sc->chip & RTWN_CHIP_92C) && sc->board_type == R92C_BOARD_TYPE_HIGHPA)
+        io.update(R92C_FPGA0_RFPARAM(1), 4, 0, 2);
+    io.write(R92C_TXPAUSE, 1, 0xff);
+
+    /* RF path A AC low byte = 0, preserving its remaining 12 bits. */
+    if (io.read(R92C_HSSI_PARAM2(0), 4, value)) {
+        const uint32_t edge = value | R92C_HSSI_PARAM2_READ_EDGE;
+        io.write(R92C_HSSI_PARAM2(0), 4, value & ~R92C_HSSI_PARAM2_READ_EDGE);
+        io.delay(10);
+        io.write(R92C_HSSI_PARAM2(0), 4, edge & ~R92C_HSSI_PARAM2_READ_ADDR_M);
+        io.delay(100);
+        io.write(R92C_HSSI_PARAM2(0), 4, edge);
+        io.delay(10);
+        if (io.read(R92C_HSSI_PARAM1(0), 4, value)) {
+            const uint16_t readback = (value & R92C_HSSI_PARAM1_PI) ?
+                R92C_HSPI_READBACK(0) : R92C_LSSI_READBACK(0);
+            if (io.read(readback, 4, value)) {
+                io.write(R92C_LSSI_PARAM(0), 4, value & 0xfff00U);
+                io.delay(1);
+            }
+        }
+    }
+    io.update(R92C_APSD_CTRL, 1, 0, R92C_APSD_CTRL_OFF);
+    io.update(R92C_FPGA0_RFPARAM(1), 4, 0, 0x80000000U);
+    io.write(R92C_SYS_FUNC_EN, 1, R92C_SYS_FUNC_EN_USBA |
+        R92C_SYS_FUNC_EN_USBD | R92C_SYS_FUNC_EN_BB_GLB_RST);
+    io.write(R92C_SYS_FUNC_EN, 1, R92C_SYS_FUNC_EN_USBA | R92C_SYS_FUNC_EN_USBD);
+    if (io.read(R92C_MCUFWDL, 1, value) && (value & R92C_MCUFWDL_RDY)) {
+        io.write(R92C_MCUFWDL, 1, 0);
+        io.write(R92C_FWIMR, 1, 0x20);
+        io.write(R92C_HMETFR + 3, 1, 0x20);
+        if (!io.poll(R92C_SYS_FUNC_EN, 2, R92C_SYS_FUNC_EN_CPUEN, 0, 100, 50, false)) {
+            io.write(R92C_SYS_FUNC_EN + 1, 1, 0x50);
+            io.delay(10000);
+        }
+    }
+    io.write(R92C_SYS_FUNC_EN + 1, 1, 0x54);
+
+    io.write(R92C_GPIO_PIN_CTRL + 2, 2, 0);
+    if (io.read(R92C_GPIO_PIN_CTRL, 4, value)) {
+        value &= 0xffff00ffU;
+        io.write(R92C_GPIO_PIN_CTRL, 4, value | ((value & 0xff) << 8) | 0x00ff0000U);
+    }
+    io.write(R92C_GPIO_MUXCFG + 3, 1, 0);
+    if (io.read(R92C_GPIO_MUXCFG + 2, 2, value)) {
+        value &= 0xff0fU;
+        io.write(R92C_GPIO_MUXCFG + 2, 2, value | ((value & 15) << 4) | 0x0780);
+    }
+    /* Upstream's UMC B-cut SPS workaround needs the actual cut, rather than
+     * treating every non-A UMC device as cut1. */
+    if (io.read(R92C_SYS_CFG, 4, value)) {
+        const bool umcB = (value & R92C_SYS_CFG_VENDOR_UMC) &&
+            MS(value, R92C_SYS_CFG_CHIP_VER_RTL) == 1;
+        io.write(R92C_SPS0_CTRL, 1, umcB ? 0x2b : 0x23);
+    }
+    io.write(R92C_APS_FSMCO, 2, 0x4802);
+    io.write(R92C_RSV_CTRL, 1, 0x0e);
+}
+
+static void rtwLegacyEUPowerOff(rtwn_softc *sc, RTWLegacyPowerIO &io) {
+    const bool e92 = (sc->chip & RTWN_CHIP_92E) != 0;
+    uint32_t value;
+    io.write(R92C_TXPAUSE, 1, 0xff);
+    io.update(R92C_RXPKT_NUM, 4, 0, 0x00040000);
+    io.poll(R92C_RXPKT_NUM, 4, 0x00020000, 0x00020000, 100, 0);
+    io.write(R92C_RQPN_NPQ, 2, 0);
+    io.write(R92C_RQPN, 4, 0x80000000U);
+    io.delay(2000);
+    io.update(R88E_TX_RPT_CTRL, 1, R88E_TX_RPT_CTRL_TIMER_EN, 0);
+    io.write(R92C_RF_CTRL, 1, 0);
+
+    /* active_to_lps. Linux uses 0x5f8 for this 32-bit scheduler poll;
+     * OpenBSD's similarly named R92C_SCH_TXCMD is a different register. */
+    io.write(R92C_TXPAUSE, 1, e92 ? 0xff : 0x7f);
+    if (io.poll(0x05f8, 4, 0xffffffffU, 0, 100, 0)) {
+        io.update(R92C_SYS_FUNC_EN, 1, R92C_SYS_FUNC_EN_BBRSTB, 0);
+        io.delay(2);
+        if (e92) {
+            io.update(R92C_SYS_FUNC_EN, 1, R92C_SYS_FUNC_EN_BB_GLB_RST, 0);
+            io.update(R92C_CR, 2, 0xff, R92C_CR_HCI_TXDMA_EN | R92C_CR_HCI_RXDMA_EN);
+            io.update(R92C_CR, 2, R92C_CR_ENSEC, 0);
+        } else {
+            io.update(R92C_CR, 2, R92C_CR_MACTXEN | R92C_CR_MACRXEN | R92C_CR_ENSEC,
+                0xff & ~(R92C_CR_MACTXEN | R92C_CR_MACRXEN | R92C_CR_ENSEC));
+        }
+        io.update(R92C_DUAL_TSF_RST, 1, 0, 0x20);
+    }
+    if (io.read(R92C_MCUFWDL, 1, value) && (value & R92C_MCUFWDL_RAM_DL_SEL))
+        rtwLegacyResetFirmware(io);
+    io.update(R92C_SYS_FUNC_EN, 2, R92C_SYS_FUNC_EN_CPUEN, 0);
+    io.write(R92C_MCUFWDL, 1, 0);
+
+    if (e92) {
+        /* reset_8051: toggle the I/O wrapper and CPU exactly as upstream. */
+        io.update(R92C_RSV_CTRL + 1, 1, 1, 0);
+        io.update(R92C_SYS_FUNC_EN, 2, R92C_SYS_FUNC_EN_CPUEN, 0);
+        io.update(R92C_RSV_CTRL + 1, 1, 0, 1);
+        io.update(R92C_SYS_FUNC_EN, 2, 0, R92C_SYS_FUNC_EN_CPUEN);
+        io.update(R92C_RF_CTRL, 1, R92C_RF_CTRL_EN, 0);
+        io.update(R92C_LEDCFG2, 1, 0x80, 0);
+        io.update(R92C_APS_FSMCO + 1, 1, 0, 2);
+        io.poll(R92C_APS_FSMCO + 1, 1, 2, 0, 500, 10);
+        io.update(R92C_APS_FSMCO + 1, 1, 0x18, 8);
+    } else {
+        io.update(0x0194, 1, 1, 0); // 8188E 32K_CTRL
+        io.update(R92C_RF_CTRL, 1, R92C_RF_CTRL_EN, 0);
+        io.update(R92C_LPLDO_CTRL, 1, 0, 0x10);
+        io.update(R92C_AFE_XTAL_CTRL, 4, 0, 0x00800000);
+        io.update(R92C_APS_FSMCO, 2, R92C_APS_FSMCO_AFSM_PCIE, R92C_APS_FSMCO_AFSM_HSUS);
+        io.write(R92C_APS_FSMCO + 3, 1, 0);
+        io.update(R92C_GPIO_MUXCFG + 1, 1, 0x10, 0);
+        io.update(0xfe10, 1, 0, 0x10);
+        io.update(R92C_RSV_CTRL + 1, 1, 8, 0);
+        io.update(R92C_RSV_CTRL + 1, 1, 0, 8);
+        if (io.read(R92C_GPIO_PIN_CTRL, 1, value)) io.write(R92C_GPIO_PIN_CTRL + 1, 1, value);
+        io.write(R92C_GPIO_PIN_CTRL + 2, 1, 0xff);
+        if (io.read(R92C_GPIO_IO_SEL, 1, value)) io.write(R92C_GPIO_IO_SEL, 1, value << 4);
+        io.update(R92C_GPIO_IO_SEL + 1, 1, 0, 15);
+        io.write(0x0064, 4, 0x00080808); // PAD_CTRL1 LNA/TRSW/EX_PA output
+        io.write(R92C_RSV_CTRL, 1, 0);
+        io.write(R92C_GPIO_MUXCFG, 4, 0);
+    }
+}
+
+int rtwLegacyPowerOffChecked(rtwn_softc *sc) {
+    if (!valid(sc) || !sc->sc_ops.cookie) return EINVAL;
+    const uint32_t families = sc->chip & (RTWN_CHIP_92C | RTWN_CHIP_88C | RTWN_CHIP_88E | RTWN_CHIP_92E);
+    const uint32_t allowed = RTWN_CHIP_USB | RTWN_CHIP_92C | RTWN_CHIP_88C |
+        RTWN_CHIP_88E | RTWN_CHIP_92E | RTWN_CHIP_UMC | RTWN_CHIP_UMC_A_CUT | RTWN_CHIP_92C_1T2R;
+    if ((sc->chip & ~allowed) || (families != RTWN_CHIP_92C && families != RTWN_CHIP_88C &&
+        families != RTWN_CHIP_88E && families != RTWN_CHIP_92E)) return EINVAL;
+    const int transportError = sc->sc_ops.io_error(sc->sc_ops.cookie);
+    if (transportError) return transportError;
+    RTWLegacyPowerIO io(sc);
+    if (families & (RTWN_CHIP_92C | RTWN_CHIP_88C)) rtwLegacyCUPowerOff(sc, io);
+    else rtwLegacyEUPowerOff(sc, io);
+    return io.result();
+}
+
 
 /* Legacy power and manual LLT flows from the same pinned urtwn snapshot. */
 static int

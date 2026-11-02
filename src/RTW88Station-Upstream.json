@@ -22,7 +22,19 @@
     {
       "path": "sec.c",
       "sha256": "cad22a56ede19a42b3a29a260cdb8400ae901a19b34c86ad5dd173d2b6eebebc"
+    },
+    {
+      "path": "main.h",
+      "sha256": "6f2eaeb830844efface8a676815e2a0b15f59aa5408387fa85dc91613d351a24"
+    },
+    {
+      "path": "fw.h",
+      "sha256": "45a1bf5213eec95cd450a54bc50caa5652c959dd2b644684ec7447b278f6e701"
+    },
+    {
+      "path": "tx.c",
+      "sha256": "dfc212ab3caf47437ed234dba1b7f7ef0cbd45749d4d34162699446a2a4adf7e"
     }
   ],
-  "scope": "B/C port0/software-CCMP/EDCA and common HT20 H2C wire codec. Readiness comes from typed MAC and board PHY/regulatory callback; no kernel station promotion. Firmware mailbox cursor is shared with RFK/coexistence."
+  "scope": "B/C port0/software-CCMP/EDCA, checked shared firmware mailbox, HT20/non-DFS5GHz HT40/VHT20/40/80 station RA and live-BA descriptor integration. B/C uses one32-bit RA mask and the seven-byte RA report. Board PHY/RFE/active-NSS/regulatory readiness remains mandatory; DFS/2.4GHz width remains20MHz."
 }

@@ -38,7 +38,8 @@ MacKernelSDK ainda nao existir. O SDK e obtido do projeto Acidanthera em uma
 revisao fixa, dentro de MacKernelSDK/ (ignorado pelo Git).
 Use RTW_OFFLINE=1 para impedir a obtencao automatica da dependencia.
 
-A kext gerada e experimental, assinada ad-hoc e sem validacao fisica no Tahoe.
+A kext gerada e experimental e assinada ad-hoc. O pacote visa Ventura 13,
+Sonoma 14, Sequoia 15 e Tahoe 26 em Intel; requer validacao fisica por sistema.
 Ad-hoc NAO substitui o certificado/consentimento exigido para carregar
 kexts em instalacoes de macOS com politicas de seguranca padrao.
 Este comando nao instala, nao carrega e nao altera SIP/AMFI.
@@ -73,10 +74,12 @@ prepare_sdk() {
   local ethernet="$SDK/Headers/IOKit/network/IOEthernetController.h"
   local kmod="$SDK/Library/x86_64/libkmod.a"
   if [[ -f "$header" && -f "$ethernet" && -f "$kmod" ]]; then
-    printf '[SDK] MacKernelSDK encontrado: %s\n' "$SDK"
-    if [[ -d "$SDK/.git" ]]; then
-      printf '[SDK] Revisao local: %s\n' "$(git -C "$SDK" rev-parse HEAD 2>/dev/null || printf 'indisponivel')"
-    fi
+    /usr/bin/python3 "$ROOT/scripts/check-mackernelsdk.py" "$SDK" \
+      "$ROOT/scripts/MacKernelSDK-SHA256.json" "$SDK_REV" || {
+      fail 'MacKernelSDK nao corresponde a revisao/conteudo fixados. Seu diretorio foi preservado; forneca o SDK correto antes de compilar.'
+      return 1
+    }
+    printf '[SDK] MacKernelSDK validado: %s\n' "$SDK"
     return 0
   fi
 
@@ -111,6 +114,11 @@ prepare_sdk() {
         ! -f "$temp_sdk/Library/x86_64/libkmod.a" ]]; then
     rm -rf "$temp_sdk"
     fail 'A revisao baixada do MacKernelSDK nao contem todos os headers e libkmod exigidos.' || return 1
+  fi
+  if ! /usr/bin/python3 "$ROOT/scripts/check-mackernelsdk.py" "$temp_sdk" \
+      "$ROOT/scripts/MacKernelSDK-SHA256.json" "$SDK_REV"; then
+    rm -rf "$temp_sdk"
+    fail 'O conteudo do MacKernelSDK baixado nao corresponde ao manifesto fixado.' || return 1
   fi
   if ! mv "$temp_sdk" "$SDK"; then
     rm -rf "$temp_sdk"

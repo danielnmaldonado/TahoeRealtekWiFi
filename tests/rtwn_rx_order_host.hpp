@@ -53,7 +53,13 @@ public:
     std::array<Transfer, RTW_TRANSFER_SLOTS> transfers_;
     rtw_transfer_ledger ledger_{};
     // Recovery has a separate real-controller suite; these cases assert ordinary ordering.
-    struct {bool pending=false;unsigned consecutive=0;IOReturn lastError=kIOReturnSuccess;} rxRecovery_;
+    struct {
+        bool pending=false;unsigned consecutive=0;IOReturn lastError=kIOReturnSuccess;
+        uint32_t initialDrainMask=0,initialDrainGeneration[RXSlots]={0};
+        IOReturn initialDrainError=kIOReturnSuccess;uint64_t initialFailures=0;
+        uint32_t stopDrainMask=0,stopDrainGeneration[RTW_TRANSFER_SLOTS]={0};
+        IOReturn stopDrainError=kIOReturnSuccess;uint64_t stopDrainFailures=0;
+    } rxRecovery_;
     uint64_t rxPackets_=0;
     bool beginRXRecovery(IOReturn error) {if(error==kIOReturnNotResponding)std::abort();return false;}
     void advanceRXRecovery() {std::abort();}
@@ -101,5 +107,8 @@ public:
     void receive(const uint8_t *p, size_t n) { if(n){++rxPackets_;delivered.push_back(*p);} }
     void recordCompletion(Transfer *, IOReturn, uint32_t, uint32_t);
     void drainCompletions(bool);
+    // Actual deferred AU power-off is covered by rtl8814au_recovery_tests.
+    void finish8814StopAfterDrain(){}
+    void finishFamilyStopAfterDrain(){}
     void scheduleDeferredCleanup() {}
 };

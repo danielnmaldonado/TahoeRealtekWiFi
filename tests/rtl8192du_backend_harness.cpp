@@ -1,3 +1,4 @@
+#include "rtw/StationRecovery.hpp"
 #include "rtw/StationChannels.h"
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include "rtw/RTL8192DUStation.h"
@@ -86,6 +87,7 @@ static void IOSimpleLockUnlockEnableInterrupt(void*,IOInterruptState){}
 struct Memory {std::vector<uint8_t>bytes;Memory():bytes(4352){}void*getBytesNoCopy(){return bytes.data();}};
 struct Transfer {Memory*memory=nullptr;};
 class RTWUSBController {public:
+
  bool permitsDFSChannelByCountry(uint8_t)const{return true;}
 
     Fixture test;
@@ -152,6 +154,8 @@ class RTWUSBController {public:
         assert(rtw_92du_mac_set_address(&duMAC_,duStationAddress_)==RTW_92DU_OK);
         test.bus.regs[0x80]=2;test.bus.regs[0x18]=test.bus.regs[0x1a]=1;
         assert(rtw_92du_phy_load_tables(&duCore_)==RTW_92DU_OK);assert(rtw_92du_phy_set_power_reduction(&duCore_,duPowerReductionDB_)==RTW_92DU_OK);assert(rtw_92du_phy_set_power_limit_mbm(&duCore_,duPowerLimitMBM_)==RTW_92DU_OK);return 0;}
+
+#include "family_recovery_backend_host.hpp"
 };
 /* ACTUAL_BACKEND_METHODS */
 static void put(uint8_t*p,uint32_t v){for(unsigned i=0;i<4;++i)p[i]=(uint8_t)(v>>(8*i));}

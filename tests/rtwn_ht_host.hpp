@@ -12,6 +12,7 @@
 #define DPRINTF(x) ((void)0)
 #include "vendor/rtwn/r92creg.h"
 #include "rtw/RTL8192EUHT.h"
+#include "rtw/RTL8192CDataPath.h"
 #define RTWN_CHIP_88E 0x20U
 #define RTWN_CHIP_92C 0x01U
 #define RTWN_CHIP_92C_1T2R 0x02U
@@ -44,6 +45,16 @@
 #define IEEE80211_HTCAP_CBW20_40 0x0002U
 #define IEEE80211_HTCAP_SGI20 0x0020U
 #define IEEE80211_HTCAP_SGI40 0x0040U
+#define IEEE80211_HTCAP_SMPS_DIS 3U
+#define IEEE80211_HTCAP_SMPS_SHIFT 2U
+#define IEEE80211_HTCAP_SMPS_MASK (3U<<2)
+#define IEEE80211_C_QOS 0x100U
+#define IEEE80211_C_TX_AMPDU 0x200U
+#define IEEE80211_F_QOS 0x400U
+#define IEEE80211_AMPDU_PARAM_LE 3U
+#define IEEE80211_AMPDU_PARAM_SS_16 (7U<<2)
+#define IEEE80211_TX_MCS_SET_DEFINED 1U
+#define IEEE80211_TX_RX_MCS_NOT_EQUAL 2U
 #define IEEE80211_HTCAP_40INTOLERANT 0x4000U
 #define IEEE80211_HTOP0_SCO_MASK 0x03U
 #define IEEE80211_HTOP0_CHW 0x04U
@@ -65,10 +76,11 @@ struct ieee80211_channel {unsigned ic_freq=2412,ic_flags=IEEE80211_CHAN_2GHZ;};
 #define IEEE80211_CHAN_ANYC ((ieee80211_channel *)-1)
 struct ieee80211_rateset { uint8_t rs_nrates=0, rs_rates[16]{}; };
 struct ieee80211_node { ieee80211_rateset ni_rates; uint8_t ni_txrate=0, ni_rxmcs[10]{},ni_bssid[6]{2,0,0,0,0,1}; uint32_t ni_flags=0; uint16_t ni_intval=100,ni_htcaps=0; uint8_t ni_htop0=0,ni_chw=IEEE80211_CHAN_WIDTH_20; ieee80211_channel *ni_chan=nullptr; };
-struct ieee80211com { ieee80211_node *ic_bss=nullptr; void *ic_softc=nullptr; int ic_curmode=IEEE80211_MODE_11G,ic_opmode=IEEE80211_M_STA; enum ieee80211_state ic_state=IEEE80211_S_ASSOC; uint16_t ic_htcaps=IEEE80211_HTCAP_CBW20_40|IEEE80211_HTCAP_SGI20|IEEE80211_HTCAP_SGI40; uint32_t ic_userflags=0; ieee80211_channel ic_channels[12]{}; ieee80211_channel *ic_ibss_chan=nullptr; };
+struct ieee80211com { ieee80211_node *ic_bss=nullptr; void *ic_softc=nullptr; int ic_curmode=IEEE80211_MODE_11G,ic_opmode=IEEE80211_M_STA; enum ieee80211_state ic_state=IEEE80211_S_ASSOC; uint16_t ic_htcaps=IEEE80211_HTCAP_CBW20_40|IEEE80211_HTCAP_SGI20|IEEE80211_HTCAP_SGI40; uint32_t ic_userflags=0,ic_caps=0,ic_flags=0;uint8_t ic_ampdu_params=0,ic_sup_mcs[10]{},ic_tx_mcs_set=0; ieee80211_channel ic_channels[12]{}; ieee80211_channel *ic_ibss_chan=nullptr; };
 static inline int host_newstate(ieee80211com *ic,enum ieee80211_state state,int) {ic->ic_state=state;return 0;}
 struct fw_command { uint8_t id; std::vector<uint8_t> payload; };
 struct rtwn_softc {
+    struct {const char *dv_xname="offline";} device;decltype(device)*sc_pdev=&device;
     uint32_t chip=RTWN_CHIP_92E, sc_flags=0;
     ieee80211com sc_ic;
     std::vector<fw_command> commands;
@@ -103,7 +115,7 @@ static inline uint32_t rtwn_read_4(rtwn_softc *s,uint16_t reg) {
 static inline int rtwn_fw_cmd(rtwn_softc *s,uint8_t id,const void *p,int n) {
     const auto *b=static_cast<const uint8_t *>(p); s->commands.push_back({id,{b,b+n}}); return (s->fw_fail_id<0 || s->fw_fail_id==id)?s->fw_error:0;
 }
-static inline int rtwn_r92c_ra_init(rtwn_softc *,uint8_t,uint32_t,int,uint32_t,int) { return 0; }
+int rtwn_r92c_ra_init(rtwn_softc *,uint8_t,uint32_t,int,uint32_t,int);
 static inline int rtwn_io_error(rtwn_softc *s) {return s->io_error;}
 int rtwn_r92e_ampdu_params(rtwn_softc *,uint8_t,uint8_t);
 int rtwn_r92e_media_status(rtwn_softc *,int);
@@ -124,6 +136,7 @@ static inline void rtwn_delay(rtwn_softc *,uint32_t) {}
 static inline void rtwn_tsf_sync_enable(rtwn_softc *) {}
 int rtwn_r88e_ra_init(rtwn_softc *,uint8_t,uint32_t,int,uint32_t,int);
 int rtwn_ra_init(rtwn_softc *);
+void rtwn_ht_capabilities(rtwn_softc *);
 int rtwn_chan2group(int);
 void rtwn_r92e_get_txpower(rtwn_softc *,int,ieee80211_channel *,ieee80211_channel *,uint16_t *);
 static inline void require(bool ok,const char *what) { if(!ok) {std::fprintf(stderr,"FAIL: %s\n",what);std::exit(1);} }

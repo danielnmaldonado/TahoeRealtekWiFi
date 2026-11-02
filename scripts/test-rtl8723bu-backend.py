@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Actual RTL8723BU adapter and actual core, modeled USB/OS boundaries only."""
 from pathlib import Path
+from family_control_host import augment_control
 from host_cpp import compiler,sanitizer_flags
 import argparse,re,subprocess,tempfile
-r=Path(__file__).resolve().parents[1];p=argparse.ArgumentParser(description=__doc__);p.add_argument('--out',type=Path);a=p.parse_args()
+r=Path(__file__).resolve().parents[1];p=argparse.ArgumentParser(description=__doc__);p.add_argument('--control',action='store_true');p.add_argument('--out',type=Path);a=p.parse_args()
 s=(r/'kext/RTW8723BUBackend.inc').read_text()
 def method(marker):
  start=s.index(marker);opening=s.index('{',start);depth=1;end=opening+1
@@ -29,8 +30,8 @@ for mode in ['11B','11A','11G']:
 defaults='static const ieee80211_edca_ac_params ieee80211_edca_table[3][4]={'+','.join(rows)+'};'
 text=harness.replace('/* ACTUAL_CORE_USB_MODEL */',core).replace('/* ACTUAL_STACK_FLAGS */','\n'.join(flags.values())+'\n'+cipher).replace('/* ACTUAL_DEFAULT_EDCA */',defaults).replace('/* ACTUAL_BACKEND_METHODS */','\n'.join(map(method,markers)))
 with tempfile.TemporaryDirectory(prefix='rtl8723bu-backend-') as tmp:
- d=a.out or Path(tmp);d.mkdir(exist_ok=True,parents=True);src=d/'backend.cpp';src.write_text(text)
- flags=['-g','-O1','-Wall','-Wextra','-Werror',*sanitizer_flags(),'-I'+str(r/'include'),'-I'+str(r/'kext')];objects=[]
+ d=a.out or Path(tmp);d.mkdir(exist_ok=True,parents=True);src=d/'backend.cpp';src.write_text(augment_control(text,r,'8723') if a.control else text)
+ flags=['-g','-O1','-Wall','-Wextra','-Werror',*sanitizer_flags(),'-I'+str(r/'include'),'-I'+str(r/'tests'),'-I'+str(r/'kext')];objects=[]
  for name in ['RTL8723BU','RTL8723BUDataPath','USBPackets','RTL8192EUDataPath','USBWiFiProfiles']:
   obj=d/(name+'.o');objects.append(str(obj));subprocess.run([*compiler('c'),'-std=c11',*flags,'-c',str(r/'src'/(name+'.c')),'-o',str(obj)],check=True)
  binary=d/'rtl8723bu-backend-tests';subprocess.run([*compiler(),'-std=c++17',*flags,str(src),*objects,'-o',str(binary)],check=True);subprocess.run([str(binary)],check=True)

@@ -21,8 +21,8 @@ static void ignored(RTWUSBController& c,const rtw_rx_packet& p) {
     CHECK(c.perfDiag_.rxUnknownPackets==before.rxUnknownPackets&&c.perfDiag_.rxUnknownBytes==before.rxUnknownBytes);
     CHECK(c.perfDiag_.rxLastCode==before.rxLastCode&&c.perfDiag_.rxLastRate500Kbps==before.rxLastRate500Kbps);
 }
-static void observed_vht_rates(){
-    RTWUSBController c;ieee80211_node n;c.family_=RTW_WIFI_RTL8812AU;c.auFirmwareReady_=true;
+static void observed_vht_rates(rtw_wifi_family family){
+    RTWUSBController c;ieee80211_node n;c.family_=family;c.auFirmwareReady_=true;c.r88FirmwareReady_=true;
     c.core_.sc_ic.ic_bss=&n;auto bytes=downlink(c,n);
     for(uint8_t code=44;code<64;code++){
         auto p=packet(bytes.data(),100+code,code);p.bandwidth_code=2;c.observeReceivedRate(p);
@@ -36,6 +36,13 @@ static void observed_vht_rates(){
     CHECK(c.perfDiag_.rxUnknownPackets==0&&c.perfDiag_.rxVHT80Packets==20);
     for(unsigned width=0;width<3;width++){auto p=packet(bytes.data(),128,44);p.bandwidth_code=width;c.observeReceivedRate(p);}
     c.publishPerformanceDiagnostics();CHECK(property(c,"RTWDiagRXVHT20Packets")==1&&property(c,"RTWDiagRXVHT40Packets")==1&&property(c,"RTWDiagRXVHT80Packets")==21);
+}
+static void legacy_actual_bandwidth_observations(){
+ for(auto family:{RTW_WIFI_RTL8192CU,RTW_WIFI_RTL8188EU}){
+  RTWUSBController c;ieee80211_node n;c.family_=family;c.core_.sc_ic.ic_bss=&n;auto bytes=downlink(c,n);
+  for(unsigned width:{0U,1U}){auto p=packet(bytes.data(),128,19);p.bandwidth_code=width;c.observeReceivedRate(p);}
+  c.publishPerformanceDiagnostics();CHECK(property(c,"RTWDiagRXHT20Packets")==1&&property(c,"RTWDiagRXHT40Packets")==0&&property(c,"RTWDiagRXHTUnknownBWPackets")==1);
+ }
 }
 static void bu_actual_bandwidth_observations(){
  RTWUSBController c;ieee80211_node n;c.family_=RTW_WIFI_RTL8710BU;c.buFirmwareReady_=true;c.core_.sc_ic.ic_bss=&n;auto bytes=downlink(c,n);
@@ -54,7 +61,8 @@ int main() {
     r23_actual_bandwidth_observations();
     bu_actual_bandwidth_observations();
     fu_actual_bandwidth_observations();
-    observed_vht_rates();
+    for(auto family:{RTW_WIFI_RTL8812AU,RTW_WIFI_RTL8821AU,RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU})observed_vht_rates(family);
+    legacy_actual_bandwidth_observations();
     RTWUSBController c;ieee80211_node n;c.core_.sc_ic.ic_bss=&n;auto bytes=downlink(c,n);
     /* A valid associated downlink must populate a literal PHY54 bucket. */
     c.observeReceivedRate(packet(bytes.data(),128,11));c.publishPerformanceDiagnostics();

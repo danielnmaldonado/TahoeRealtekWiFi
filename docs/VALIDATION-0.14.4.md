@@ -1,6 +1,6 @@
 # Validação — 0.14.4/build51 e app 0.3.4/build46
 
-Projeto e adaptação macOS: DNMTechLabs. Estado: desenvolvimento.
+Projeto e adaptação macOS: MaLd0n. Estado: desenvolvimento.
 
 ## Evidência na build50
 

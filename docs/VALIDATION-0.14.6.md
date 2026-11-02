@@ -1,37 +1,85 @@
-# Validation — driver 0.14.6/build53 and app 0.3.4/build46
+# Validação — 0.14.6/build53 e app 0.3.4/build46
 
-macOS development and adaptation: DNMTechLabs. Status: development.
+Projeto e adaptação macOS: MaLd0n. Estado: desenvolvimento.
 
-## Initial physical evidence — build52
+## Evidência física de partida — build52
 
-After the user changed the USB port, AU 2357:0106 moved to the direct path @14400000, 480 Mbps, Registry 4294979718/en3, with WPA2 authorized on channel 6 and RSSI near −44 dBm. EU was not connected. The user-rebuilt kext52 remained loaded, UUID 7511954E-85FD-30FC-92E6-28942A938040, with app/helper46.
+Após a troca de porta pelo usuário, AU 2357:0106 passou ao caminho direto
+@14400000, 480 Mb/s, Registry 4294979718/en3, WPA2 autorizado no canal 6,
+RSSI próximo de −44 dBm. EU não estava conectado. Continuou carregada a kext52
+recompilada pelo usuário, UUID 7511954E-85FD-30FC-92E6-28942A938040; app/helper46.
 
-All five modem pings bound to the en3 IP succeeded without loss: 2.479–5.490 ms. A 4 MiB GET and 1 MiB zero-filled POST against public Cloudflare endpoints, bound to en3/IPv4, completed with HTTP 200 and no proxy. Curl averages were 8.73 Mbps down and 8.93 Mbps up. These were short WAN samples, not maximum throughput. The download added approximately 5.05 MB of RX, 857 aggregates, 53 truncated, and 53 malformed counts; most HT bytes used MCS15. Published values showed zero USB recovery. The immediate post-upload snapshot did not change; absence of traffic was not inferred from this potentially stale snapshot.
+Cinco pings ao modem, vinculados ao IP de en3, responderam sem perda:
+2,479–5,490 ms. GET de 4 MiB e POST de 1 MiB de zeros aos endpoints públicos
+Cloudflare, vinculados a en3/IPv4, completaram com HTTP200 e sem proxy. Médias
+do curl: 8,73 Mb/s e 8,93 Mb/s. São amostras curtas de WAN, não capacidade máxima.
+O download adicionou cerca de 5,05 MB de RX, 857 agregados, 53 truncated e
+53 malformed; a maioria dos bytes HT estava em MCS15. Os valores publicados
+mostraram zero recuperação USB. No upload, o snapshot imediato não mudou;
+não se inferiu ausência de tráfego desse snapshot possivelmente antigo.
 
-## RX capacity consistent with DMA aggregation
+## RX compatível com a agregação DMA
 
-The vendor source identifies 0x2005 as a 20 KiB threshold. Linux rtw88 uses 32,768-byte buffers, while the native path had used 16 KiB. `USBRXCapacity.h` now selects 32 KiB for AU, leaving 16 KiB for other backends. Allocation, startup, rearming, and refill use the same capacity and check the size of existing buffers.
+O vendor identifica 0x2005 como threshold de 20 KiB. Linux rtw88 usa buffers
+de 32768 bytes; o native usava 16 KiB. USBRXCapacity.h agora seleciona 32 KiB
+para AU e mantém 16 KiB nos demais backends. Alocação, início, rearm e refill
+usam a mesma capacidade e verificam o tamanho do buffer existente.
 
-A real test uses a valid 20,200-byte, 13-frame aggregate. Cutting it at 16 KiB truncates one MPDU after ten frames and causes truncated followed by malformed in the next read. A 32 KiB read preserves all 13 frames. The mechanism is consistent with the 53 physical occurrences, but build52 did not publish completion lengths; no per-occurrence causal identity is claimed.
+O teste real usa agregado válido de 20200 bytes/13 quadros. Dividi-lo em
+16 KiB corta um MPDU após dez quadros, gera truncated e depois malformed no
+read seguinte. Uma leitura de 32 KiB preserva os 13 quadros. O mecanismo é
+compatível com os 53 casos físicos, mas a build52 não publicou os comprimentos
+dessas completions; não se afirma identidade causal caso a caso.
 
-New scalar diagnostics are `RTWDiagRXLastReadBytes`, `RTWDiagRXMaxReadBytes`, and `RTWDiagRXAggregateLastErrorReadBytes`. The last refers to a structural parser failure, not the length of a USB error. Packets are not exported. DMA behavior, timing, and recovery budget remain unchanged.
+Novos escalares: RTWDiagRXLastReadBytes, RTWDiagRXMaxReadBytes e
+RTWDiagRXAggregateLastErrorReadBytes. O último se refere à falha estrutural
+no parser, não ao comprimento de um erro USB. Não são exportados pacotes.
+DMA, temporização e orçamento de recuperação permanecem iguais.
 
-Independent review passed 943 capacity checks, 2,105 recovery checks, and 258 ordering checks; the same test remained RED against build52 sources. The full controller compiled with the native SDK and a 2,048-byte stack-frame limit.
+Revisão independente: 943 checks de capacidade, 2105 de recovery e 258 de
+ordenação passaram; o mesmo teste continua RED contra a fonte52. O Controller
+completo compilou com SDK nativo e limite de frame de stack de 2048 bytes.
 
-## Thermal-rate authority
+## Autoridade da taxa térmica
 
-`sendFrame` had overwritten the effective C2H rate with the descriptor's initial/fixed rate, including management, EAPOL, and rejected TX. The primary source updates tracking from the C2H rate. Per-packet overwriting was removed while preserving descriptors, PHY baseline, and C2H filters. All 55 Controller→PHY/thermal checks passed; the reproduced thermal delta stayed 3→3 rather than changing 3→4. Association identity of a C2H event still cannot be distinguished using only a local counter; no nonexistent epoch proof was invented in the protocol.
+sendFrame sobrescrevia a taxa efetiva C2H pela taxa inicial/fixa do descritor,
+inclusive em gerenciamento, EAPOL e TX rejeitado. O primário atualiza o tracking
+pela taxa C2H. A escrita por pacote foi removida, preservando descritores,
+baseline do PHY e filtros de C2H. Os 55 checks Controller→PHY/thermal passaram;
+o delta térmico reproduzido permanece 3→3, antes mudava 3→4.
+C2H sem identificação de associação continua não distinguível apenas por
+contador local; não foi inventada uma prova de epoch ausente no protocolo.
 
-## AU TX AMPDU
+## TX AMPDU AU
 
-Integration programs the peer's byte limit at 0x458 before accepting BA. An I/O failure refuses admission and blocks TX. The descriptor checks the current BA agreement by TID, authorization, HT, QoS/ACK, and fragmentation. `MAX_AGG_NUM` counts MPDU pairs and respects half the BA window; window size one remains nonaggregated. Density, host sequence, and checksum were verified. Management, EAPOL, and group frames are excluded from aggregation. DELBA and reassociation remove eligibility. The absence of AGG_BK matches the primary source; unaggregated bytes are preserved. Descriptor batching per USB transfer remains outside this fix.
+A integração programa o limite de bytes do peer em 0x458 antes de aceitar BA.
+Falha de I/O recusa admissão e bloqueia TX. O descritor consulta o acordo BA
+vigente por TID, autorização, HT, QoS/ACK e fragmentos. MAX_AGG_NUM usa pares
+de MPDUs e respeita metade da janela BA; janela 1 permanece individual.
+Densidade, sequência do host e checksum foram verificados. Gerenciamento,
+EAPOL e grupo não agregam. DELBA e reassociação retiram a elegibilidade.
+A ausência de AGG_BK corresponde ao primário; bytes não agregados são preservados.
+Batching de descritores por transferência USB continua fora desta correção.
 
-Fixtures record five primary hashes and masks. Independent review passed 3,817 TX/BA, 2,025 codec, 2,470 BA/CCMP, and 178 lifecycle checks. Imported negotiation was exercised on both bands; this does not validate actual over-the-air aggregation.
+Fixtures registram cinco hashes e máscaras primárias. Na revisão independente,
+3817 checks TX/BA, 2025 codec, 2470 BA/CCMP e 178 lifecycle passaram. A negociação
+importada foi exercitada nas duas bandas. Isso não valida agregação física no ar.
 
-## Integration and delivery
+## Integração e entrega
 
-All 153/153 Release and 153/153 host ASan/UBSan tests passed. Independent reviews found no new blockers. Results from the extracted source, native products, signatures, and integrity were recorded in `VERIFICATION.json` and `NATIVE-VERIFICATION.json` in the delivery folder after this source was frozen. App46 and its protocol remained compatible.
+Passaram 153/153 testes Release e 153/153 com ASan/UBSan no host. As revisões
+independentes não encontraram novos bloqueadores. Resultados do source extraído,
+produtos nativos, assinaturas e integridade ficam em VERIFICATION.json e
+NATIVE-VERIFICATION.json junto à entrega, após congelar este source.
+O app46 e seu protocolo continuam compatíveis.
 
-Build53 had not yet been loaded on hardware in this report. Speed gains, BA negotiation, and stability needed measurement after the user compiled/replaced the kext. The agent did not install, reboot, modify EFI/router/SIP/AMFI, or use passwords. All files remained under the project folder.
+A build53 ainda não foi carregada no hardware. Ganho de velocidade, negociação
+BA e estabilidade precisam de medição após o usuário compilar/substituir a kext.
+Não houve instalação, reinício, alteração de EFI, roteador, SIP/AMFI ou uso de
+senhas pelo agente. Todos os arquivos permanecem na pasta do projeto.
 
-Inventory and gates were preserved: 270 IDs, 263 primary matches, 262 eligible for 13 backends, plus restricted discovery 13b1:0043. RTL8814BU required qualified firmware/profile; DFS, WPA3, and unimplemented modes were not advertised. The real automatic 5 GHz router channel remained unknown; this build52 session was on 2.4 GHz/channel 6. The complete release was not yet qualified.
+Inventário e gates preservados: 270 IDs, 263 primários, 262 elegíveis a 13 backends,
+mais descoberta restrita 13b1:0043. RTL8814BU depende de firmware/perfil qualificados;
+DFS, WPA3 e modos não implementados não são anunciados. O canal real de 5 GHz do
+roteador automático permanece desconhecido; esta sessão52 ficou em 2,4 GHz/canal6.
+O lançamento completo ainda não está homologado.

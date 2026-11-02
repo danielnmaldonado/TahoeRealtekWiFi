@@ -35,6 +35,8 @@ def main():
     for result,name in (("bool","usesFirmwareRate"),("int","ampduRXStart"),("int","ampduTXStart"),("void","ampduRXStop"),("void","ampduTXStop")):
         closure+=body(ht,result+" RTWUSBController::"+name+"(")
     closure+=body(family,"bool RTWUSBController::usesLegacyFirmwareRate(")
+    for result,name in (("bool","usesLegacyHighThroughput"),("bool","acceptsLegacyReceiveRate"),("uint8_t","legacyHostHTRate")):
+        closure+=body(family,result+" RTWUSBController::"+name+"(")
     closure+=body(family,"bool RTWUSBController::uses8814FirmwareRate(")
     closure+=body(controller,"int RTWUSBController::sendFrame(")
     generated=args.out/"actual_ht_tx.cpp";generated.write_text(closure)

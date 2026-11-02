@@ -25,6 +25,7 @@
 /* macOS transport and mbuf adaptation; radio/state algorithms remain OpenBSD. */
 #include "rtwnvar.h"
 #include "rtw/Efuse.h"
+#include "rtw/RTL8192CDataPath.h"
 #include <sys/sockio.h>
 #include <sys/errno.h>
 #include <net/if.h>
@@ -184,6 +185,33 @@ void		rtwn_stop(struct _ifnet *);
  */
 #define RTWN_SIGN4TO8(val)	(((val) & 0x08) ? (val) | 0xf0 : (val))
 
+void
+rtwn_ht_capabilities(struct rtwn_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	ic->ic_htcaps = 0;
+	memset(ic->ic_sup_mcs, 0, sizeof(ic->ic_sup_mcs));
+	if (!(sc->chip & RTWN_CHIP_92E) &&
+	    ((sc->chip & RTWN_CHIP_PCI) ||
+	     !(sc->chip & (RTWN_CHIP_92C | RTWN_CHIP_88C | RTWN_CHIP_88E)))) return;
+	ic->ic_caps |= IEEE80211_C_QOS | IEEE80211_C_TX_AMPDU;
+	ic->ic_flags |= IEEE80211_F_QOS;
+	ic->ic_htcaps = IEEE80211_HTCAP_SGI20 |
+	    (IEEE80211_HTCAP_SMPS_DIS << IEEE80211_HTCAP_SMPS_SHIFT);
+	if (sc->chip & RTWN_CHIP_92E)
+		ic->ic_htcaps |= IEEE80211_HTCAP_CBW20_40 | IEEE80211_HTCAP_SGI40;
+	/* Legacy DMA is 9/10KiB: bound the advertised RX aggregate to 8KiB.
+	 * net80211 owns reorder windows and software CCMP for all generations. */
+	ic->ic_ampdu_params = ((sc->chip & RTWN_CHIP_92E) ?
+	    IEEE80211_AMPDU_PARAM_LE : 0) | IEEE80211_AMPDU_PARAM_SS_16;
+	ic->ic_sup_mcs[0] = 0xff;
+	if (sc->nrxchains > 1) ic->ic_sup_mcs[1] = 0xff;
+	ic->ic_tx_mcs_set = IEEE80211_TX_MCS_SET_DEFINED;
+	if (sc->ntxchains < sc->nrxchains)
+		ic->ic_tx_mcs_set |= IEEE80211_TX_RX_MCS_NOT_EQUAL |
+		    ((sc->ntxchains - 1) << 2);
+}
+
 int
 rtwn_attach(struct device *pdev, struct rtwn_softc *sc, IOEthernetController *controller)
 {
@@ -267,27 +295,7 @@ rtwn_attach(struct device *pdev, struct rtwn_softc *sc, IOEthernetController *co
 	    IEEE80211_C_SHSLOT |	/* Short slot time supported. */
 	    IEEE80211_C_RSN;		/* WPA/RSN. */
 
-	/* HT20/HT40 are enabled only for the generation-2 8192EU path. The receive
-	 * MCS set follows receive chains; a 1T2R bond advertises its distinct
-	 * transmit stream limit rather than losing its second receive stream. */
-	ic->ic_htcaps = 0;
-	memset(ic->ic_sup_mcs, 0, sizeof(ic->ic_sup_mcs));
-	if (sc->chip & RTWN_CHIP_92E) {
-		ic->ic_caps |= IEEE80211_C_QOS | IEEE80211_C_TX_AMPDU;
-		ic->ic_flags |= IEEE80211_F_QOS;
-		ic->ic_htcaps = IEEE80211_HTCAP_CBW20_40 |
-		    IEEE80211_HTCAP_SGI20 | IEEE80211_HTCAP_SGI40 |
-		    (IEEE80211_HTCAP_SMPS_DIS << IEEE80211_HTCAP_SMPS_SHIFT);
-		ic->ic_ampdu_params = IEEE80211_AMPDU_PARAM_LE |
-		    IEEE80211_AMPDU_PARAM_SS_16;
-		ic->ic_sup_mcs[0] = 0xff;
-		if (sc->nrxchains > 1)
-			ic->ic_sup_mcs[1] = 0xff;
-		ic->ic_tx_mcs_set = IEEE80211_TX_MCS_SET_DEFINED;
-		if (sc->ntxchains < sc->nrxchains)
-			ic->ic_tx_mcs_set |= IEEE80211_TX_RX_MCS_NOT_EQUAL |
-			    ((sc->ntxchains - 1) << 2);
-	}
+	rtwn_ht_capabilities(sc);
 
 	/* Set supported .11b and .11g rates. */
 	ic->ic_sup_rates[IEEE80211_MODE_11B] = ieee80211_std_rateset_11b;
@@ -300,12 +308,12 @@ rtwn_attach(struct device *pdev, struct rtwn_softc *sc, IOEthernetController *co
 		ic->ic_channels[i].ic_flags =
 		    IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
 		    IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
-		if (sc->chip & RTWN_CHIP_92E) {
+		if (ic->ic_htcaps) {
 			ic->ic_channels[i].ic_flags |= IEEE80211_CHAN_HT20;
 			/* Keep both primary and secondary inside channels 1..11. */
-			if (i <= 7)
+			if ((sc->chip & RTWN_CHIP_92E) && i <= 7)
 				ic->ic_channels[i].ic_flags |= IEEE80211_CHAN_HT40U;
-			if (i >= 5)
+			if ((sc->chip & RTWN_CHIP_92E) && i >= 5)
 				ic->ic_channels[i].ic_flags |= IEEE80211_CHAN_HT40D;
 		}
 	}
@@ -894,6 +902,10 @@ rtwn_ra_init(struct rtwn_softc *sc)
 	uint8_t mode;
 	int maxrate, maxbasicrate, i, j;
 	int error = 0;
+	rtw_92e_rate_config legacy_config;
+	const int legacy_usb = !(sc->chip & RTWN_CHIP_PCI) &&
+	    (sc->chip & (RTWN_CHIP_92C | RTWN_CHIP_88C | RTWN_CHIP_88E));
+	if (legacy_usb) memset(&sc->rate_config, 0, sizeof(sc->rate_config));
 
 	if (!ni || !ni->ni_rates.rs_nrates ||
 	    ni->ni_rates.rs_nrates > nitems(ni->ni_rates.rs_rates)) return EINVAL;
@@ -919,6 +931,28 @@ rtwn_ra_init(struct rtwn_softc *sc)
 		}
 	}
 	if (!rates) return EINVAL;
+	if (legacy_usb) {
+		/* Static SMPS permits one spatial stream. Dynamic SMPS requires
+		 * MIMO-specific RTS protection which this gen1 path does not emit;
+		 * keep both cases at one TX stream without reducing local RX MCS. */
+		unsigned peer_tx_chains = sc->ntxchains;
+		if ((ni->ni_flags & IEEE80211_NODE_HT) &&
+		    ((ni->ni_htcaps & IEEE80211_HTCAP_SMPS_MASK) >>
+		    IEEE80211_HTCAP_SMPS_SHIFT) != IEEE80211_HTCAP_SMPS_DIS)
+			peer_tx_chains = 1;
+		if (!rtw_92c_build_rate_config((uint16_t)rates, ni->ni_rxmcs,
+		    peer_tx_chains, (ni->ni_flags & IEEE80211_NODE_HT) != 0,
+		    (ic->ic_htcaps & IEEE80211_HTCAP_SGI20) != 0,
+		    (ni->ni_flags & IEEE80211_NODE_HT_SGI20) != 0,
+		    &legacy_config)) return EINVAL;
+		/* Response and RTS control frames always use a legacy rate. */
+		if (!(sc->chip & RTWN_CHIP_88E)) {
+			rtwn_write_1(sc, R92C_INIRTS_RATE_SEL, maxbasicrate);
+			rtwn_write_4(sc, R92C_RRSR,
+			    RW(rtwn_read_4(sc, R92C_RRSR), R92C_RRSR_RATE_BITMAP, rates));
+			if ((error = rtwn_io_error(sc)) != 0) return error;
+		}
+	}
 	if (ic->ic_curmode == IEEE80211_MODE_11B)
 		mode = R92C_RAID_11B;
 	else
@@ -941,7 +975,8 @@ rtwn_ra_init(struct rtwn_softc *sc)
 		error = rtwn_r92e_ra_init(sc, rates, maxbasicrate);
 		ni->ni_txrate = 0;
 	} else if (sc->chip & (RTWN_CHIP_88E | RTWN_CHIP_88F)) {
-		error = rtwn_r88e_ra_init(sc, mode, rates, maxrate,
+		error = rtwn_r88e_ra_init(sc, mode, rates,
+		    legacy_usb ? legacy_config.initial_rate : maxrate,
 		    basicrates, maxbasicrate);
 		/* We use AMRR with this chip. Start with the lowest rate. */
 		ni->ni_txrate = 0;
@@ -954,12 +989,16 @@ rtwn_ra_init(struct rtwn_softc *sc)
 			rtwn_write_1(sc,
 			    R92C_INIDATA_RATE_SEL(R92C_MACID_BSS), 0);
 		} else {
-			error = rtwn_r92c_ra_init(sc, mode, rates, maxrate,
+			error = rtwn_r92c_ra_init(sc,
+			    legacy_usb ? legacy_config.raid : mode,
+			    legacy_usb ? legacy_config.rate_mask : rates,
+			    legacy_usb ? legacy_config.initial_rate : maxrate,
 			    basicrates, maxbasicrate);
 			/* No AMRR support. Indicate highest supported rate. */
 			if (!error) ni->ni_txrate = rs->rs_nrates - 1;
 		}
 	}
+	if (!error && legacy_usb) sc->rate_config = legacy_config;
 	return (error);
 }
 
@@ -979,7 +1018,9 @@ rtwn_r92c_ra_init(struct rtwn_softc *sc, u_int8_t mode, u_int32_t rates,
 	 * are written to HMEBOX_EXT before the four-byte main mailbox.
 	 * Cross-check: pinned Linux rtl8xxxu h2c_cmd.ramask and
 	 * rtl8xxxu_update_rate_mask; command 6 acquires EXT in rtwn_fw_cmd. */
-	mask = ((uint32_t)mode << 28) | basicrates;
+	const uint8_t basicmode = (basicrates & 0xff0U) ?
+	    ((basicrates & 15U) ? R92C_RAID_11BG : R92C_RAID_11G) : R92C_RAID_11B;
+	mask = ((uint32_t)(mode <= 3 ? basicmode : mode) << 28) | basicrates;
 	cmd[0] = (uint8_t)(mask >> 16); cmd[1] = (uint8_t)(mask >> 24);
 	cmd[2] = R92C_MACID_BC | R92C_MACID_VALID;
 	cmd[3] = (uint8_t)mask; cmd[4] = (uint8_t)(mask >> 8);
@@ -998,6 +1039,10 @@ rtwn_r92c_ra_init(struct rtwn_softc *sc, u_int8_t mode, u_int32_t rates,
 	mask = ((uint32_t)mode << 28) | rates;
 	cmd[0] = (uint8_t)(mask >> 16); cmd[1] = (uint8_t)(mask >> 24);
 	cmd[2] = R92C_MACID_BSS | R92C_MACID_VALID;
+	if ((rates & 0x0ffff000U) &&
+	    (sc->sc_ic.ic_htcaps & IEEE80211_HTCAP_SGI20) &&
+	    (sc->sc_ic.ic_bss->ni_flags & IEEE80211_NODE_HT_SGI20))
+		cmd[2] |= R92C_MACID_SHORTGI;
 	cmd[3] = (uint8_t)mask; cmd[4] = (uint8_t)(mask >> 8);
 	error = rtwn_fw_cmd(sc, R92C_CMD_MACID_CONFIG, cmd, sizeof(cmd));
 	if (error != 0) {
@@ -1233,6 +1278,8 @@ rtwn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		    ieee80211_state_name[nstate]));
 
 	if (ostate == IEEE80211_S_RUN) {
+		if (!(sc->chip & RTWN_CHIP_92E))
+			memset(&sc->rate_config, 0, sizeof(sc->rate_config));
 		if (sc->chip & RTWN_CHIP_92E)
 			error = rtwn_r92e_media_status(sc, 0);
 		/* Stop calibration. */
@@ -1346,7 +1393,7 @@ rtwn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		/* SCAN/AUTH tune HT20. Reconfigure the radio before publishing
 		 * HT40 rate adaptation so the H2C width always matches hardware.
 		 * All other chipsets retain their existing RUN sequence. */
-		if ((sc->chip & RTWN_CHIP_92E) && ni && ni->ni_chan &&
+		if ((sc->chip & (RTWN_CHIP_92E | RTWN_CHIP_92C | RTWN_CHIP_88C | RTWN_CHIP_88E)) && ni && ni->ni_chan &&
 		    ni->ni_chan != IEEE80211_CHAN_ANYC) {
 			rtwn_set_chan(sc, ni->ni_chan,
 			    rtwn_r92e_run_extension(sc, ni));
@@ -1396,7 +1443,7 @@ rtwn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			rtwn_set_nettype(sc, IEEE80211_M_MONITOR);
 			break;
 		}
-		if (sc->chip & RTWN_CHIP_92E) {
+		if (sc->rate_config.ht || (sc->chip & RTWN_CHIP_92E)) {
 			/* RX BlockAck reorder runs in net80211. Program BAR
 			 * (control subtype 8) in the subtype map and keep ACF low:
 			 * the RTL8192E RX filter is bypassed by accept-all-control.
@@ -3433,6 +3480,7 @@ rtwn_init(struct _ifnet *ifp)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t reg;
 	int i, error;
+	bool hardware_started = false, rx_retry = false;
 
 	/* Init firmware commands ring. */
 	sc->fwcur = 0;
@@ -3444,6 +3492,7 @@ rtwn_init(struct _ifnet *ifp)
 	if (error)
 		goto fail;
 
+	hardware_started = true;
 	/* Power on adapter. */
 	error = sc->sc_ops.power_on(sc->sc_ops.cookie);
 	if (error != 0) {
@@ -3622,6 +3671,7 @@ rtwn_init(struct _ifnet *ifp)
 		rtwn_enable_intr(sc);
 
 	error = sc->sc_ops.init(sc->sc_ops.cookie);
+	rx_retry = error == EAGAIN || error == EBUSY;
 	if (error)
 		goto fail;
 
@@ -3646,6 +3696,11 @@ rtwn_init(struct _ifnet *ifp)
 	if (error != 0) goto fail;
 	return rtwn_io_error(sc);
 fail:
+	/* The asynchronous init task cannot return errno to the controller.
+	 * Preserve native hardware failures before stop records checked cleanup;
+	 * initial RX backpressure remains an explicit, unlatched retry. */
+	if (hardware_started && !rx_retry && !sc->core_error)
+		sc->core_error = error;
 	rtwn_stop(ifp);
 	return (error);
 }

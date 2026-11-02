@@ -14,6 +14,8 @@ static unsigned checks;
 extern "C" void rtw88_phy_radio_invalidate(rtw88_phy_context*p){if(p)*p={};}
 class RTWUSBController {
 public:
+ bool validateFamilyRecoveryBoard()const{return true;}
+
  rtw_wifi_family family_;const rtw_usb_wifi_profile*profile_;Bus bus;
  rtw88_boot_context r88Core_{};rtw88_mac_context r88MAC_{};rtw88_phy_context r88PHY_{};rtw88_station_context r88Station_{};
  struct {unsigned ntxchains=0;}core_;

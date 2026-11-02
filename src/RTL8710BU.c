@@ -32,7 +32,7 @@ struct ieee80211_hw{struct rtw_r10bu*priv;struct bu_config conf;};
 struct bu_idx {s8 a,b;};
 struct rtw_r10bu{
  rtw_usb_rw_transport bus;rtw_waiter waiter;rtw_r10bu_usb usb;rtw_r10bu_board board;rtw_r10bu_status status;
- u8 packed[512],logical[512],h2c_box;bool cleanup,cal_timeout;int error;
+ u8 packed[512],logical[512],h2c_box;bool cleanup,cal_timeout;int error,cleanup_error;
  struct ieee80211_hw hw;struct bu_channel channel;
  const struct rtl8xxxu_firmware_header*fw_data;int fw_size;
  unsigned rf_paths,tx_paths,rx_paths;u8 default_crystal_cap,package_type;bool no_pape,cck_new_agc,pi_enabled;
@@ -50,7 +50,7 @@ static void u8p_replace_bits(u8*p,u8 value,u32 mask){*p=(u8)(((u32)*p&~mask)|(((
 static int conf_is_ht40(const struct bu_config*c){return c->chandef.width==40;}
 static int conf_is_ht40_plus(const struct bu_config*c){return conf_is_ht40(c)&&c->chandef.secondary>0;}
 static int conf_is_ht40_minus(const struct bu_config*c){return conf_is_ht40(c)&&c->chandef.secondary<0;}
-static void delay(struct rtw_r10bu*c,u32 us){if(c&&(!c->error||c->cleanup)&&us&&!c->waiter.wait_us(c->waiter.context,us))c->error=EIO;}
+static void delay(struct rtw_r10bu*c,u32 us){if(c&&(!c->error||c->cleanup)&&us&&!c->waiter.wait_us(c->waiter.context,us)&&!c->error)c->error=EIO;}
 #define udelay(us) delay(priv,(u32)(us))
 #define mdelay(ms) delay(priv,(u32)(ms)*1000U)
 #define msleep(ms) mdelay(ms)
@@ -86,6 +86,8 @@ static int rtl8xxxu_writeN(struct rtw_r10bu*c,u16 reg,const u8*b,size_t n){
 
 
 #include "RTL8710BUTables.inc"
+/* Void primary power-off routines must retain their subordinate poll results. */
+static void shutdown_result(struct rtw_r10bu*c,int result){if(result&&!c->error)c->error=result==-EBUSY?ETIMEDOUT:result<0?-result:result;}
 #include "RTL8710BUAlgorithms.inc"
 size_t rtw_r10bu_size(void){return sizeof(struct rtw_r10bu);}
 int rtw_r10bu_init(void*memory,size_t bytes,const rtw_usb_rw_transport*bus,const rtw_waiter*wait,const rtw_r10bu_usb*usb,rtw_r10bu**out){
@@ -97,7 +99,7 @@ int rtw_r10bu_init(void*memory,size_t bytes,const rtw_usb_rw_transport*bus,const
 static int valid_package(u8 package){return package==PACKAGE_QFN48M_U||package==PACKAGE_QFN48M_S;}
 int rtw_r10bu_decode_rom(const u8*rom,size_t bytes,rtw_r10bu_board*out){
  if(out)memset(out,0,sizeof(*out));if(!rom||bytes!=512||!out||le16(rom)!=0x8195)return EINVAL;
- rtw_r10bu_board b;memset(&b,0,sizeof(b));memcpy(b.mac,rom+0x11a,6);unsigned any=0,all=255;
+ rtw_r10bu_board b;memset(&b,0,sizeof(b));memcpy(b.logical,rom,sizeof(b.logical));memcpy(b.mac,rom+0x11a,6);unsigned any=0,all=255;
  for(unsigned i=0;i<6;++i){any|=b.mac[i];all&=b.mac[i];}if(!any||all==255||(b.mac[0]&1))return EINVAL;
  if(rom[0xc8]==255||rom[0xc9]==255)return ENOTSUP;
  b.crystal=rom[0xc9]&63;b.thermal=rom[0xca]&63;b.channel_plan=rom[0xc8];b.vid=le16(rom+0x1c0);b.pid=le16(rom+0x1c2);
@@ -170,7 +172,7 @@ int rtw_r10bu_boot(rtw_r10bu*c,const u8*fw,size_t bytes,u8 firmware_vendor){
  rtw_r10bu_operating initial={1,1,20,0};if(!rtw_r10bu_channel_supported(&c->board,&initial))return ENOTSUP;if(c->error)return c->error;
  populate_power(c);c->fw_data=(const struct rtl8xxxu_firmware_header*)fw;c->fw_size=(int)(bytes-32);c->h2c_box=0;c->cal_timeout=false;c->tx_iqk_mask=c->rx_iqk_mask=0;
  /* Even an interrupted power transition needs the exact 8710BU rollback. */
- c->status.powered=1;int result=rtl8xxxu_init_device(&c->hw);e=c->error?c->error:result<0?-result:0;
+ c->status.powered=1;int result=rtl8xxxu_init_device(&c->hw);e=c->error?c->error:result==-EBUSY?ETIMEDOUT:result<0?-result:0;
  if(!e&&(!calibrated(c)))e=ETIMEDOUT;
  if(!e)e=rtw_r10bu_write(c,REG_TXPAUSE,1,255);for(unsigned i=0;!e&&i<6;++i)e=rtw_r10bu_write(c,(u16)(REG_MACID+i),1,c->board.mac[i]);if(!e)e=rtw_r10bu_update(c,REG_CR,4,0x30000,0);if(!e)e=rtw_r10bu_write(c,REG_SECURITY_CFG,1,0);if(!e)e=rtw_r10bu_write(c,REG_RXFLTMAP1,2,0);if(!e)e=rtw_r10bu_write(c,REG_RXFLTMAP2,2,0);
  if(!e)e=host_security(c);if(e){(void)rtw_r10bu_stop(c);return e;}
@@ -186,10 +188,11 @@ int rtw_r10bu_set_operating(rtw_r10bu*c,const rtw_r10bu_operating*op){
 }
 int rtw_r10bu_resume(rtw_r10bu*c){if(!c||!c->status.firmware||!c->status.mac||!c->status.calibrated||!calibrated(c))return ENXIO;rtl8710b_enable_rf(c);if(c->error)return pause_failed(c,c->error);c->status.tx_enabled=1;return 0;}
 int rtw_r10bu_pause(rtw_r10bu*c){if(!c)return EINVAL;c->status.tx_enabled=0;int e=rtw_r10bu_write(c,REG_TXPAUSE,1,255);return e?pause_failed(c,e):0;}
-int rtw_r10bu_stop(rtw_r10bu*c){
- if(!c)return EINVAL;int original=c->error;c->cleanup=true;(void)rtw_r10bu_write(c,REG_TXPAUSE,1,255);if(c->status.powered){rtl8710b_disable_rf(c);rtl8710bu_power_off(c);}(void)rtw_r10bu_write(c,REG_TXPAUSE,1,255);c->cleanup=false;
- u8 identified=c->status.identified;memset(&c->status,0,sizeof(c->status));c->status.identified=identified;c->tx_iqk_mask=c->rx_iqk_mask=0;c->h2c_box=0;c->fw_data=NULL;c->fw_size=0;c->thermal_pending=false;return original?original:c->error;
+int rtw_r10bu_stop_checked(rtw_r10bu*c){
+ if(!c)return EINVAL;int original=c->error;c->error=0;c->cleanup=true;(void)rtw_r10bu_write(c,REG_TXPAUSE,1,255);if(c->status.powered){rtl8710b_disable_rf(c);rtl8710bu_power_off(c);}(void)rtw_r10bu_write(c,REG_TXPAUSE,1,255);c->cleanup=false;
+ u8 identified=c->status.identified;memset(&c->status,0,sizeof(c->status));c->status.identified=identified;c->tx_iqk_mask=c->rx_iqk_mask=0;c->h2c_box=0;c->fw_data=NULL;c->fw_size=0;c->thermal_pending=false;int cleanup=c->error;if(original)c->error=original;if(!c->cleanup_error)c->cleanup_error=cleanup;return c->cleanup_error;
 }
+int rtw_r10bu_stop(rtw_r10bu*c){int original=c?c->error:0;int cleanup=rtw_r10bu_stop_checked(c);return original?original:cleanup;}
 static int ready(struct rtw_r10bu*c){
  if(!c||!c->status.firmware||!c->status.mac||!c->status.phy)return ENXIO;if(c->error)return c->error;
  u32 state=0;int e=rtw_r10bu_read(c,REG_8051FW_CTRL_V1_8710B,1,&state);return e?e:(state&0xc7)==0xc6?0:ENXIO;

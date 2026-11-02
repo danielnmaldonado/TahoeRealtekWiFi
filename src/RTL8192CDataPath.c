@@ -19,6 +19,47 @@ static void checksum(uint8_t *d) {
     for(i=0;i<32U;i+=2U)sum^=(uint16_t)((unsigned)d[i]|((unsigned)d[i+1U]<<8));
     d[28]=(uint8_t)sum;d[29]=(uint8_t)(sum>>8);
 }
+int rtw_92c_build_rate_config(uint16_t legacy,const uint8_t peer[2],unsigned chains,
+    int ht,int local_sgi,int peer_sgi,rtw_92e_rate_config *out) {
+    uint16_t mcs=0;unsigned i;
+    if(!out)return 0;
+    memset(out,0,sizeof(*out));
+    if(!legacy||(legacy&~0xfffU)||chains<1||chains>2||ht<0||ht>1||
+       local_sgi<0||local_sgi>1||peer_sgi<0||peer_sgi>1||(ht&&!peer))return 0;
+    if(ht&&peer[0])mcs=(uint16_t)(peer[0]|(chains==2?(uint16_t)peer[1]<<8:0));
+    out->rate_mask=legacy|((uint32_t)mcs<<12);out->ht=mcs!=0;
+    out->sgi20=(uint8_t)(out->ht&&local_sgi&&peer_sgi);
+    out->tx_streams=(uint8_t)(mcs&0xff00U?2:mcs?1:0);
+    /* Gen1 firmware RAID: BGN=0, GN=1, BG=4, G=5, B=6.
+     * Gen2's 2/3/4/5 HT indices describe different tables. */
+    out->raid=(uint8_t)(mcs?((legacy&15U)?0:1):(legacy&0xff0U)?((legacy&15U)?4:5):6);
+    for(i=0;i<28;++i)if(out->rate_mask&(1U<<i))out->initial_rate=(uint8_t)i;
+    return 1;
+}
+int rtw_92c_make_tx_descriptor_ex(size_t n,int eu,int qos,const rtw_92e_tx_options *o,uint8_t *d) {
+    rtw_92e_tx_options legacy;uint32_t w;int ht;
+    if(!d||!o||(eu!=0&&eu!=1)||(qos!=0&&qos!=1))return 0;
+    ht=o->raid<=1;
+    if(o->bw40||o->channel_bw40||o->primary_above||o->short_gi>1||
+       o->ampdu>1||o->density>7||o->max_agg>31||
+       (qos&&!o->data&&!o->multicast)||
+       (ht&&(!qos||!o->data||o->short_preamble||o->rate>(eu?19:27)||o->rate<12||o->firmware_rate==(uint8_t)eu))||
+       (!ht&&(o->short_gi||o->ampdu||o->density||o->max_agg))||
+       (o->ampdu&&!o->max_agg)||(!o->ampdu&&(o->density||o->max_agg)))return 0;
+    legacy=*o;legacy.ampdu=legacy.density=legacy.max_agg=legacy.short_gi=0;
+    if(ht){legacy.raid=4;legacy.rate=0;}
+    if(!rtw_92c_make_tx_descriptor(n,&legacy,d))return 0;
+    w=read32(d+4);w=(w&~0xf0040U)|((uint32_t)o->raid<<16);
+    if(o->ampdu&&!eu)w|=0x20U;else if(!eu&&o->data)w|=0x40U;
+    write32(d+4,w);
+    w=(uint32_t)o->density<<20;
+    if(eu&&o->data)w|=o->ampdu?0x1000U:0x10000U;
+    write32(d+8,w);
+    w=read32(d+16);if(qos)w|=0x40U;write32(d+16,w);
+    w=(read32(d+20)&~0x7fU)|o->rate|(o->short_gi?0x40U:0U);write32(d+20,w);
+    if(o->ampdu)write32(d+24,(uint32_t)o->max_agg<<11);
+    checksum(d);return 1;
+}
 int rtw_92c_make_tx_descriptor(size_t n,const rtw_92e_tx_options *o,uint8_t *d) {
     uint32_t dw4;
     if(!d || !o || n<24U || n>4096U || o->data>1U || o->multicast>1U ||
@@ -108,7 +149,7 @@ int rtw_88e_parse_tx_report(const uint8_t *b,size_t n,rtw_88e_tx_report *out) {
     rtw_88e_tx_report r;
     if(out)memset(out,0,sizeof(*out));
     if(!b || !out || n!=8U || (b[1]&0x3fU) || (b[1]&0x80U) ||
-       b[5]>11U || (b[6]>>4)>7U || ((b[1]&0x40U) && (b[2]&0xc0U)))return 0;
+       b[5]>19U || (b[6]>>4)>7U || ((b[1]&0x40U) && (b[2]&0xc0U)))return 0;
     memset(&r,0,sizeof(r));
     r.packet_ok=(uint8_t)((b[1]>>6)&1U);r.report.retries=b[2]&0x3fU;
     r.report.lifetime_expired=(uint8_t)((b[2]>>6)&1U);r.report.retry_over=(uint8_t)((b[2]>>7)&1U);

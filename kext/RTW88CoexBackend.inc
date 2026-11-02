@@ -13,7 +13,9 @@ rtw88_coex_input RTWUSBController::coex88Input(ieee80211_state target,uint8_t ch
     const auto&ic=core_.sc_ic;const auto*n=ic.ic_bss;
     rtw88_coex_input input{};input.now_ms=nowMS();
     input.primary=input.center=channel?channel:r88Channel_?r88Channel_:1;
-    input.width_mhz=20;input.connected=target==IEEE80211_S_RUN;
+    input.width_mhz=20;
+    if(!channel&&r88Operating_.primary==input.primary){input.center=r88Operating_.center;input.width_mhz=r88Operating_.width_mhz;}
+    input.connected=target==IEEE80211_S_RUN;
     input.scanning=target==IEEE80211_S_SCAN;input.rssi_percent=r88RSSIValid_?r88RSSI_:0;
     input.beacon_interval=n?n->ni_intval:0;
     input.scan_ap_count=(uint16_t)(ic.ic_nnodes<0?0:ic.ic_nnodes>65535?65535:ic.ic_nnodes);
@@ -94,11 +96,17 @@ int RTWUSBController::prepare88Rate(rtw88_station_rate*out) const
 {
     const auto&ic=core_.sc_ic;const auto*n=ic.ic_bss;
     if(!out||!n)return EINVAL;uint8_t mcs[2]{};
-    const bool ht=(n->ni_flags&IEEE80211_NODE_HT)!=0;unsigned streams=r88Core_.board.tx_streams;
+    const bool ht=(n->ni_flags&IEEE80211_NODE_HT)!=0;
+    const bool vht=ht&&(n->ni_flags&IEEE80211_NODE_VHT)&&r88Channel_>14&&!rtw_station_is_dfs_channel(r88Channel_);
+    if(vht&&!(n->ni_flags&IEEE80211_NODE_QOS))return EINVAL;
+    unsigned streams=r88Core_.board.tx_streams;
     if(ht){mcs[0]=n->ni_rxmcs[0];mcs[1]=n->ni_rxmcs[1];
         if(r88CoexOneSS_||((n->ni_htcaps&IEEE80211_HTCAP_SMPS_MASK)>>IEEE80211_HTCAP_SMPS_SHIFT)!=IEEE80211_HTCAP_SMPS_DIS){mcs[1]=0;streams=1;}}
-    return rtw88_station_prepare_ht20(family_,r88Channel_,streams,station88Rates(false),mcs,ht,
-        (ic.ic_htcaps&IEEE80211_HTCAP_SGI20)!=0,(n->ni_htcaps&IEEE80211_HTCAP_SGI20)!=0,out);
+    bool localSGI=false,peerSGI=false;
+    if(r88Operating_.width_mhz==80){localSGI=(ic.ic_vhtcaps&IEEE80211_VHTCAP_SHORT_GI_80)!=0;peerSGI=(n->ni_vhtcaps&IEEE80211_VHTCAP_SHORT_GI_80)!=0;}
+    else{unsigned flag=r88Operating_.width_mhz==40?IEEE80211_HTCAP_SGI40:IEEE80211_HTCAP_SGI20;localSGI=(ic.ic_htcaps&flag)!=0;peerSGI=(n->ni_htcaps&flag)!=0;}
+    return rtw88_station_prepare_rate(family_,r88Channel_,streams,station88Rates(false),mcs,
+        letoh16(n->ni_vht_mcsinfo.rx_mcs_map),ht,vht,r88Operating_.width_mhz,localSGI,peerSGI,out);
 }
 int RTWUSBController::send88SMPS(bool enabled)
 {

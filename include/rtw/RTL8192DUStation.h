@@ -29,6 +29,7 @@ typedef struct {
     uint8_t out_pipes,prepared,started,next_h2c,rate_ready,joined,cleanup_done;
     uint8_t bssid[6],station_address[6];
     rtw_92du_station_state state;
+    rtw_92du_result cleanup_error;
 } rtw_92du_mac;
 /* No I/O. The immutable USB identity/endpoint plan must match the boot board. */
 rtw_92du_result rtw_92du_mac_init(rtw_92du_mac *,rtw_92du_boot *,const rtw_backend_usb_plan *);
@@ -71,6 +72,8 @@ rtw_92du_result rtw_92du_mac_edca(rtw_92du_mac *,uint8_t channel,uint8_t short_s
  * register attempts after an earlier error, which remains the return value;
  * it never retries an uncertain H2C or restores TX. Caller retains USB
  * ownership until this synchronous cleanup and all transfers are drained. */
+#define RTW_92DU_CHECKED_STOP 1
+rtw_92du_result rtw_92du_mac_stop_checked(rtw_92du_mac *);
 rtw_92du_result rtw_92du_mac_stop(rtw_92du_mac *);
 #ifdef __cplusplus
 }

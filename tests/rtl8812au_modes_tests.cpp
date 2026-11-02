@@ -1,6 +1,27 @@
 /* Actual PHY register/RF model prefix is supplied by the runner. */
 static rtw_r12au_operating operating(uint8_t primary,uint8_t center,uint8_t width,rtw_r12au_mode mode){return {primary,center,width,mode};}
-static void prepare(rtw_r12au_phy_board&b){for(auto&rom:b.txpwr_idx){rom[11]=0x20;rom[12]=0x3e;rom[32]=0x30;rom[33]=0xe2;rom[37]=4;rom[38]=15;}}
+static void prepare(rtw_r12au_phy_board&b){for(auto&rom:b.txpwr_idx){rom[11]=0x20;rom[12]=0x3e;rom[32]=0x30;rom[33]=0xe2;rom[38]=0x40;rom[39]=0xf0;}}
+#include "RTL8812AUBW80Golden.inc"
+static void primary_bw80_power_vectors(){
+ const unsigned rates[]={44,51,53,54,61,63};
+ for(const auto&g:au_bw80_goldens){
+  auto b=board(g.one,g.rfe);
+  for(auto&rom:b.txpwr_idx){rom[32]=0x30;rom[33]=0xe2;rom[38]=g.diff1;rom[39]=g.diff2;}
+  rtw_r12au_power_plan p{};auto op=operating((uint8_t)g.primary,(uint8_t)g.center,80,RTW_R12AU_MODE_VHT);
+  assert(!rtw_r12au_phy_power_plan(&b,&op,&p));
+  for(unsigned path=0;path<(g.one?1U:2U);++path)for(unsigned i=0;i<(g.one?3U:6U);++i){
+   if(p.index[path][rates[i]]!=g.index[path*6+i])
+    std::fprintf(stderr,"primary BW80 mismatch one=%u rfe=%u ch=%u bytes=%02x/%02x path=%u rate=%u actual=%u expected=%u\n",g.one,g.rfe,g.primary,g.diff1,g.diff2,path,rates[i],p.index[path][rates[i]],g.index[path*6+i]);
+   assert(p.index[path][rates[i]]==g.index[path*6+i]);
+  }
+  // A missing factory differential remains unavailable. Absent2SS data is
+  // irrelevant to the one-stream board; no default calibration is created.
+  b.txpwr_idx[0][38]=255;assert(rtw_r12au_phy_power_plan(&b,&op,&p)==ENOTSUP);
+  b.txpwr_idx[0][38]=g.diff1;b.txpwr_idx[0][39]=255;
+  assert(rtw_r12au_phy_power_plan(&b,&op,&p)==(g.one?0:ENOTSUP));
+ }
+ puts("AU VHT80 matches24 primary struct/PHY/PG/limit vectors, signed1SS/2SS and lower/upper5GHz");
+}
 static void power(){
  for(bool one:{false,true}){
   auto b=board(one);prepare(b);rtw_r12au_power_plan p{};
@@ -14,7 +35,7 @@ static void power(){
   bad=vht80;bad.primary=52;assert(rtw_r12au_phy_power_plan(&b,&bad,&p)==ENOTSUP);
   bad=ht40;bad.primary=11;bad.center=13;assert(rtw_r12au_phy_power_plan(&b,&bad,&p)==ENOTSUP);
   bad=vht80;bad.primary=165;bad.center=171;assert(rtw_r12au_phy_power_plan(&b,&bad,&p)==ENOTSUP);
-  auto invalid=b;invalid.txpwr_idx[0][37]=255;assert(rtw_r12au_phy_power_plan(&invalid,&vht80,&p)==ENOTSUP);assert(!rtw_r12au_phy_power_plan(&invalid,&ht20,&p));
+  auto invalid=b;invalid.txpwr_idx[0][38]=255;assert(rtw_r12au_phy_power_plan(&invalid,&vht80,&p)==ENOTSUP);assert(!rtw_r12au_phy_power_plan(&invalid,&ht20,&p));
  }
 }
 static void tune(){
@@ -147,4 +168,4 @@ static void impossible_signed_cap(){
  }
  puts("AU exact signed SAR bounds reject impossible caps at maximum valid factory base");
 }
-int main(){impossible_signed_cap();rejected_plan_keeps_live_ceiling();power_reduction();dfs20();power();tune();thermal();otp_1t1r_modes();cold_and_failures();puts("AU actual HT20/40 and VHT20/40/80 power/channel/RFK modes including8812 OTP1T1R passed");}
+int main(){primary_bw80_power_vectors();impossible_signed_cap();rejected_plan_keeps_live_ceiling();power_reduction();dfs20();power();tune();thermal();otp_1t1r_modes();cold_and_failures();puts("AU actual HT20/40 and VHT20/40/80 power/channel/RFK modes including8812 OTP1T1R passed");}

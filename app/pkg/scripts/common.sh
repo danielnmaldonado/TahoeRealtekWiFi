@@ -23,7 +23,7 @@ require_target() {
     local version major arm
     version=$(/usr/bin/sw_vers -productVersion)
     major="${version%%.*}"
-    [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )) || fail "Requires macOS 26 or later."
+    [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 13 )) || fail "Requires macOS Ventura 13 or later."
     arm=$(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null || printf '0')
     [[ "$(/usr/bin/uname -m)" == x86_64 && "$arm" != 1 ]] || fail "This project requires an Intel x86_64 Mac."
     [[ -d /Applications && ! -L /Applications ]] || fail "/Applications is not a regular directory."

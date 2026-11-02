@@ -23,6 +23,8 @@ def main():
     closure += body(output, "ieee80211_up_to_ac(", "enum ieee80211_edca_ac\n")
     closure += body(ht, "bool RTWUSBController::usesFirmwareRate(")
     for result, name in (("bool", "usesLegacyFirmwareRate"),
+                         ("bool", "usesLegacyHighThroughput"),
+                         ("uint8_t", "legacyHostHTRate"),
                          ("bool", "uses8814FirmwareRate"),
                          ("void", "handle8814C2H")):
         closure += body(family, result + " RTWUSBController::" + name + "(")

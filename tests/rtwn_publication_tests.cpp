@@ -99,6 +99,7 @@ static void unknownPhySpeedAndSelectedMedium() {
 static void nativeCountersAreObservedAndInvalidSnapshotsCleared() {
     RTWUSBController c;publication_host_ifnet native;publication_host_interface iface;
     native.stats.packets_in=17;native.stats.bytes_in=4000;native.stats.errors_in=3;
+    native.stats.packets_out=13;native.stats.bytes_out=2000;native.stats.errors_out=2;
     iface.iface=&native;c.netif_=&iface;c.publishDiagnostics();
     CHECK(native.reads==1&&native.stats.packets_in==17&&native.stats.bytes_in==4000);
     CHECK(c.properties["RTWDiagNativeIfnetStatsValid"]==1);
@@ -107,20 +108,30 @@ static void nativeCountersAreObservedAndInvalidSnapshotsCleared() {
     CHECK(c.properties["RTWDiagNativeIfnetInputPackets"]==17);
     CHECK(c.properties["RTWDiagNativeIfnetInputBytes"]==4000);
     CHECK(c.properties["RTWDiagNativeIfnetInputErrors"]==3);
-    native.error=5;c.publishDiagnostics();
+    CHECK(c.properties["RTWDiagNativeIfnetOutputPackets"]==13);
+    CHECK(c.properties["RTWDiagNativeIfnetOutputBytes"]==2000);
+    CHECK(c.properties["RTWDiagNativeIfnetOutputErrors"]==2);
+    CHECK(c.properties["RTWDiagNativeIfnetSupportedCapabilities"]==0x400);
+    CHECK(c.properties["RTWDiagNativeIfnetEnabledCapabilities"]==0);
+    CHECK(c.properties["RTWDiagNativeIfnetSkywalkEnabled"]==0);
+    native.enabled=0x400;native.error=5;c.publishDiagnostics();
+    CHECK(c.properties["RTWDiagNativeIfnetSkywalkEnabled"]==1);
     CHECK(c.properties["RTWDiagNativeIfnetStatsValid"]==0&&c.properties["RTWDiagNativeIfnetStatsError"]==5);
     CHECK(c.properties["RTWDiagNativeIfnetInputPackets"]==0&&c.properties["RTWDiagNativeIfnetInputBytes"]==0);
+    CHECK(c.properties["RTWDiagNativeIfnetOutputPackets"]==0&&c.properties["RTWDiagNativeIfnetOutputBytes"]==0&&c.properties["RTWDiagNativeIfnetOutputErrors"]==0);
     c.closing_=true;c.publishDiagnostics();CHECK(native.reads==2);
     c.closing_=false;c.attached_=false;c.publishDiagnostics();CHECK(native.reads==2);
     c.attached_=true;iface.iface=nullptr;c.publishDiagnostics();CHECK(native.reads==2);
     CHECK(c.properties["RTWDiagNativeIfnetStatsValid"]==0&&c.properties["RTWDiagNativeIfnetStatsError"]==6);
     CHECK(c.properties["RTWDiagNativeIfnetIndex"]==0);
+    CHECK(c.properties["RTWDiagNativeIfnetSupportedCapabilities"]==0&&c.properties["RTWDiagNativeIfnetEnabledCapabilities"]==0);
     c.netif_=nullptr;c.publishDiagnostics();CHECK(native.reads==2);
 }
 
 static void ethernetSubmissionBoundaryIsObservable() {
     RTWUSBController c;auto& d=c.core_.sc_ic.ic_if.if_input_diag;
-    d={1,2,3,4,5,6,7,8};c.publishDiagnostics();
+    d.calls=1;d.offeredPackets=2;d.offeredBytes=3;d.immediateReturns=4;
+    d.flushCalls=5;d.flushPackets=6;d.submissionMismatches=7;d.noIfnetCalls=8;c.publishDiagnostics();
     CHECK(c.properties["RTWDiagRXInputCalls"]==1);
     CHECK(c.properties["RTWDiagRXInputOfferedPackets"]==2);
     CHECK(c.properties["RTWDiagRXInputOfferedBytes"]==3);
@@ -132,11 +143,61 @@ static void ethernetSubmissionBoundaryIsObservable() {
     CHECK(c.stats_->inputPackets==0&&c.stats_->inputErrors==0);
 }
 
+static void nativeBoundarySnapshotsRemainSeparateAndReadOnly() {
+    RTWUSBController c;publication_host_interface iface,other;c.netif_=&iface;
+    c.core_.sc_ic.ic_if.iface=&other;
+    auto& d=c.core_.sc_ic.ic_if.if_input_diag;
+    d.nativeBefore={11,1200,1,12,1300,2,7,0x400,0,0};
+    d.nativeAfter={14,1500,3,15,1600,4,7,0x400,0,0};
+    c.publishDiagnostics();
+    CHECK(c.properties.count("RTWDiagRXNativeSampleCount"));
+    CHECK(c.properties["RTWDiagRXNativeBeforeStatsValid"]==0);
+    CHECK(c.properties["RTWDiagRXNativeBeforeInputPackets"]==0);
+    CHECK(c.properties["RTWDiagRXInputInterfaceMatchesChild"]==0);
+    d.nativeSampleCount=1;d.nativeSampleBatch=1025;d.nativeSampleOfferedPackets=3;
+    d.nativeSampleOfferedBytes=300;d.nativeSampleImmediateReturns=0;
+    d.nativeSampleFlushPackets=3;d.nativeSampleIfnetStable=1;
+    c.core_.sc_ic.ic_if.iface=&iface;c.publishDiagnostics();
+    CHECK(c.properties["RTWDiagRXInputInterfaceMatchesChild"]==1);
+    CHECK(c.properties["RTWDiagRXNativeSampleCount"]==1&&c.properties["RTWDiagRXNativeSampleBatch"]==1025);
+    CHECK(c.properties["RTWDiagRXNativeSampleOfferedPackets"]==3&&c.properties["RTWDiagRXNativeSampleOfferedBytes"]==300);
+    CHECK(c.properties["RTWDiagRXNativeSampleImmediateReturns"]==0&&c.properties["RTWDiagRXNativeSampleFlushPackets"]==3);
+    CHECK(c.properties["RTWDiagRXNativeSampleIfnetStable"]==1);
+    CHECK(c.properties["RTWDiagRXNativeBeforeStatsValid"]==1&&c.properties["RTWDiagRXNativeAfterStatsValid"]==1);
+    CHECK(c.properties["RTWDiagRXNativeBeforeInputPackets"]==11&&c.properties["RTWDiagRXNativeAfterInputPackets"]==14);
+    CHECK(c.properties["RTWDiagRXNativeBeforeInputBytes"]==1200&&c.properties["RTWDiagRXNativeAfterInputBytes"]==1500);
+    CHECK(c.properties["RTWDiagRXNativeBeforeInputErrors"]==1&&c.properties["RTWDiagRXNativeAfterInputErrors"]==3);
+    CHECK(c.properties["RTWDiagRXNativeBeforeOutputPackets"]==12&&c.properties["RTWDiagRXNativeAfterOutputPackets"]==15);
+    CHECK(c.properties["RTWDiagRXNativeBeforeOutputBytes"]==1300&&c.properties["RTWDiagRXNativeAfterOutputBytes"]==1600);
+    CHECK(c.properties["RTWDiagRXNativeBeforeOutputErrors"]==2&&c.properties["RTWDiagRXNativeAfterOutputErrors"]==4);
+    CHECK(c.properties["RTWDiagRXNativeBeforeIndex"]==7&&c.properties["RTWDiagRXNativeAfterSupportedCapabilities"]==0x400);
+    d.nativeAfter.statsError=5;c.publishDiagnostics();
+    CHECK(c.properties["RTWDiagRXNativeBeforeStatsValid"]==1&&c.properties["RTWDiagRXNativeAfterStatsValid"]==0);
+    CHECK(c.properties["RTWDiagRXNativeAfterStatsError"]==5&&c.properties["RTWDiagRXNativeAfterInputPackets"]==0);
+    CHECK(c.properties["RTWDiagRXNativeAfterOutputPackets"]==0);
+    CHECK(d.nativeAfter.packetsIn==14&&d.nativeAfter.packetsOut==15&&d.nativeBefore.packetsIn==11);
+    c.closing_=true;c.publishDiagnostics();CHECK(c.properties["RTWDiagRXInputInterfaceMatchesChild"]==0);
+    c.closing_=false;c.attached_=false;c.publishDiagnostics();CHECK(c.properties["RTWDiagRXInputInterfaceMatchesChild"]==0);
+    c.netif_=nullptr;c.publishDiagnostics();CHECK(c.properties["RTWDiagRXInputInterfaceMatchesChild"]==0);
+}
+
+static void operatingFailureIsNotHiddenByAttachSuccess() {
+    RTWUSBController c;c.core_.core_error=60;c.attached_=true;c.present_=true;
+    c.enabled_=c.radioReady_=c.running_=false;
+    c.publishDiagnostics();
+    CHECK(c.properties.count("RTWDiagCoreError")&&c.properties["RTWDiagCoreError"]==60);
+    CHECK(c.properties["RTWDiagAttached"]==1&&c.properties["RTWDiagPresent"]==1);
+    CHECK(c.properties["RTWDiagEnabled"]==0&&c.properties["RTWDiagRadioReady"]==0&&c.properties["RTWDiagRunning"]==0);
+    CHECK(c.core_.core_error==60); // read-only diagnostic must not clear latch
+}
+
 int main() {
+    operatingFailureIsNotHiddenByAttachSuccess();
     publicationDoesNotRunRatePolicy();everyFamilyPublishesFromStatus();
     publicationIsFreshAndPerDevice();existingReasonsAreExportedWithoutAttribution();
     unknownPhySpeedAndSelectedMedium();nativeCountersAreObservedAndInvalidSnapshotsCleared();
     ethernetSubmissionBoundaryIsObservable();
+    nativeBoundarySnapshotsRemainSeparateAndReadOnly();
     if(failures)return 1;
     std::cout<<"Controller diagnostic publication: readonly HT/BA, freshness, reasons, unknown PHY speed passed\n";
 }

@@ -19,7 +19,8 @@ static void start(Fixture& f,rtw_92du_mac& mac) {
     assert(f.bus.regs[0x522]==0xff && !f.bus.regs[0x680] && !f.bus.regs[0x423]);
     assert(!control_admitted(f.bus,8)&&!control_admitted(f.bus,10));
 }
-int main() {
+static void checked_cleanup(){Fixture f;rtw_92du_mac c{};start(f,c);f.boot.last_error=RTW_92DU_POLL_TIMEOUT;assert(rtw_92du_mac_stop_checked(&c)==RTW_92DU_OK&&f.boot.last_error==RTW_92DU_POLL_TIMEOUT&&!f.boot.power_ready);Fixture bad;rtw_92du_mac failed{};start(bad,failed);bad.bus.fail_at=bad.bus.io+1;assert(rtw_92du_mac_stop_checked(&failed)==RTW_92DU_IO_ERROR);bad.bus.fail_at=0;assert(rtw_92du_mac_stop_checked(&failed)==RTW_92DU_IO_ERROR);}
+int main() {checked_cleanup();
     for(uint8_t index:{uint8_t(0),uint8_t(1)}) {
         for(auto status:std::array<std::array<uint8_t,2>,6>{{{{2,1}},{{6,1}},{{0,1}},{{3,1}},{{2,0}},{{0xff,0xff}}}}) {
             Fixture live(index!=0,index);rtw_92du_mac c{};rtw_92du_usb_map mapped{};

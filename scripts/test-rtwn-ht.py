@@ -27,11 +27,12 @@ def main():
     closure='#include "rtwn_ht_host.hpp"\n'
     extension=project/"vendor/rtwn/r92e_ht.inc"
     if extension.exists(): closure+=extension.read_text()+"\n"
-    for name in ("rtwn_chan2group","rtwn_r92e_get_txpower","rtwn_read_chipid","rtwn_r88e_ra_init","rtwn_ra_init","rtwn_set_chan","rtwn_r92e_run_extension","rtwn_newstate"): closure+=function(source,name)
+    for name in ("rtwn_ht_capabilities","rtwn_chan2group","rtwn_r92e_get_txpower","rtwn_read_chipid","rtwn_r92c_ra_init","rtwn_r88e_ra_init","rtwn_ra_init","rtwn_set_chan","rtwn_r92e_run_extension","rtwn_newstate"): closure+=function(source,name)
     generated=args.out/"actual_ht.cpp";generated.write_text(closure)
     command=[*compiler(),"-std=c++17","-g","-O1","-x","c++",*sanitizer_flags(),"-fno-omit-frame-pointer","-Wall","-Wextra","-Werror","-Wno-sign-compare","-Wno-unused-parameter","-I"+str(project),"-I"+str(project/"include"),"-I"+str(project/"tests"),str(generated),str(project/"tests/rtwn_ht_tests.cpp")]
     portable=project/"src/RTL8192EUHT.c"
     if portable.exists(): command.append(str(portable))
+    command += [str(project/"src/RTL8192CDataPath.c"),str(project/"src/USBPackets.c")]
     command += ["-o",str(args.out/"rtwn-ht-tests")]
     subprocess.run(command,check=True)
     subprocess.run([str(args.out/"rtwn-ht-tests")],check=True)

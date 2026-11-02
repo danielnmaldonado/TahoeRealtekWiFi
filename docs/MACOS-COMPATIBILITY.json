@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "release_state": "development",
+  "architecture": "x86_64",
+  "driver": {"version": "0.14.14", "build": 61, "radio_source_changed": false, "project_deployment_target": "11.0", "macho_minimum_version_command": null},
+  "app": {"version": "0.3.11", "build": 53, "deployment_target": "13.0", "LSMinimumSystemVersion": "13.0"},
+  "installer_minimum_version": "13.0",
+  "targets": [
+    {"name": "Ventura", "macos_major": 13, "darwin_major": 22, "prepared": true, "hardware_validated_this_delivery": false},
+    {"name": "Sonoma", "macos_major": 14, "darwin_major": 23, "prepared": true, "hardware_validated_this_delivery": false},
+    {"name": "Sequoia", "macos_major": 15, "darwin_major": 24, "prepared": true, "hardware_validated_this_delivery": false},
+    {"name": "Tahoe", "macos_major": 26, "darwin_major": 25, "prepared": true, "hardware_validated_this_delivery": false}
+  ],
+  "build_environment": {"macos": "26.7.2", "build": "25G332", "xcode": "26.6", "sdk": "26.5"},
+  "older_xcode_build_validated": false,
+  "kpi_exports_audited": 419,
+  "kpi_export_presence_proves_cpp_abi_or_hardware_compatibility": false,
+  "historical_14_capture_environment": {"macos": "12.7.6", "driver_build": 55, "app_build": 48, "proves_this_delivery": false},
+  "prior_hardware_findings_resolved_by_os_target_change": false,
+  "installed_by_this_delivery": false,
+  "sources": ["https://developer.apple.com/support/kernel-extensions/", "https://developer.apple.com/documentation/servicemanagement/smappservice"]
+}

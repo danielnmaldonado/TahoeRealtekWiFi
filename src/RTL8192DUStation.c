@@ -364,6 +364,15 @@ static int stop_wait(rtw_92du_mac *m,uint32_t us) {
     if(m->boot->waiter.wait_us(m->boot->waiter.context,us))return 1;
     fail(m,RTW_92DU_WAIT_ERROR);return 0;
 }
+rtw_92du_result rtw_92du_mac_stop_checked(rtw_92du_mac *m) {
+    if(!valid(m))return RTW_92DU_BAD_ARGUMENT;
+    const rtw_92du_result original=m->boot->last_error;
+    m->boot->last_error=RTW_92DU_OK;
+    const rtw_92du_result cleanup=rtw_92du_mac_stop(m);
+    if(original!=RTW_92DU_OK)m->boot->last_error=original;
+    if(m->cleanup_error==RTW_92DU_OK)m->cleanup_error=cleanup;
+    return m->cleanup_error;
+}
 rtw_92du_result rtw_92du_mac_stop(rtw_92du_mac *m) {
     unsigned i;uint32_t value;int phy_stopped=0;
     const uint16_t own=m && m->boot && m->boot->board.mac_index?REG_MAC1:REG_MAC0;

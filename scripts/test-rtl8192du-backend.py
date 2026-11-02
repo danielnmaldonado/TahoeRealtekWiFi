@@ -2,10 +2,11 @@
 """Run the actual DU kernel state methods against the real C DU HAL with a
 fake USB boundary. No USB, installation or running kext is accessed."""
 from pathlib import Path
+from family_control_host import augment_control
 import argparse, subprocess, tempfile
 from host_cpp import compiler, sanitizer_flags
 root=Path(__file__).resolve().parents[1]
-p=argparse.ArgumentParser();p.add_argument('--library',type=Path,required=True);p.add_argument('--out',type=Path);args=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--control',action='store_true');p.add_argument('--library',type=Path,required=True);p.add_argument('--out',type=Path);args=p.parse_args()
 f=root/'kext/RTW8192DUBackend.inc'
 assert f.exists(), 'missing concrete RTL8192DU kernel station adapter'
 s=f.read_text()
@@ -24,7 +25,7 @@ markers=['bool RTWUSBController::claim8192DUDevice(', 'bool RTWUSBController::is
  'int RTWUSBController::tick8192DU(', 'rtw_packet_error RTWUSBController::decode8192DUUSBFrame(',
  'int RTWUSBController::sample8192DURSSI(', 'int RTWUSBController::send8192DUFrame(']
 with tempfile.TemporaryDirectory(prefix='rtw-du-backend-') as tmp:
-    d=Path(tmp);source=d/'backend.cpp';source.write_text((root/'tests/rtl8192du_backend_harness.cpp').read_text().replace('/* ACTUAL_BACKEND_METHODS */','\n'.join(function(m) for m in markers)))
+    d=Path(tmp);source=d/'backend.cpp';text=(root/'tests/rtl8192du_backend_harness.cpp').read_text().replace('/* ACTUAL_BACKEND_METHODS */','\n'.join(function(m) for m in markers));source.write_text(augment_control(text,root,'8192DU') if args.control else text)
     output=args.out or d/'backend-tests';output.parent.mkdir(parents=True,exist_ok=True)
     subprocess.run([*compiler(),'-std=c++17','-Wall','-Wextra','-Werror',*sanitizer_flags(),'-I',str(root/'include'),'-I',str(root/'tests'),str(source),str(args.library.resolve()),'-o',str(output)],check=True)
     subprocess.run([str(output.resolve())],check=True)

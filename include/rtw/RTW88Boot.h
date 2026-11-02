@@ -34,6 +34,7 @@ typedef struct {
  rtw_chip_identity *resolved_identity; /* optional exact13b1 proof; never catalog authority */
  rtw88_board board;
  uint8_t board_valid;
+ int cleanup_error;
  uint32_t power_epoch; /* invalidates derived PHY state after identify/power/stop/features */
  uint8_t physical[RTW88_EFUSE_SCRATCH_BYTES],physical_valid; /* read-only trim cache */
 } rtw88_boot_context;
@@ -51,6 +52,8 @@ int rtw88_boot_revalidate_identity(rtw88_boot_context*);
  * the real silicon cut/RF paths. Test silicon and unsupported cut masks fail. */
 int rtw88_boot_identify(rtw88_boot_context*);
 int rtw88_boot_power_on(rtw88_boot_context*);
+#define RTW88_CHECKED_STOP 1
+int rtw88_boot_stop_checked(rtw88_boot_context*);
 int rtw88_boot_stop(rtw88_boot_context*);
 /* Logical decoder excludes each family's protected physical tail and bounds
  * every header/pair. Input/output must not overlap. No USB operations. */

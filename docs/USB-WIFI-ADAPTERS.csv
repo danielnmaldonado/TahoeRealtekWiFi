@@ -251,7 +251,7 @@ vid_pid,personality,chipset_candidate,source_evidence,station_backend,kext_perso
 4856:0091,NetweeN_91_92CU,rtl8192cu,exact_numeric_id_correspondence,implemented,yes,0x0200,1,0,,,,family_default,RtWlanU1827.kext,legacy,not_performed
 7392:7811,Edimax_7811_92CU,rtl8192cu,exact_numeric_id_correspondence,implemented,yes,0x0200,1,0,,,,family_default,RtWlanU1827.kext,legacy,not_performed
 7392:7822,Edimax_7822_92CU,rtl8192cu,exact_numeric_id_correspondence,implemented,yes,0x0200,1,0,,,,family_default,RtWlanU1827.kext,legacy,not_performed
-7392:a611,Edimax_EW-7611ULB_A611_8723BU_BT,rtl8723bu,exact_numeric_id_correspondence,implemented,yes,,1,2,,,,family_default,RtWlanU.kext,legacy,not_performed
+7392:a611,Edimax_EW-7611ULB_A611_8723BU_BT,rtl8723bu,exact_numeric_id_correspondence,implemented,yes,,1,2,0xff,0xff,0xff,family_default,RtWlanU.kext,legacy,not_performed
 7392:a811,Edimax_EW-7811UAC_A811_11AU,rtl8821au,exact_numeric_id_correspondence,implemented,yes,,1,0,,,,family_default,RtWlanU.kext,legacy,not_performed
 7392:a812,Edimax_AC600_A812_11AU,rtl8821au,exact_numeric_id_correspondence,implemented,yes,,1,0,,,,family_default,RtWlanU.kext,legacy,not_performed
 7392:a813,Edimax_GLP_A813_11AU,rtl8821au,exact_numeric_id_correspondence,implemented,yes,,1,0,,,,family_default,RtWlanU.kext,legacy,not_performed

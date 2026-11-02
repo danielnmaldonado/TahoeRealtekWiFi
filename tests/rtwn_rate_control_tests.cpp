@@ -99,6 +99,40 @@ static void feedback88e() {
     c.handleTxReport(good.data(),good.size());CHECK(c.rateControl_.reports==before); // no fresh request.
     sent(c);c.handleTxReport(good.data(),good.size());CHECK(c.rateControl_.reports==before+1);
 }
+static void ht_feedback88e() {
+    RTWUSBController c;ieee80211_node n;c.family_=RTW_WIFI_RTL8188EU;fresh(c,n);
+    const uint8_t mcs[2]={0x81,0};CHECK(rtw_92c_build_rate_config(15,mcs,1,1,1,1,&c.core_.rate_config));
+    n.ni_flags=IEEE80211_NODE_HT;c.resetRateControl();
+    CHECK(c.usesLegacyHighThroughput()&&!c.usesFirmwareRate()&&!c.usesLegacyFirmwareRate());
+    CHECK(c.legacyHostHTRate()==12);
+    for(unsigned round=0;round<2;++round) {
+        for(unsigned i=0;i<11;++i){sent(c);auto event=fixture88e(1,0,0,c.legacyHostHTRate());c.handleTxReport(event.data(),event.size());}
+        c.chooseRateControl();
+    }
+    CHECK(c.legacyHostHTRate()==19&&c.rateControl_.changes==2);
+    CHECK(c.properties["RTWDiagHTNegotiated"]==1&&c.properties["RTWDiagHTChannelWidthMHz"]==20);
+    CHECK(c.properties["RTWDiagTXRate500Kbps"]==144&&c.properties["RTWDiagFirmwareRateControl"]==0);
+    sent(c);auto unsupported=fixture88e(1,0,0,13);auto before=c.rateControl_.reports;
+    c.handleTxReport(unsupported.data(),unsupported.size());CHECK(c.rateControl_.reports==before&&c.rateControl_.pendingReports==1);
+    for(unsigned i=0;i<11;++i){if(i)sent(c);auto event=fixture88e(0,0,0,c.legacyHostHTRate());c.handleTxReport(event.data(),event.size());}
+    c.chooseRateControl();CHECK(c.legacyHostHTRate()==3); // CCK11 fallback, not an unnegotiated MCS.
+    CHECK(n.ni_txrate==0); // The HT ladder does not overwrite the net80211 legacy rate index.
+    c.resetRateControl();CHECK(!c.rateTransportFresh_&&!c.rateControl_.active&&c.legacyHostHTRate()==12);
+}
+static void bc_operating_diagnostics() {
+    for(unsigned width:{20U,40U,80U}) {
+        RTWUSBController c;ieee80211_node n;fresh(c,n);c.family_=RTW_WIFI_RTL8822BU;
+        c.r88FirmwareReady_=true;c.r88Rates_.rates.ht=1;c.r88Rates_.rates.sgi20=1;
+        c.r88Rates_.vht=1;c.r88Rates_.width_mhz=uint8_t(width);
+        c.publishRateControlDiagnostics();
+        CHECK(c.properties["RTWDiagVHTNegotiated"]==1&&c.properties["RTWDiagHTChannelWidthMHz"]==width);
+        CHECK(c.properties["RTWDiagHTSGI20Negotiated"]==(width==20));
+        CHECK(c.properties["RTWDiagHTSGI40Negotiated"]==(width==40));
+        CHECK(c.properties["RTWDiagVHTSGI80Negotiated"]==(width==80));
+        c.core_.sc_ic.ic_state=0;c.publishRateControlDiagnostics();
+        CHECK(c.properties["RTWDiagVHTNegotiated"]==0&&c.properties["RTWDiagHTChannelWidthMHz"]==0);
+    }
+}
 static void family_rx_dispatch() {
     std::array<uint8_t,176> b{};put32(b.data(),24);put32(b.data()+8,0x10000000);
     put32(b.data()+12,4);b[24]=0x80;
@@ -198,7 +232,7 @@ static void bc_rate_diagnostics_and_ownership(){
     for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU}){
         RTWUSBController c;ieee80211_node n;c.family_=family;c.r88FirmwareReady_=true;fresh(c,n);
         n.ni_txrate=3;c.resetRateControl();CHECK(!c.rateControl_.active&&n.ni_txrate==3);
-        c.r88Rates_.rates.ht=1;c.r88Rates_.rates.mask=0x000ff010;
+        c.r88Rates_.rates.ht=1;c.r88Rates_.rates.mask=0x000ff010;c.r88Rates_.width_mhz=20;
         c.r88Rates_.rates.tx_streams=1;c.r88Rates_.rates.sgi20=1;c.r88Rates_.rates.rate_id=5;
         c.chooseRateControl();CHECK(n.ni_txrate==3&&c.rateControl_.changes==0);
         CHECK(c.properties["RTWDiagFirmwareRateControl"]==1&&c.properties["RTWDiagTXRateFeedbackActive"]==0);
@@ -263,7 +297,7 @@ int main() {
     du_negotiated_rate_diagnostics();
     au_negotiated_mode_diagnostics();
     bc_rate_diagnostics_and_ownership();
-    legacy_ownership();feedback88e();family_rx_dispatch();ac8814_ownership_and_rx();
+    bc_operating_diagnostics();ht_feedback88e();legacy_ownership();feedback88e();family_rx_dispatch();ac8814_ownership_and_rx();
     auto valid=fixture(17,0xc0,7,3); rtw_92e_tx_report report{};
     CHECK(rtw_92e_parse_tx_report(valid.data(),valid.size(),&report));
     CHECK(report.event_sequence==17&&report.retries==7&&report.final_rate==3);

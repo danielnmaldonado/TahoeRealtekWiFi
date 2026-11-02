@@ -1428,6 +1428,12 @@ ieee80211_end_scan(struct _ifnet *ifp)
     
     if (ic->ic_opmode == IEEE80211_M_STA)
         ieee80211_clean_inactive_nodes(ic, IEEE80211_INACT_SCAN);
+
+    /* The active and passive channel rounds have both completed. A driver
+     * may consume an explicit browse scan while retaining the BSS cache;
+     * absent/declined callbacks preserve station association and retries. */
+    if (!bgscan && ic->ic_scan_done && (*ic->ic_scan_done)(ic))
+        return;
     
     ni = RB_MIN(ieee80211_tree, &ic->ic_tree);
     

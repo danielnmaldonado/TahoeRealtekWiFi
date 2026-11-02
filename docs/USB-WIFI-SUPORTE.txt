@@ -1,68 +1,68 @@
-BOARDS AND SUPPORT — TAHOE WI-FI USB 0.14.8 / BUILD55
-Local catalog audit dated October 31, 2026. Bundled app: 0.3.5/build47.
+PLACAS E SUPORTE — TAHOE WI-FI USB 0.14.14 / BUILD61
+Auditoria local do catálogo em 01/11/2026. Aplicativo da entrega: 0.3.10/build52.
 
-WHAT SUPPORT MEANS IN THIS LIST
-There are 13 integrated station backends and 262 USB identities eligible in the source.
-A board must match the required VID:PID, configuration, interface, bcdDevice, and class/subclass/protocol, in addition to initialization checks for silicon, ROM, RF, endpoints, and power.
-The commercial product name alone does not identify a board revision. A model sold with a different chipset/VID:PID/revision does not become supported just because it carries the same name.
-This is a source-level eligibility list, not physical certification of 262 boards. Every CSV record has hardware_validation set to not_performed.
-Historical hardware evidence documented on this PC is limited to RTL8192EU 2357:0108 and RTL8814AU 2357:0106. Build53 was observed loaded during the checkup; build55 requires a separate load. This audit did not access the radio or perform traffic tests.
+O QUE SIGNIFICA SUPORTE NESTA LISTA
+São 13 backends de estação integrados e 262 identidades USB elegíveis no código.
+A placa precisa satisfazer VID:PID, configuração, interface, bcdDevice e classe/subclasse/protocolo exigidos, além das verificações de silício, ROM, RF, endpoints e potência na inicialização.
+O nome comercial sozinho não identifica uma revisão. Um modelo vendido com outro chipset/VID:PID/revisão não ganha suporte por ter o mesmo nome.
+Esta é uma lista de elegibilidade do source; não é uma homologação física de 262 placas. O campo hardware_validation do CSV é not_performed em todos os registros.
+O pacote ALL LOG ADAPTER contém14 capturas históricas da build55:12 com conexão autorizada e entrega Ethernet, e2 com falha. Essas capturas não medem velocidade sustentada nem validam fisicamente a build61. Consulte ADAPTER-TESTS-20261101.md e PERFORMANCE-0.14.14.md para os resultados e as mudanças posteriores.
 
-VERIFIED COUNTS
-270 distinct VID:PID entries in the inventory: 250 preserved legacy entries plus 20 provenance-backed extensions.
-263 have primary numeric matches: 262 eligible station entries plus station-disabled RTL8814BU 0bda:b814.
-Seven identities are unconfirmed or conflicting; among them, 13b1:0043 allows restricted discovery only.
-The kext publishes 263 personalities: 262 station personalities plus one discovery personality (13b1:0043). This does not mean that 263 boards are statically enabled.
+CONTAGEM CONFERIDA
+270 VID:PID distintos no inventário: 250 registros legados preservados + 20 extensões com origem.
+263 têm correspondência numérica primária: 262 elegíveis + RTL8814BU 0bda:b814 sem estação.
+7 têm identidade não confirmada ou conflitante; entre eles 13b1:0043 tem somente descoberta controlada.
+A kext publica 263 personalidades: 262 de estação + 1 de descoberta (13b1:0043). Isso não corresponde a 263 placas estaticamente habilitadas.
 
-FAMILIES WITH STATION PATHS
-Backend | Eligible IDs | Bands | Implemented mode
-RTL8192CU | 88 | 2.4 GHz | 11b/g; 20 MHz
-RTL8188EU | 18 | 2.4 GHz | 11b/g; 20 MHz; I-cut unsupported
-RTL8192EU | 10 | 2.4 GHz | HT20/40; up to 2 spatial streams
-RTL8192DU | 5 | 2.4 and 5 GHz | HT20; SMSP up to 2 spatial streams; DMDP 1 spatial stream per MAC
-RTL8192FU | 4 | 2.4 GHz | HT20/40; up to 2 spatial streams
-RTL8710BU | 2 | 2.4 GHz | HT20/40; 1 spatial stream; SMIC/UMC
-RTL8723BU | 3 | 2.4 GHz | HT20; 1 spatial stream; Bluetooth coexistence
-RTL8812AU | 36 | 2.4 and 5 GHz | HT20/40 and VHT20/40/80; up to 2 spatial streams; RFE 0–3; boards with active Bluetooth blocked
-RTL8814AU | 17 | 2.4 and 5 GHz | HT20; up to 2 active spatial streams; RFE 0/1
-RTL8821AU | 35 | 2.4 and 5 GHz* | HT20/40 and VHT20/40/80; 1 spatial stream; RFE 0
-RTL8821CU | 12 | 2.4 and 5 GHz | HT20; 1 spatial stream
-RTL8822BU | 30 | 2.4 and 5 GHz | HT20; up to 2 spatial streams
-RTL8822CU | 2 | 2.4 and 5 GHz | HT20; up to 2 spatial streams
+FAMÍLIAS COM CAMINHO DE ESTAÇÃO
+Backend | IDs elegíveis | Bandas | Modo implementado
+RTL8192CU | 88 | 2,4 GHz | HT20; até 2 fluxos; largura de 40 MHz não habilitada
+RTL8188EU | 18 | 2,4 GHz | HT20; 1 fluxo; I-cut não suportado
+RTL8192EU | 10 | 2,4 GHz | HT20/40; até 2 fluxos
+RTL8192DU | 5 | 2,4 e 5 GHz | HT20; SMSP até 2 fluxos; DMDP 1 fluxo por MAC
+RTL8192FU | 4 | 2,4 GHz | HT20/40; até 2 fluxos
+RTL8710BU | 2 | 2,4 GHz | HT20/40; 1 fluxo; SMIC/UMC
+RTL8723BU | 3 | 2,4 GHz | HT20; 1 fluxo; coexistência Bluetooth
+RTL8812AU | 36 | 2,4 e 5 GHz | HT20/40 e VHT20/40/80; até 2 fluxos; RFE 0–3; placas com Bluetooth ativo bloqueadas
+RTL8814AU | 17 | 2,4 e 5 GHz | HT20; até 2 fluxos ativos; RFE 0/1
+RTL8821AU | 35 | 2,4 e 5 GHz* | HT20/40 e VHT20/40/80; 1 fluxo; RFE 0
+RTL8821CU | 12 | 2,4 e 5 GHz | HT20 em 2,4 GHz/DFS; HT40 e VHT20/40/80 em 5 GHz não DFS; 1 fluxo
+RTL8822BU | 30 | 2,4 e 5 GHz | HT20 em 2,4 GHz/DFS; HT40 e VHT20/40/80 em 5 GHz não DFS; até 2 fluxos
+RTL8822CU | 2 | 2,4 e 5 GHz | HT20 em 2,4 GHz/DFS; HT40 e VHT20/40/80 em 5 GHz não DFS; até 2 fluxos
 
-* RTL8821AU: IDs 04bb:0959, 04bb:095a, and 0bda:2003 are 5 GHz-only and prohibit 2.4 GHz transmissions.
-Project channel ranges: 1–11 at 2.4 GHz; non-DFS 36/40/44/48 and 149/153/157/161/165 at 5 GHz. DFS HT20: 52/56/60/64 and 100/104/108/112/116/120/124/128/132/136/140 on seven dual-band backends. Channel 144 remains disabled. ROM/RFE, factory country, and power can narrow the set; groups are advertised only when registered. AU HT40/VHT80 applies on non-DFS channels; DFS uses 20 MHz.
-Connectivity is controlled by the driver and app and exposed through Ethernet enX. WPA2-Personal/CCMP and station DFS are implemented; unavailable modes/functions, WPA3, AX, and AP mode are not advertised.
-HT/VHT and spatial-stream counts describe implementation limits, not download/upload results or a guarantee of negotiation with every AP.
+* RTL8821AU: os IDs 04bb:0959, 04bb:095a e 0bda:2003 são exclusivamente 5 GHz; não aceitam transmissão em 2,4 GHz.
+Canais gerais do projeto: 1–11 em 2,4 GHz; não DFS 36/40/44/48 e 149/153/157/161/165 em 5 GHz. DFS HT20: 52/56/60/64 e 100/104/108/112/116/120/124/128/132/136/140 nos sete backends dual band. Canal144 fechado. ROM/RFE, país de fábrica e potência podem reduzir o conjunto; grupos só são anunciados quando registrados. HT40/VHT80 dos AU/B/C vale nos canais não DFS; DFS opera em 20 MHz. B/C mantém 2,4 GHz em HT20 e canal 165 em 20 MHz.
+Conexão é controlada pelo driver e app, exposta como Ethernet enX. WPA2-Personal/CCMP e DFS de estação estão implementados; WPA3, AX, modoAP e funções/modos ausentes não são anunciados.
+HT/VHT e número de fluxos são limites implementados, não resultados de download/upload ou promessa de negociação com qualquer AP.
 
-MODEL/REVISION EXAMPLES WITH PRIMARY NUMERIC SOURCE IDENTIFICATION
-These examples remain subject to the USB and initialization constraints in the complete list. The model and revision come from the primary OpenBSD symbols without extending them to other revisions.
+EXEMPLOS COM NOME DE MODELO/REVISÃO IDENTIFICADOS EM FONTE NUMÉRICA PRIMÁRIA
+Estes exemplos continuam sujeitos às restrições USB e de inicialização da lista completa. O nome e a revisão abaixo seguem o símbolo primário OpenBSD, sem extrapolar para outras revisões.
 - Belkin F9L1004 v1 | 050d:1004 | RTL8192CU
-  Source: BELKIN_F9L1004V1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1252
+  Fonte: BELKIN_F9L1004V1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1252
 - NETGEAR WNA1000M | 0846:9041 | RTL8192CU
-  Source: NETGEAR_WNA1000M — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L3393
+  Fonte: NETGEAR_WNA1000M — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L3393
 - D-Link DWA-125 D1 | 2001:330f | RTL8188EU
-  Source: DLINK_DWA125D1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1662
+  Fonte: DLINK_DWA125D1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1662
 - D-Link DWA-123 D1 | 2001:3310 | RTL8188EU
-  Source: DLINK_DWA123D1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1663
+  Fonte: DLINK_DWA123D1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1663
 - D-Link DWA-131 E1 | 2001:3319 | RTL8192EU
-  Source: DLINK_DWA131E1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1665
+  Fonte: DLINK_DWA131E1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1665
 - D-Link DWA-121 B1 | 2001:331b | RTL8188EU
-  Source: DLINK_DWA121B1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1666
+  Fonte: DLINK_DWA121B1 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1666
 - Edimax EW-7811Un | 7392:7811 | RTL8192CU
-  Source: EDIMAX_EW7811UN — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1779
+  Fonte: EDIMAX_EW7811UN — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1779
 - Edimax EW-7811Un v2 | 7392:b811 | RTL8188EU
-  Source: EDIMAX_EW7811UNV2 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1782
+  Fonte: EDIMAX_EW7811UNV2 — https://github.com/openbsd/src/blob/3ff365285878f448ba65325e29c8d1e185af3e6d/sys/dev/usb/usbdevs#L1782
 
-Note on legacy label 7392:b811: the catalog preserves Edimax_EW-7811GLN_B811_8188EU, whereas the recorded primary identity is EDIMAX_EW7811UNV2. Eligibility is based on the ID and restrictions; the marketing label did not expand support.
+Atenção ao rótulo legado 7392:b811: o catálogo preserva Edimax_EW-7811GLN_B811_8188EU, enquanto a identificação primária registrada é EDIMAX_EW7811UNV2. A decisão é pelo ID e pelas restrições; o rótulo de marketing não foi usado para ampliar o suporte.
 
-COMPLETE LIST OF 262 ELIGIBLE IDS
-Each line preserves the literal catalog label for reference. A label may contain trade names, acronyms, or legacy claims; it is not independent confirmation of every revision of that product.
-Format: VID:PID | literal catalog label | additional USB restrictions.
-All rows require bConfigurationValue=1. Interface=0 is the default in this list; interface=2 is explicitly indicated. An absent bcd field means the profile does not impose a bcdDevice filter, not that every board revision is certified.
-Required class/subclass/protocol fields appear in hexadecimal as class/sub/proto; fields not shown are not part of that profile's match.
+LISTA COMPLETA DOS 262 IDs ELEGÍVEIS
+Cada linha preserva o rótulo literal do catálogo para consulta. Esse rótulo pode conter nomes comerciais, siglas ou claims legados; não é confirmação independente de todas as revisões desse produto.
+Formato: VID:PID | rótulo literal | restrições USB adicionais.
+Todas as linhas exigem bConfigurationValue=1. Interface=0 é a interface padrão nesta lista; interface=2 é indicada explicitamente. Ausência de bcd significa que o perfil não impõe filtro de bcdDevice, não que qualquer revisão de placa esteja homologada.
+Classe/subclasse/protocolo exigidos são apresentados como class/sub/proto em hexadecimal; campos não apresentados não participam do matching daquele perfil.
 
-RTL8192CU — 88 IDs — 2.4 GHz — 11b/g; 20 MHz
+RTL8192CU — 88 IDs — 2,4 GHz — HT20; até 2 fluxos; largura de 40 MHz não habilitada
 04bb:094c | IO_DATA_92CU | interface=0, bcd=0x0200
 04bb:0950 | I-O DATA RTL8192CU | interface=0, class=0xff
 04f2:aff7 | RTL8188CUS_solo_AFF7 | interface=0, bcd=0x0200
@@ -152,7 +152,7 @@ RTL8192CU — 88 IDs — 2.4 GHz — 11b/g; 20 MHz
 cdab:8010 | Compare-8010_92CU | interface=0, bcd=0x0200
 cdab:8011 | Compare-8011_92CU | interface=0, bcd=0x0200
 
-RTL8188EU — 18 IDs — 2.4 GHz — 11b/g; 20 MHz; I-cut unsupported
+RTL8188EU — 18 IDs — 2,4 GHz — HT20; 1 fluxo; I-cut não suportado
 056e:4008 | ELECOM_WDC150SU2M_4008_8188EU | interface=0
 07b8:8179 | AboCom_8179_88EU | interface=0
 0b05:18f0 | ASUS_USB-N10_18F0_8188EUS | interface=0
@@ -172,7 +172,7 @@ RTL8188EU — 18 IDs — 2.4 GHz — 11b/g; 20 MHz; I-cut unsupported
 2357:0132 | TPLink_0132_88EU | interface=0
 7392:b811 | Edimax_EW-7811GLN_B811_8188EU | interface=0
 
-RTL8192EU — 10 IDs — 2.4 GHz — HT20/40; up to 2 spatial streams
+RTL8192EU — 10 IDs — 2,4 GHz — HT20/40; até 2 fluxos
 07b8:818b | AboCom_818B_92EU | interface=0
 0bda:818b | RTL8192EU_818B | interface=0
 0bda:818c | RTL8192EU_818C_BT | interface=2
@@ -184,29 +184,29 @@ RTL8192EU — 10 IDs — 2.4 GHz — HT20/40; up to 2 spatial streams
 2357:0109 | TPLink_823v2_92EU | interface=0
 2357:0126 | TPLink_0126_92EU | interface=0
 
-RTL8192DU — 5 IDs — 2.4 and 5 GHz — HT20; SMSP up to 2 spatial streams; DMDP 1 spatial stream por MAC
+RTL8192DU — 5 IDs — 2,4 e 5 GHz — HT20; SMSP até 2 fluxos; DMDP 1 fluxo por MAC
 050d:1105 | Belkin_92DUVS_1105 | interface=0, bcd=0x0000
 050d:110a | Belkin_92DUVS_110A | interface=0, bcd=0x0000
 050d:120a | Belkin_92DUVS_120A | interface=0, bcd=0x0000
 0bda:8194 | RTL8192DU_VS | interface=0, bcd=0x0000
 20f4:664b | Trendnet_92DUVS | interface=0, bcd=0x0000
 
-RTL8192FU — 4 IDs — 2.4 GHz — HT20/40; up to 2 spatial streams
+RTL8192FU — 4 IDs — 2,4 GHz — HT20/40; até 2 fluxos
 0b05:18f1 | ASUS_USB-N13_18F1_8192FU | interface=0
 0bda:318b | Edimax_EW-7822GTN_318B_8192FU | interface=0
 0bda:f192 | RTL8192FU | interface=0
 7392:b722 | Edimax_EW-7722UTn_B722_8192FU | interface=0
 
-RTL8710BU — 2 IDs — 2.4 GHz — HT20/40; 1 spatial stream; SMIC/UMC
+RTL8710BU — 2 IDs — 2,4 GHz — HT20/40; 1 fluxo; SMIC/UMC
 0bda:2005 | ZION_2005_8188GU8710B | interface=0
 0bda:b711 | RTL8188GU_RTL8710BU | interface=0
 
-RTL8723BU — 3 IDs — 2.4 GHz — HT20; 1 spatial stream; Bluetooth coexistence
+RTL8723BU — 3 IDs — 2,4 GHz — HT20; 1 fluxo; coexistência Bluetooth
 0bda:b720 | RTL8723BU_B720_BT | interface=2
 20f4:108a | TrendNet_TBW108UB_108A_8723BU_BT | interface=2
 7392:a611 | Edimax_EW-7611ULB_A611_8723BU_BT | interface=2
 
-RTL8812AU — 36 IDs — 2.4 and 5 GHz — HT20/40 and VHT20/40/80; up to 2 spatial streams; RFE 0–3; boards with active Bluetooth blocked
+RTL8812AU — 36 IDs — 2,4 e 5 GHz — HT20/40 e VHT20/40/80; até 2 fluxos; RFE 0–3; placas com Bluetooth ativo bloqueadas
 0409:0408 | NEC_PA-WL900U_8812AU | interface=0
 0411:025d | Buffallo_WIU3866D_025D_12AU | interface=0
 04bb:0952 | IODATA_WN-AC867U_0952_12AU | interface=0
@@ -244,7 +244,7 @@ RTL8812AU — 36 IDs — 2.4 and 5 GHz — HT20/40 and VHT20/40/80; up to 2 spat
 2604:0012 | Tenda_8812AU | interface=0
 7392:a822 | Edimax_EW-7822UAC_A822_12AU | interface=0
 
-RTL8814AU — 17 IDs — 2.4 and 5 GHz — HT20; up to 2 active spatial streams; RFE 0/1
+RTL8814AU — 17 IDs — 2,4 e 5 GHz — HT20; até 2 fluxos ativos; RFE 0/1
 056e:400b | ELECOM_WDC1300DU3_400B_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
 056e:400d | ELECOM_WDC1300SU3_400D_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
 0846:9054 | Netgear_A7000_9054_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
@@ -263,7 +263,7 @@ RTL8814AU — 17 IDs — 2.4 and 5 GHz — HT20; up to 2 active spatial streams;
 7392:a833 | Edimax_AC1750_A833_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
 7392:a834 | Edimax_AC1750_A834_8814AU | interface=0, class=0xff, sub=0xff, proto=0xff
 
-RTL8821AU — 35 IDs — 2.4 and 5 GHz* — HT20/40 and VHT20/40/80; 1 spatial stream; RFE 0
+RTL8821AU — 35 IDs — 2,4 e 5 GHz* — HT20/40 e VHT20/40/80; 1 fluxo; RFE 0
 0411:0242 | Buffallo_WIU2433DM_0242_11AU | interface=0
 0411:029b | Buffallo_WIU2433DHP_029B_11AU | interface=0
 0411:029d | Buffallo_WLPU2433DHP_029D_11AU | interface=0
@@ -300,7 +300,7 @@ RTL8821AU — 35 IDs — 2.4 and 5 GHz* — HT20/40 and VHT20/40/80; 1 spatial s
 7392:a813 | Edimax_GLP_A813_11AU | interface=0
 7392:b611 | Edimax_EW-7611UCB_B611_8821AU_BT | interface=2
 
-RTL8821CU — 12 IDs — 2.4 and 5 GHz — HT20; 1 spatial stream
+RTL8821CU — 12 IDs — 2,4 e 5 GHz — HT20 em 2,4 GHz/DFS; HT40 e VHT20/40/80 em 5 GHz não DFS; 1 fluxo
 0b05:18e9 | ASUS_USB-AC51_18E9_8811CU | interface=0
 0bda:2006 | ZION_2006_8811CU | interface=0
 0bda:c811 | RTL8811CU_C811 | interface=0
@@ -314,7 +314,7 @@ RTL8821CU — 12 IDs — 2.4 and 5 GHz — HT20; 1 spatial stream
 2357:0129 | TPLink_0129_8811CU | interface=0
 2357:012c | TPLink_012C_8811CU | interface=0
 
-RTL8822BU — 30 IDs — 2.4 and 5 GHz — HT20; up to 2 spatial streams
+RTL8822BU — 30 IDs — 2,4 e 5 GHz — HT20 em 2,4 GHz/DFS; HT40 e VHT20/40/80 em 5 GHz não DFS; até 2 fluxos
 04ca:8602 | LITEON_WN8602L_8602_8812BU | interface=0
 056e:4011 | ELECOM_WDB867DU3S_4011_8812BU | interface=0
 0846:9055 | Netgear_A6150_9055_8812BU | interface=0
@@ -346,38 +346,37 @@ RTL8822BU — 30 IDs — 2.4 and 5 GHz — HT20; up to 2 spatial streams
 7392:e822 | Edimax_EXPERT_U3_E822_8812BU | interface=0
 7392:f822 | Edimax_EXPERT_U3_F822_8812BU | interface=0
 
-RTL8822CU — 2 IDs — 2.4 and 5 GHz — HT20; up to 2 spatial streams
+RTL8822CU — 2 IDs — 2,4 e 5 GHz — HT20 em 2,4 GHz/DFS; HT40 e VHT20/40/80 em 5 GHz não DFS; até 2 fluxos
 0bda:c812 | RTL8812CU_C812 | interface=0
 0bda:c82c | RTL8822CU_C82C_Combo | interface=2
 
-RECORDS OUTSIDE THE 262 ELIGIBLE IDS
-13b1:0043 | Linksys_WUSB6400M_0043_8812BU | Primary RTL8822BU/CU conflict. Restricted discovery only: configuration 1, interface 0, descriptor ff/ff/ff. A positive SYS_CFG2 read distinguishes B (0x0a) from C (0x13), with another verification before power/firmware. The name does not authorize static selection.
-0bda:b814 | RTL8814BU | Primary ID confirmed; station disabled. Qualified USB NIC firmware/protocol, factory/regulatory profile, and remaining tracking/physical integration are missing. Ported HAL/USB/PHY components do not establish operational connectivity.
-Other IDs disabled due to insufficient unambiguous evidence:
-038b:0100 | TPLink_92CU | legacy claim only; no confirmed primary numeric match
-058c:ff20 | Infocus_INA-LCKEY_FF20_12AU | legacy claim only; no confirmed primary numeric match
-0bda:8011 | RTL8188CTV_8011 | legacy claim only; no confirmed primary numeric match
-0bda:8192 | RTL8192CU | conflict in primary tables
-0e0b:9071 | Amigo_92CU | legacy claim only; no confirmed primary numeric match
-1668:8105 | Actiontec_SingleBand_8105_11AU | legacy claim only; no confirmed primary numeric match
+REGISTROS QUE NÃO ENTRAM NOS 262 IDs ELEGÍVEIS
+13b1:0043 | Linksys_WUSB6400M_0043_8812BU | Conflito primário RTL8822BU/CU. Somente descoberta controlada: configuração 1, interface 0 e descritor ff/ff/ff; leitura positiva de SYS_CFG2 distingue B (0x0a) de C (0x13), com nova prova antes de potência/firmware. Não autoriza seleção estática pelo nome.
+0bda:b814 | RTL8814BU | ID primário confirmado; estação desabilitada. Faltam firmware USB NIC/protocolo qualificados, perfil de fábrica/regulatório e tracking/integração física pendentes. HAL/USB/PHY portados não significam conexão operacional.
+Demais IDs não habilitados por ausência de prova unívoca:
+038b:0100 | TPLink_92CU | somente claim legado; sem correspondência numérica primária confirmada
+058c:ff20 | Infocus_INA-LCKEY_FF20_12AU | somente claim legado; sem correspondência numérica primária confirmada
+0bda:8011 | RTL8188CTV_8011 | somente claim legado; sem correspondência numérica primária confirmada
+0bda:8192 | RTL8192CU | conflito em tabelas primárias
+0e0b:9071 | Amigo_92CU | somente claim legado; sem correspondência numérica primária confirmada
+1668:8105 | Actiontec_SingleBand_8105_11AU | somente claim legado; sem correspondência numérica primária confirmada
 
-CONSISTENCY AND PROVENANCE CHECKS
-The numeric catalog and station gates are unchanged from build53. The strict
-reader validates 270 records; generators check USBWiFiProfiles.inc and
-Info.plist personalities. The complete matrix is in USB-WIFI-ADAPTERS.csv,
-with 262 eligible entries and eight cases outside static station support.
-Primary table commits, URLs, and licenses are recorded in
-data/legacy-usb-adapters.json. SOURCE-MANIFEST.sha256 verifies the matching
-delivery files.
+VERIFICAÇÃO DE CONSISTÊNCIA E PROVENIÊNCIA
+O catálogo numérico e os gates de estação foram mantidos da build53. O leitor
+estrito valida 270 registros; os geradores conferem USBWiFiProfiles.inc e as
+personalidades de Info.plist. A matriz completa está em USB-WIFI-ADAPTERS.csv,
+com 262 elegíveis e 8 casos fora da estação estática. Commits, URLs e licenças
+das tabelas primárias estão em data/legacy-usb-adapters.json.
+SOURCE-MANIFEST.sha256 confere os arquivos da entrega correspondente.
 
-SOURCE EVIDENCE
-README.md — implemented modes, RFE/BT restrictions, channels, and inventory.
-src/USBWiFiProfiles.c — provenance gates, allowlist, and capabilities.
-scripts/usb_wifi_catalog.py — primary identities, discovery, and eligibility.
-kext/Info.plist — 262 ordinary personalities plus restricted discovery.
-src/ChipIdentity.c — B/C discrimination and discovery scope.
-docs/RTL8814BU-STATUS.md — B14 station blockers.
-docs/VALIDATION-0.14.7.md — build53 physical checkup and build54 software validation.
+EVIDÊNCIAS NO SOURCE
+README.md — modos implementados, limites RFE/BT, canais e inventário.
+src/USBWiFiProfiles.c — gate de proveniência, whitelist e capacidades.
+scripts/usb_wifi_catalog.py — identidade primária, descoberta e elegibilidade.
+kext/Info.plist — 262 personalidades normais e descoberta restrita.
+src/ChipIdentity.c — discriminação B/C e escopo de descoberta.
+docs/RTL8814BU-STATUS.md — bloqueadores da estação B14.
+docs/VALIDATION-0.14.7.md — checkup físico53 e validação de software54.
 
-Build54 corrects older B814 commentary: the ID is confirmed, HAL/PHY components
-are ported, and station support is still blocked by firmware/profile/tracking.
+A build54 corrige os comentários antigos sobre B814: ID confirmado e HAL/PHY
+portados; estação continua bloqueada por firmware/perfil/tracking pendentes.

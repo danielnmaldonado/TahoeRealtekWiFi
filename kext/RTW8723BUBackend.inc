@@ -18,12 +18,13 @@ int RTWUSBController::r23Region(void*p,uint16_t a,const uint8_t*b,size_t n){
  while(n){size_t chunk=n>196?196:n;int e=writeRegion(p,a,b,chunk);if(e)return e;a=(uint16_t)(a+chunk);b+=chunk;n-=chunk;}return 0;
 }
 int RTWUSBController::bootstrap8723(bool compareMAC){
- if(!is8723Family()||!profile_||!profile_->primary_verified||!r23Storage_||!rxPipe_||endpoints_.num_bulk_in!=1||endpoints_.num_bulk_out<1||endpoints_.num_bulk_out>3||ioError(this))return ENXIO;
+ if(!is8723Family()||!profile_||!profile_->primary_verified||!r23Storage_||!rxPipe_||endpoints_.num_bulk_in!=1||endpoints_.num_bulk_out<1||endpoints_.num_bulk_out>4||ioError(this))return ENXIO;
  rtw_8723bu_usb usb{};usb.bulk_in=endpoints_.bulk_in[0];usb.bulk_out_count=endpoints_.num_bulk_out;usb.high_speed=rxPipe_->getSpeed()==kUSBHostConnectionSpeedHigh;
  if(rxPipe_->getSpeed()!=kUSBHostConnectionSpeedHigh&&rxPipe_->getSpeed()!=kUSBHostConnectionSpeedFull)return ENOTSUP;usb.bulk_max_packet=txMPS_[0];
  for(unsigned i=0;i<usb.bulk_out_count;i++){if(!txPipes_[i]||txMPS_[i]!=usb.bulk_max_packet)return EINVAL;usb.bulk_out[i]=endpoints_.bulk_out[i];}
  const rtw_8723bu_bus bus{this,r23Read,r23Write,r23Region,delayUS};int e=rtw_8723bu_init(&r23Core_,profile_->vendor,profile_->product,&bus,&usb,r23Storage_,r23PrivateSize_);
  if(!e)e=rtw_8723bu_identify(&r23Core_);if(!e)e=rtw_8723bu_read_board(&r23Core_);if(e)return e;
+ if(!validateFamilyRecoveryBoard())return ENODEV;
  if(compareMAC&&(!r23BoardKnown_||memcmp(r23MACAddress_,r23Core_.board.mac,6)))return ENODEV;
  if(!compareMAC){memcpy(r23MACAddress_,r23Core_.board.mac,6);r23BoardKnown_=true;}return 0;
 }
@@ -46,20 +47,25 @@ int RTWUSBController::attach8723(){
 unsigned RTWUSBController::r23RadioState(void*p,uint8_t ch){auto*s=owner(p);if(!s||!s->permits8723Channel(ch)||s->r23Core_.channel!=ch||ioError(s)||s->r23Core_.last_error||!s->r23Core_.powered||!s->r23Core_.firmware_running||!s->r23Core_.mac_initialized||!s->r23Core_.phy_loaded)return 0;return s->r23Core_.calibrated?2:1;}
 int RTWUSBController::set8723Channel(uint8_t ch,bool calibrate){if(!permits8723Channel(ch))return ENOTSUP;int e=rtw_8723bu_set_channel(&r23Core_,ch,20);if(!e&&calibrate)e=rtw_8723bu_calibrate(&r23Core_);if(e)core_.core_error=e;return e;}
 int RTWUSBController::start8723(){
+    const int lifecycle=beginFamilyStart();if(lifecycle)return lifecycle;
+
  auto&ic=core_.sc_ic;auto&ifp=ic.ic_if;if(!is8723Family()||!r23BoardKnown_||!r23Storage_||!ic.ic_bss||ic.ic_opmode!=IEEE80211_M_STA||ioError(this))return ENXIO;
  if(r23Core_.powered||r23Core_.firmware_running)return EBUSY;radioReady_=r23RateReady_=false;r23Rates_={};core_.core_error=0;
  int e=allocateTransfers();if(e)goto failed;e=bootstrap8723(true);if(e)goto failed;e=rtw_8723bu_boot(&r23Core_,RTW8723BUFirmware,sizeof(RTW8723BUFirmware));if(e)goto failed;
  ic.ic_bss->ni_chan=ic.ic_ibss_chan;e=set8723Channel((uint8_t)ieee80211_chan2ieee(&ic,ic.ic_ibss_chan),true);if(e)goto failed;
- e=busInitialize(this);if(e)goto failed;ifq_clr_oactive(&ifp.if_snd);ifp.if_flags|=IFF_RUNNING;
- e=ic.ic_newstate(&ic,IEEE80211_S_SCAN,-1);if(e)goto failed;radioReady_=true;return 0;
-failed:stop8723();core_.core_error=e;return e;
+ familyRecovery_.diag.stage=rtw::StationRecovery::RX;e=busInitialize(this);if(e)goto failed;familyRecovery_.diag.stage=rtw::StationRecovery::Start;ifq_clr_oactive(&ifp.if_snd);ifp.if_flags|=IFF_RUNNING;
+ e=ic.ic_newstate(&ic,IEEE80211_S_SCAN,-1);if(e)goto failed;radioReady_=true;finishFamilyStart();return 0;
+failed:failFamilyStart(e);stop8723();if(!familyRecovery_.transient(e))core_.core_error=e;return e;
 }
 void RTWUSBController::stop8723(){
+ familyRecovery_.inStop=true;
  auto&ifp=core_.sc_ic.ic_if;radioReady_=r23RateReady_=false;r23Rates_={};core_.sc_tx_timer=0;ifp.if_timer=0;ifp.if_flags&=~IFF_RUNNING;ifq_clr_oactive(&ifp.if_snd);
- if(core_.sc_newstate)(void)state8723(&core_.sc_ic,IEEE80211_S_INIT,-1);cancelScan(this);cancelCalibration(this);task_del(systq,&core_.init_task);abortTransfers();
- if(present_&&!sleeping_&&usbError_==kIOReturnSuccess&&r23Core_.identified)(void)rtw_8723bu_stop(&r23Core_);
- else{r23Core_.calibrated=r23Core_.associated=r23Core_.powered=r23Core_.firmware_running=r23Core_.mac_initialized=r23Core_.phy_loaded=0;r23Core_.channel=0;}
- freeTransfers();
+ if(core_.sc_newstate)(void)core_.sc_newstate(&core_.sc_ic,IEEE80211_S_INIT,-1);cancelScan(this);cancelCalibration(this);task_del(systq,&core_.init_task);abortTransfers();
+ if(!familyStopDrained())return;
+ int cleanup=0;
+ if(present_&&!sleeping_&&usbError_==kIOReturnSuccess&&r23Core_.identified)cleanup=rtw_8723bu_stop_checked(&r23Core_);
+ else{r23Core_.calibrated=r23Core_.associated=r23Core_.powered=r23Core_.firmware_running=r23Core_.mac_initialized=r23Core_.phy_loaded=0;r23Core_.channel=0;cleanup=ENXIO;}
+ recordFamilyCleanup(cleanup);freeTransfers();
 }
 void RTWUSBController::release8723Storage(){if(r23Storage_){IOFree(r23Storage_,r23PrivateSize_);r23Storage_=nullptr;}r23PrivateSize_=0;r23Core_={};r23BoardKnown_=r23RateReady_=false;r23Rates_={};}
 uint16_t RTWUSBController::station8723Rates(bool basic)const{auto*n=core_.sc_ic.ic_bss;if(!n)return 0;uint16_t rates=rtw8723RateMask(n->ni_rates,basic);if(basic&&!rates){rates=rtw8723RateMask(n->ni_rates,false);rates&=(uint16_t)(0U-rates);}return rates;}
@@ -79,7 +85,7 @@ int RTWUSBController::state8723(ieee80211com*ic,ieee80211_state state,int argume
  if(ic->ic_state==IEEE80211_S_SCAN)cancelScan(this);
  if(ic->ic_state==IEEE80211_S_RUN&&state!=IEEE80211_S_RUN){cancelCalibration(this);r23RateReady_=false;r23Rates_={};}
  if(state==IEEE80211_S_INIT){int e=0;if(!ioError(this)&&r23Core_.mac_initialized&&!r23Core_.last_error)e=station8723Hardware(state);r23Core_.associated=0;r23RateReady_=false;int callback=core_.sc_newstate(ic,state,argument);return e?e:callback;}
- auto rollback=[&](int e)->int{r23RateReady_=radioReady_=false;r23Rates_={};r23Core_.associated=r23Core_.calibrated=0;if(!ioError(this))(void)rtw_8723bu_stop(&r23Core_);else r23Core_.powered=r23Core_.firmware_running=0;(void)core_.sc_newstate(ic,IEEE80211_S_INIT,-1);core_.core_error=e;return e;};
+ auto rollback=[&](int e)->int{stop8723();core_.core_error=e;return e;};
  if(!ic->ic_bss||!ic->ic_bss->ni_chan||ic->ic_bss->ni_chan==IEEE80211_CHAN_ANYC)return rollback(EINVAL);
  unsigned channel=ieee80211_chan2ieee(ic,ic->ic_bss->ni_chan);if(channel>255||!permits8723Channel((uint8_t)channel))return rollback(ENOTSUP);
  int e=0;bool passive=state==IEEE80211_S_SCAN&&(ic->ic_bss->ni_chan->ic_flags&IEEE80211_CHAN_PASSIVE);
@@ -124,5 +130,5 @@ int RTWUSBController::send8723Frame(mbuf_t packet,ieee80211_node*node){
  auto*t=&transfers_[index];auto*bytes=static_cast<uint8_t*>(t->memory->getBytesNoCopy());bzero(bytes,total);memcpy(bytes,descriptor,40);if(mbuf_copydata(packet,0,length,bytes+40)){mbuf_freem(packet);return EINVAL;}mbuf_freem(packet);int error=submit(index,txPipes_[pipe],(uint32_t)total);if(!error){if(options.rate>=12)++txHTPackets_;ieee80211_release_node(&ic,node);}return error;
 }
 void RTWUSBController::watchdog8723(_ifnet*ifp){auto*core=static_cast<rtwn_softc*>(ifp->if_softc);ifp->if_timer=0;if(core->sc_tx_timer>0){if(--core->sc_tx_timer==0){++ifp->if_oerrors;task_add(systq,&core->init_task);return;}ifp->if_timer=1;}ieee80211_watchdog(ifp);}
-void RTWUSBController::initTask8723(void*p){auto*s=owner(p);auto&core=s->core_;auto&ifp=core.sc_ic.ic_if;if(core.sc_flags&RTWN_FLAG_BUSY)return;core.sc_flags|=RTWN_FLAG_BUSY;s->stop8723();if(ifp.if_flags&IFF_UP){int e=s->start8723();if(e)core.core_error=e;}core.sc_flags&=~(uint32_t)RTWN_FLAG_BUSY;}
+void RTWUSBController::initTask8723(void*p){auto*s=owner(p);auto&core=s->core_;auto&ifp=core.sc_ic.ic_if;if(core.sc_flags&RTWN_FLAG_BUSY)return;core.sc_flags|=RTWN_FLAG_BUSY;s->stop8723();if(ifp.if_flags&IFF_UP){int e=s->start8723();if(e&&!s->familyRecovery_.transient(e))core.core_error=e;}core.sc_flags&=~(uint32_t)RTWN_FLAG_BUSY;}
 int RTWUSBController::ioctl8723(_ifnet*ifp,u_long command,caddr_t data){auto*core=static_cast<rtwn_softc*>(ifp->if_softc);auto*s=owner(core->sc_ops.cookie);if(core->sc_flags&RTWN_FLAG_BUSY)return EBUSY;core->sc_flags|=RTWN_FLAG_BUSY;int error=0;switch(command){case SIOCSIFADDR:ifp->if_flags|=IFF_UP;/* FALLTHROUGH */case SIOCSIFFLAGS:if(ifp->if_flags&IFF_UP){if(!(ifp->if_flags&IFF_RUNNING))error=s->start8723();}else if(ifp->if_flags&IFF_RUNNING)s->stop8723();break;default:error=ieee80211_ioctl(ifp,command,data);break;}if(core->sc_ic.ic_opmode!=IEEE80211_M_STA){core->sc_ic.ic_opmode=IEEE80211_M_STA;error=EOPNOTSUPP;}if(error==ENETRESET){if((ifp->if_flags&(IFF_UP|IFF_RUNNING))==(IFF_UP|IFF_RUNNING)){s->stop8723();error=s->start8723();}else error=0;}core->sc_flags&=~(uint32_t)RTWN_FLAG_BUSY;return error;}
