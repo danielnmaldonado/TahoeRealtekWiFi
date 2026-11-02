@@ -1,66 +1,66 @@
-# Compatibilidade do pacote com macOS
+# macOS package compatibility
 
-Escopo: kext 0.14.14/build61, app 0.3.11/build53 e coletor revisão2, Intel
-x86_64. O pacote é de desenvolvimento. Esta mudança amplia os sistemas alvo
-do app/helper/instalador; não altera o rádio nem comprova compatibilidade física.
+Scope: kext 0.14.14/build61, app 0.3.11/build53 and collector revision 3, Intel
+x86_64. This is a development package. This change broadens the target systems
+for the app/helper/installer; it does not change the radio or prove hardware compatibility.
 
-| Sistema | Darwin | Alvo do pacote | Carregamento, WPA2 e tráfego nesta versão |
+| System | Darwin | Package target | Loading, WPA2 and traffic in this version |
 | --- | --- | --- | --- |
-| Ventura 13 | 22 | Sim, mínimo13.0 | Pendente em hardware |
-| Sonoma 14 | 23 | Sim | Pendente em hardware |
-| Sequoia 15 | 24 | Sim | Pendente em hardware |
-| Tahoe 26 | 25 | Sim | Pendente para esta entrega |
+| Ventura 13 | 22 | Yes, minimum 13.0 | Pending on hardware |
+| Sonoma 14 | 23 | Yes | Pending on hardware |
+| Sequoia 15 | 24 | Yes | Pending on hardware |
+| Tahoe 26 | 25 | Yes | Pending for this release |
 
-Os14logs históricos foram capturados no macOS12.7.6 com kext55 e app48.
-Eles não homologam este pacote nos quatro sistemas da tabela. As limitações
-por chipset, revisão, OTP, potência e canais continuam descritas na
-[lista de suporte](USB-WIFI-SUPORTE.txt) e na [reauditoria14](RE-AUDIT-14-20261102.md).
-As duas placas sem funcionamento comprovado, RX nativo zerado e os eventos
-CCMP da captura antiga continuam pendentes; mudar o mínimo do sistema não
-resolve essas questões.
+The 14 historical logs were captured on macOS 12.7.6 with kext55 and app48.
+They do not validate this package on the four systems in the table. Limits
+by chipset, revision, OTP, power and channels remain documented in the
+[support list](USB-WIFI-SUPPORT.txt) and [re-audit of the 14 logs](RE-AUDIT-14-20261102.md).
+The two boards without demonstrated operation, zero native RX counters and the
+CCMP events in the old capture remain outstanding; changing the minimum system version does not
+resolve these issues.
 
-## O que foi preparado
+## What was prepared
 
-- AppKit e helper compilados com `-mmacosx-version-min=13.0`, incluindo as
-  compilações de testes. `LSMinimumSystemVersion` e o mínimo do `.pkg` são13.0.
-- Erros de disponibilidade habilitados na compilação para detectar chamadas
-  sem proteção a APIs posteriores ao Ventura. `SMAppService`, a aprovação do
-  serviço e o início da sessão continuam usando as APIs já presentes no projeto.
-- O empacotador inspeciona os comandos de versão dos executáveis Mach-O do
-  app e helper. Alterar somente o plist não permite empacotar um binário que
-  exija macOS26 como se fosse compatível com13.
-- O código da kext61 permanece igual. O projeto mantém deployment11.0 e os
-  mínimos existentes de `OSBundleLibraries`. A kext continua publicando Ethernet
-  e usa net80211 próprio; não precisa de uma variante de IO80211/AirPort para
-  cada sistema. Deployment11.0 é configuração de compilação: o Mach-O da kext
-  não contém um comando de versão mínima equivalente ao dos aplicativos.
-- Nome, bundle IDs, protocolo de controle, preferências por adaptador/rede e
-  itens do Chaves são preservados. Nenhum dado do usuário precisa ser migrado
-  por esta mudança de mínimo do sistema.
+- AppKit and helper compiled with `-mmacosx-version-min=13.0`, including
+  test builds. `LSMinimumSystemVersion` and the `.pkg` minimum are 13.0.
+- Availability errors enabled at compile time to detect unguarded
+  calls to APIs introduced after Ventura. `SMAppService`, service
+  approval and login startup continue using APIs already present in the project.
+- The packager inspects version commands in the app and helper Mach-O
+  executables. Changing only the plist does not allow a binary requiring
+  macOS 26 to be packaged as compatible with 13.
+- Kext61 code remains unchanged. The project retains deployment target 11.0 and the
+  existing `OSBundleLibraries` minimums. The kext continues to publish Ethernet
+  and uses its own net80211; it does not need an IO80211/AirPort variant for
+  each system. Deployment target 11.0 is a build setting: the kext's Mach-O
+  does not contain a minimum-version command equivalent to those of applications.
+- The name, bundle IDs, control protocol, per-adapter/network preferences and
+  Keychain items are preserved. No user data needs migration
+  for this change to the minimum system version.
 
-## Evidência e limites
+## Evidence and limits
 
-O ambiente disponível para compilação é macOS26.7.2, Xcode26.6 e SDK26.5.
-O mínimo da aplicação é13.0; isso permite gerar um binário para Ventura usando
-um SDK mais novo. Não é uma execução no Ventura. Builds com Xcode/SDK antigos
-continuam sem teste próprio. Os resultados exatos de build, testes, assinaturas
-e manifestos ficam no `VERIFICATION.json` ao lado do ZIP de entrega.
+The available build environment is macOS 26.7.2, Xcode 26.6 and SDK 26.5.
+The application minimum is 13.0; this allows generating a binary for Ventura using
+a newer SDK. It is not an execution on Ventura. Builds with older Xcode/SDK versions
+still lack their own testing. Exact build, test, signature
+and manifest results are recorded in `VERIFICATION.json` beside the release ZIP.
 
-Na auditoria estática, os419imports de KPI declarados usados pela kext61
-aparecem nas listas oficiais de exportação da Apple nos XNU correspondentes a
-Darwin22/23/24/25. Os demais imports são das famílias USB/Ethernet. Presença de
-símbolo não comprova layout de classe C++, comportamento do kernel, instalação
-ou estabilidade de USB em cada versão; essas etapas precisam de teste físico.
+In the static audit, the 419 declared KPI imports used by kext61
+appear in Apple's official export lists for the XNU versions corresponding to
+Darwin 22/23/24/25. The remaining imports are from the USB/Ethernet families. Symbol
+presence does not prove C++ class layout, kernel behavior, installation
+or USB stability on each version; these stages need hardware testing.
 
-A Apple declara sem suporte a combinação de KPIs USB e IONetworkingFamily
-desde Big Sur. Esta entrega continua no modelo de kext do projeto; a auditoria
-não o transforma em DriverKit nem em driver aprovado para instalação padrão.
-Fontes primárias: [extensões de kernel e alternativas](https://developer.apple.com/support/kernel-extensions/),
+Apple states that the combination of USB and IONetworkingFamily KPIs has been
+unsupported since Big Sur. This release continues with the project's kext model; the audit
+does not turn it into DriverKit or a driver approved for standard installation.
+Primary sources: [kernel extensions and alternatives](https://developer.apple.com/support/kernel-extensions/),
 [SMAppService](https://developer.apple.com/documentation/servicemanagement/smappservice).
 
-## Verificação e teste físico
+## Verification and hardware testing
 
-Para compilar a kext, o app e os testes a partir do source completo:
+To build the kext, app and tests from the complete source:
 
 ```sh
 bash ./build.command --all
@@ -71,13 +71,13 @@ python3 ./app/check-macos-compatibility.py --json \
   "Release/Tahoe Wi-Fi USB.app/Contents/Helpers/TahoeWiFiHelper"
 ```
 
-Em cada sistema da tabela ainda é necessário verificar o carregamento real,
-scan/refresh, seleção entre dois USB, WPA2/DHCP, tráfego sustentado em2,4/5GHz
-quando aplicável, reboot, suspensão e remoção/reconexão do USB. Executar o
-coletor revisão2 antes e depois permite relacionar erros e contadores à mesma
-sessão. Uma medição de throughput exige teste de rede real; taxa de link ou
-compilação aprovada não a substituem.
+Each system in the table still requires verification of actual loading,
+scan/refresh, selection between two USB adapters, WPA2/DHCP, sustained traffic on 2.4/5 GHz
+where applicable, reboot, sleep and USB removal/reconnection. Running
+collector revision 3 before and after allows errors and counters to be tied to the same
+session. A throughput measurement requires a real network test; a link rate or
+successful compilation cannot replace it.
 
-Esta entrega não instala o app, não troca a kext carregada e não modifica EFI,
-políticas de segurança ou configurações do roteador. Publicação estável depende
-da validação acima e das pendências da reauditoria14.
+This release does not install the app, replace the loaded kext or modify EFI,
+security policies or router settings. Stable publication depends on
+the validation above and the outstanding issues from re-audit of the 14 logs.

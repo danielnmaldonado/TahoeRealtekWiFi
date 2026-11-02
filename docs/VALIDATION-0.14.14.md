@@ -1,24 +1,24 @@
-# Validação — driver0.14.14/build61, app0.3.10/build52
+# Validation — driver0.14.14/build61, app0.3.10/build52
 
-Projeto/adaptação macOS: MaLd0n. Desenvolvimento.
+Project/macOS adaptation: MaLd0n. Development.
 
-A entrega contém o source correspondente da kext, app, auxiliar, testes,
-geradores, referências e licenças. PERFORMANCE-0.14.14.md descreve os modos
-implementados e seus limites. ADAPTER-TESTS-20261101.md mantém a análise dos
-14 logs históricos, capturados com a build55 em macOS12.7.6.
+The delivery contains corresponding kext, app, helper, test,
+generator, reference and license source. PERFORMANCE-0.14.14.md describes implemented
+modes and their limits. ADAPTER-TESTS-20261101.md retains analysis of the
+14 historical logs captured with build55 on macOS12.7.6.
 
-VERIFICATION.json registra os resultados exatos dos testes host e sanitizers,
-reconstrução do ZIP, suites nativas do app, coletor e produtos nativos. As
-assinaturas ad-hoc validam a integridade local dos bundles; não equivalem a
-notarização ou certificação de funcionamento universal.
+VERIFICATION.json records exact results for host and sanitizer tests,
+ZIP reconstruction, native app suites, collector and native products. Ad-hoc
+signatures validate local bundle integrity; they do not equate to
+notarization or certification of universal operation.
 
-Não houve instalação nova do app, carregamento da kext, alteração de EFI,
-roteador, segurança do macOS, credenciais ou reboot nesta rodada. Não há
-benchmark físico de velocidade desta build. Os novos modos HT/VHT e a correção
-de potência exigem regressão física nos respectivos adaptadores/revisões.
+There was no new app installation, kext loading, EFI,
+router, macOS security, credential change or reboot in this round. There is no
+hardware speed benchmark for this build. New HT/VHT modes and the power
+fix require hardware regression on the corresponding adapters/revisions.
 
-A contagem RX nativa zerada permanece em investigação. A causa exata da falha
-2357:0120 e da omissão de 2,4 GHz não foi demonstrada pelo arquivo antigo; os
-novos campos de boot/potência continuam disponíveis para a próxima captura.
-A Edimax 7392:a611 precisa confirmar a descoberta na sua topologia real com a
-correção anterior. Não se declara os 14 casos ou todos os modos certificados.
+Zero native RX accounting remains under investigation. The exact cause of
+2357:0120 failure and omission of 2.4 GHz was not demonstrated by the old archive;
+new boot/power fields remain available for the next capture.
+Edimax 7392:a611 needs discovery confirmation in its actual topology with the
+previous fix. Certification of the 14 cases or every mode is not claimed.

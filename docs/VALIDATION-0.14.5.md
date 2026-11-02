@@ -1,120 +1,120 @@
-# Validação — 0.14.5/build52 e app 0.3.4/build46
+# Validation — 0.14.5/build52 and app 0.3.4/build46
 
-Projeto e adaptação macOS: MaLd0n. Estado: desenvolvimento.
+Project and macOS adaptation: MaLd0n. Status: development.
 
-## Revisão por família
+## Review by family
 
-Foram revisados os 13 backends de estação, divididos em legacy 2,4 GHz,
-DU/AU e B/C. A revisão comparou implementação, descritores, RF/PHY, bandas,
-associação, RX/TX, coexistência e ciclo de vida com as fontes primárias fixadas.
-Testes anteriores podiam passar porque repetiam posições de campos incorretas;
-as correções abaixo possuem novas referências independentes e RED→GREEN.
+All 13 station backends were reviewed, divided into legacy 2.4 GHz,
+DU/AU and B/C. Review compared implementation, descriptors, RF/PHY, bands,
+association, RX/TX, coexistence and lifecycle against pinned primary sources.
+Previous tests could pass because they repeated incorrect field positions;
+the fixes below have new independent references and RED→GREEN evidence.
 
-RTL8192EU usava máscaras gen1 em DW4 para HT40, mas seu descritor gen2 usa
-DW5. O resultado podia ser BW20 com alteração de RTS/retry. O novo formato
-separa DATA_BW, DATA_SC e DATA_SHORT/SGI, incluindo gestão/EAPOL 20 MHz em rádio
-HT40. Setters textuais do cabeçalho Realtek fixado servem de referência; seu
-hash/proveniência acompanha os testes. CU/8188EU rejeitam os novos campos HT.
+RTL8192EU used gen1 masks in DW4 for HT40, but its gen2 descriptor uses
+DW5. The result could be BW20 with changed RTS/retry. The new format
+separates DATA_BW, DATA_SC and DATA_SHORT/SGI, including 20 MHz management/EAPOL on an
+HT40 radio. Textual setters from the pinned Realtek header serve as reference; its
+hash/provenance accompanies the tests. CU/8188EU reject the new HT fields.
 
-RTL8812AU/RTL8821AU posicionavam PHY antes de SHIFT, divergindo do rtw88.
-Foram corrigidos os casos 0–3 em ambas as famílias, com RSSI e comandos do
-firmware/coexistência, fronteiras de agregados e ausência de PHY. Os codecs
-operacionais RTL8814AU, DU e B/C já tinham a posição correta.
+RTL8812AU/RTL8821AU placed PHY before SHIFT, differing from rtw88.
+Cases 0–3 were fixed in both families, with RSSI and firmware/coexistence
+commands, aggregate boundaries and absent PHY. The operational
+RTL8814AU, DU and B/C codecs already had the correct position.
 
-O codec auxiliar FamilyRX24 agora aplica SHIFT ao PHY somente nas famílias
-rtw88. Para FU/8723BU, a fonte rtl8xxxu coloca PHY imediatamente após o
-descritor e o padding antes do MPDU; essa disposição foi preservada. Não se
-aplicou uma regra de outra geração a todos os chipsets.
+The auxiliary FamilyRX24 codec now applies SHIFT to PHY only for rtw88
+families. For FU/8723BU, rtl8xxxu source places PHY immediately after the
+descriptor and padding before the MPDU; this layout was preserved. A rule
+from another generation was not applied to all chipsets.
 
-RTL8192FU substituía a sequência de gestão/não-QoS do host por sequenciamento
-de hardware. O port usa sequência 80211 de software; agora gestão, EAPOL,
-QoS e demais dados preservam o valor e os fragmentos do cabeçalho recebido.
-8710BU e 8723BU já preservavam esses valores e não foram alterados por isso.
+RTL8192FU replaced host management/non-QoS sequence with hardware
+sequencing. The port uses software 80211 sequence; management, EAPOL,
+QoS and other data now preserve the value and fragments of the received header.
+8710BU and 8723BU already preserved these values and were not changed for this.
 
-A coexistência AU/B-C podia memorizar um nível LNA desejado e perder sua
-requisição quando outra consulta MP estivesse pendente. Agora mantém somente
-o último nível desejado por contexto e tenta admiti-lo após ACK ou timeout
-da consulta anterior. O cache muda após admissão H2C/scoreboard bem-sucedida,
-conforme a semântica primária; isso não confirma aplicação física pelo rádio.
-Erros, stop e perda de firmware/propriedade/sessão descartam trabalho pendente.
-Há testes de coalescência, cancelamento, isolamento e falha durante callbacks,
-incluindo uma sequência pública real de BT-info/HID nos três B/C. Não equivale
-a qualificação RF com Bluetooth no hardware.
+AU/B-C coexistence could remember a desired LNA level and lose its
+request when another MP query was pending. It now retains only the latest
+desired level per context and attempts admission after ACK or timeout
+of the previous query. The cache changes after successful H2C/scoreboard admission,
+according to primary semantics; this does not confirm physical application by the radio.
+Errors, stop and loss of firmware/ownership/session discard pending work.
+There are coalescing, cancellation, isolation and callback failure tests,
+including an actual public BT-info/HID sequence across the three B/C families. This does not equate
+to RF qualification with Bluetooth on hardware.
 
-## Conteúdo preservado da build51
+## Content preserved from build51
 
-O app46 solicita scan real somente na ação explícita de Refresh networks;
-polls periódicos continuam somente leitura. Sinal em dBm medido/filtrado,
-leitura antiga/ausente e acessibilidade são distinguidos. O ícone renderiza
-os três níveis corretamente; −42/−44 dBm medidos na build50 são sinal forte.
-Permanecem o ajuste NBI/CSI 153 e os contadores de scan/PHY/cache por banda.
-Consulte VALIDATION-0.14.4.md para os detalhes dessas mudanças.
+App46 requests an actual scan only for the explicit Refresh networks action;
+periodic polls remain read-only. Measured/filtered dBm signal,
+stale/absent readings and accessibility are distinguished. The icon renders
+all three levels correctly; −42/−44 dBm measured on build50 is strong signal.
+The NBI/CSI 153 adjustment and scan/PHY/cache counters by band remain.
+See VALIDATION-0.14.4.md for details of these changes.
 
-## Verificação e limites
+## Verification and limits
 
-O conjunto integrado passou em Release (150/150) e com ASan/UBSan no host
-(150/150). Uma revisão independente não encontrou novos bloqueadores nas
-correções. O app46 preserva as 15 suítes nativas verificadas na build51; o
-conjunto integrado também recompila e verifica seus testes nativos. Compilação
-nativa do ZIP, metadados, assinaturas e integridade ficam em VERIFICATION.json
-e NATIVE-VERIFICATION.json junto aos arquivos da distribuição.
-O inventário, as identidades e os gates anteriores são preservados: 270 IDs,
-263 identidades primárias, 262 elegíveis aos 13 backends operacionais, mais
-descoberta restrita 13b1:0043. Testes de código não homologam todas as revisões.
+The integrated set passed in Release (150/150) and with ASan/UBSan on the host
+(150/150). An independent review found no new blockers in the
+fixes. App46 preserves the 15 native suites verified in build51; the
+integrated set also rebuilds and verifies its native tests. Native build
+of the ZIP, metadata, signatures and integrity are in VERIFICATION.json
+and NATIVE-VERIFICATION.json alongside the distribution files.
+The previous inventory, identities and gates are preserved: 270 IDs,
+263 primary identities, 262 eligible for the 13 operational backends, plus
+restricted discovery 13b1:0043. Code tests do not certify every revision.
 
-RTL8814BU possui componentes HAL/USB e PHY próprios, mas a estação permanece
-desabilitada sem firmware NIC/protocolo e perfil de fábrica qualificados.
-Identidades ainda sem prova não são habilitadas por semelhança de nome.
-Modos e canais não implementados, inclusive DFS, não são anunciados. O canal
-real de 5 GHz do roteador automático permanece desconhecido.
+RTL8814BU has its own HAL/USB and PHY components, but station operation remains
+disabled without qualified NIC firmware/protocol and factory profile.
+Still-unproven identities are not enabled by name similarity.
+Unimplemented modes and channels, including DFS, are not advertised. The actual
+5 GHz channel of the automatic router remains unknown.
 
-Na preparação original da build52, a build50 estava carregada no RTL8814AU,
-com WPA2 autorizado, zero erros RX de recuperação e última amostra de −37 dBm. Naquele momento, build52/app46 ainda
-precisavam ser carregados para validar scan 5 GHz, tráfego e os demais adaptadores.
-Não houve instalação, reinício, alteração de EFI/roteador ou uso de credenciais
-pelo agente nesta revisão. O source continua na pasta do projeto, sem saídas
-no Desktop.
+During original build52 preparation, build50 was loaded on RTL8814AU,
+with authorized WPA2, zero RX recovery errors and a last sample of −37 dBm. At that time, build52/app46 still
+needed loading to validate 5 GHz scan, traffic and the other adapters.
+The agent did not install, restart, change EFI/router or use credentials
+in this review. The source remains in the project folder, with no outputs
+on the Desktop.
 
-## Atualização logs1 — 2026-10-31
+## logs1 update — 2026-10-31
 
-O usuário recompilou/carregou a kext52 (UUID
-7511954E-85FD-30FC-92E6-28942A938040). A captura às 10:59 registrou
-RTL8814AU 2357:0106/en3 sem porta WPA2 autorizada e com erro USB 0xe00002ed:
-25 erros, 24 recuperações concluídas e um esgotamento. RTL8192EU
-2357:0108/en1 estava autorizado, com rota padrão e zero erros de recuperação
-USB. A captura não mede throughput: o teste mostrado falhou por HTTP500 e
-nenhum teste de velocidade foi iniciado pelo coletor.
+The user rebuilt/loaded kext52 (UUID
+7511954E-85FD-30FC-92E6-28942A938040). The 10:59 capture recorded
+RTL8814AU 2357:0106/en3 without an authorized WPA2 port and with USB error 0xe00002ed:
+25 errors, 24 completed recoveries and one exhaustion. RTL8192EU
+2357:0108/en1 was authorized, with a default route and zero USB recovery
+errors. The capture does not measure throughput: the displayed test failed with HTTP500 and
+the collector did not start any speed test.
 
-WiFi-Diagnostics.command agora gera o ZIP em Biblioteca/Logs/Tahoe-WiFi-USB,
-com duas leituras textuais/JSON, resumo de deltas por Registry ID e status de
-cada comando. Falha de leitura é distinta de remoção; deltas de captura
-incompleta ficam indisponíveis. Há limite de execução por comando, incluindo
-saída parcial, e somente os filhos desse comando são encerrados ao excedê-lo.
-Dez regressões offline passaram; uma coleta real produziu ZIP íntegro.
+WiFi-Diagnostics.command now generates the ZIP in Biblioteca/Logs/Tahoe-WiFi-USB,
+with two text/JSON readings, a summary of deltas by Registry ID and status of
+every command. Read failure is distinguished from removal; deltas from an
+incomplete capture are unavailable. Each command has an execution limit, including
+partial output, and only that command's children are terminated if it exceeds the limit.
+Ten offline regressions passed; an actual collection produced an intact ZIP.
 
-logs1 altera o coletor, sua documentação e integração dos testes. Os sources
-nativos da kext/app, firmware, versões52/46 e produtos compilados permanecem
-iguais aos da entrega52 original. O novo ZIP de source é separado e não
-reescreve a entrega anterior. O erro USB e a lentidão do AU continuam em
-investigação; criar um coletor não equivale a corrigir a comunicação USB.
+logs1 changes the collector, its documentation and test integration. Native
+kext/app source, firmware, versions52/46 and built products remain
+the same as the original delivery52. The new source ZIP is separate and does not
+overwrite the earlier delivery. AU USB error and slowness remain under
+investigation; creating a collector does not fix USB communication.
 
-## Análise do relatório 11:17 e logs2
+## Analysis of the 11:17 report and logs2
 
-O ZIP do usuário contém logs de10:47:34 a11:17:11. Como os erros do AU já
-existiam às10:43, a primeira falha ficou fora dessa janela. A consulta local
-somente leitura desde o boot recuperou25 erros de RX0x81 do AU@14130000 entre
-10:41:59.912 e10:42:06.261, seguidos pelo abort final de três leituras.
-Também houve11 erros EP0, coerentes com as11 falhas de clear/retry contabilizadas;
-atribuir cada uma ao CLEAR_FEATURE continua inferência sem setup packet.
+The user's ZIP contains logs from 10:47:34 to 11:17:11. Since AU errors already
+existed at 10:43, the first failure fell outside this window. A read-only local
+query since boot recovered 25 AU@14130000 RX0x81 errors between
+10:41:59.912 and 10:42:06.261, followed by final abort of three reads.
+There were also 11 EP0 errors, consistent with the 11 counted clear/retry failures;
+assigning each to CLEAR_FEATURE remains an inference without the setup packet.
 
-O mesmo controlador XHCI registra erros do teclado em outro hub, inclusive
-antes da enumeração atual do AU. Isso não prova causa comum nem defeito físico.
-Os dados localizam a falha no transporte RX, antes de WPA2/DHCP; não determinam
-sua origem. Não foi alterado orçamento de recuperação, buffer ou timeout USB.
+The same XHCI controller records keyboard errors on another hub, including
+before the current AU enumeration. This does not prove a common cause or physical defect.
+The data locate the failure in RX transport, before WPA2/DHCP; they do not determine
+its origin. Recovery budget, buffer and USB timeout were not changed.
 
-A publicação geral RTWDiag acontece em status(). O app consulta o adaptador
-selecionado; no outro, as propriedades podem estar antigas. Scan e alguns
-campos HT/RA possuem publicação separada. O coletor logs2 documenta essa
-limitação: delta0 significa somente valores publicados iguais. A kext52 não
-fornece timestamp/geração de publicação geral e o coletor não contorna o controle
-de acesso para forçar STATUS. Sources nativos continuam iguais à entrega52.
+General RTWDiag publication occurs in status(). The app queries the selected
+adapter; on the other, properties may be stale. Scan and some
+HT/RA fields have separate publication. The logs2 collector documents this
+limit: delta 0 means only equal published values. Kext52 does not
+provide a general publication timestamp/generation, and the collector does not bypass access
+control to force STATUS. Native sources remain identical to delivery52.

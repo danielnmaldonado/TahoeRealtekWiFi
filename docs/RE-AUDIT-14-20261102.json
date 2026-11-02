@@ -10,7 +10,7 @@
     "app_build": 48,
     "os": "macOS12.7.6/21H1320"
   },
-  "privacy": "Somente identidades USB, metadados e contadores permitidos; sem SSID, MAC, IP, serial, senha, conteúdo de pacotes ou detalhes de gatilho de panic.",
+  "privacy": "Only permitted USB identities, metadata and counters; no SSID, MAC, IP, serial number, password, packet contents or panic-trigger details.",
   "totals": {
     "reports": 14,
     "recorded_commands": 560,
@@ -49,7 +49,7 @@
       ],
       "family": "RTL8822BU",
       "user_working": true,
-      "observed_build55_mode": "HT20/2 fluxos; canal 157",
+      "observed_build55_mode": "HT20/2 streams; channel 157",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 1271700,
@@ -144,12 +144,12 @@
       },
       "positive_error_or_filter_deltas": {},
       "source61_changes_present": [
-        "HT40/VHT20/40/80 não DFS implementados"
+        "Non-DFS HT40/VHT20/40/80 implemented"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [
         "logs/unified-onepass"
       ],
@@ -1405,7 +1405,7 @@
       ],
       "family": "RTL8188EU",
       "user_working": true,
-      "observed_build55_mode": "b/g, sem HT; canal 6",
+      "observed_build55_mode": "b/g, no HT; channel 6",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 172736,
@@ -1505,13 +1505,13 @@
         "RTWDiagNet80211DecryptFailures": 2
       },
       "source61_changes_present": [
-        "HT20/MCS/QoS/BA implementados"
+        "HT20/MCS/QoS/BA implemented"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet",
-        "causa de replay CCMP +2 não esclarecida"
+        "native RX / Ethernet delivery discrepancy",
+        "cause of CCMP replay +2 unexplained"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [],
       "radio_ready_in_raw": null,
       "controller_start_result": 0,
@@ -2765,7 +2765,7 @@
       ],
       "family": "RTL8192EU",
       "user_working": true,
-      "observed_build55_mode": "HT40/2 fluxos; canal 6",
+      "observed_build55_mode": "HT40/2 streams; channel 6",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 37092,
@@ -2863,12 +2863,12 @@
         "RTWDiagNet80211RXBABelowWindow": 3
       },
       "source61_changes_present": [
-        "HT40/2 fluxos já observado; sem nova correção causal isolada"
+        "HT40/2 streams already observed; no new isolated causal fix"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [],
       "radio_ready_in_raw": null,
       "controller_start_result": 0,
@@ -4122,7 +4122,7 @@
       ],
       "family": "RTL8192EU",
       "user_working": true,
-      "observed_build55_mode": "HT40/2 fluxos; canal 6",
+      "observed_build55_mode": "HT40/2 streams; channel 6",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 388152,
@@ -4219,12 +4219,12 @@
         "RTWDiagNet80211RXBABelowWindow": 11
       },
       "source61_changes_present": [
-        "HT40/2 fluxos já observado; sem nova correção causal isolada"
+        "HT40/2 streams already observed; no new isolated causal fix"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [],
       "radio_ready_in_raw": null,
       "controller_start_result": 0,
@@ -5478,7 +5478,7 @@
       ],
       "family": "RTL8188EU",
       "user_working": true,
-      "observed_build55_mode": "b/g, sem HT; canal 6",
+      "observed_build55_mode": "b/g, no HT; channel 6",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 221504,
@@ -5575,12 +5575,12 @@
         "RTWDiagNet80211Duplicates": 7
       },
       "source61_changes_present": [
-        "HT20/MCS/QoS/BA implementados"
+        "HT20/MCS/QoS/BA implemented"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [],
       "radio_ready_in_raw": null,
       "controller_start_result": 0,
@@ -6834,7 +6834,7 @@
       ],
       "family": "RTL8821CU",
       "user_working": true,
-      "observed_build55_mode": "HT20/1 fluxos; canal 157",
+      "observed_build55_mode": "HT20/1 stream; channel 157",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 194633,
@@ -6929,12 +6929,12 @@
       },
       "positive_error_or_filter_deltas": {},
       "source61_changes_present": [
-        "HT40/VHT20/40/80 não DFS implementados"
+        "Non-DFS HT40/VHT20/40/80 implemented"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [],
       "radio_ready_in_raw": null,
       "controller_start_result": 0,
@@ -8188,7 +8188,7 @@
       ],
       "family": "RTL8821CU",
       "user_working": true,
-      "observed_build55_mode": "HT20/1 fluxos; canal 157",
+      "observed_build55_mode": "HT20/1 stream; channel 157",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 114269,
@@ -8285,12 +8285,12 @@
         "RTWDiagNet80211RXBABelowWindow": 2
       },
       "source61_changes_present": [
-        "HT40/VHT20/40/80 não DFS implementados"
+        "Non-DFS HT40/VHT20/40/80 implemented"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [],
       "radio_ready_in_raw": null,
       "controller_start_result": 0,
@@ -9544,7 +9544,7 @@
       ],
       "family": "RTL8188EU",
       "user_working": true,
-      "observed_build55_mode": "b/g, sem HT; canal 6",
+      "observed_build55_mode": "b/g, no HT; channel 6",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 221280,
@@ -9639,12 +9639,12 @@
       },
       "positive_error_or_filter_deltas": {},
       "source61_changes_present": [
-        "HT20/MCS/QoS/BA implementados"
+        "HT20/MCS/QoS/BA implemented"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [],
       "radio_ready_in_raw": null,
       "controller_start_result": 0,
@@ -10898,7 +10898,7 @@
       ],
       "family": "RTL8822BU",
       "user_working": true,
-      "observed_build55_mode": "HT20/2 fluxos; canal 157",
+      "observed_build55_mode": "HT20/2 streams; channel 157",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 145483,
@@ -10995,12 +10995,12 @@
         "RTWDiagNet80211RXBABelowWindow": 2
       },
       "source61_changes_present": [
-        "HT40/VHT20/40/80 não DFS implementados"
+        "Non-DFS HT40/VHT20/40/80 implemented"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [],
       "radio_ready_in_raw": null,
       "controller_start_result": 0,
@@ -12254,7 +12254,7 @@
       ],
       "family": "RTL8192CU",
       "user_working": true,
-      "observed_build55_mode": "b/g, sem HT; canal 6",
+      "observed_build55_mode": "b/g, no HT; channel 6",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 187008,
@@ -12351,12 +12351,12 @@
         "RTWDiagNet80211Duplicates": 1
       },
       "source61_changes_present": [
-        "HT20/MCS/QoS/BA implementados"
+        "HT20/MCS/QoS/BA implemented"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [
         "logs/unified-onepass"
       ],
@@ -13612,7 +13612,7 @@
       ],
       "family": "RTL8822BU",
       "user_working": true,
-      "observed_build55_mode": "HT20/2 fluxos; canal 157",
+      "observed_build55_mode": "HT20/2 streams; channel 157",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 114865,
@@ -13707,12 +13707,12 @@
       },
       "positive_error_or_filter_deltas": {},
       "source61_changes_present": [
-        "HT40/VHT20/40/80 não DFS implementados"
+        "Non-DFS HT40/VHT20/40/80 implemented"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [
         "logs/unified-onepass"
       ],
@@ -14966,9 +14966,9 @@
       "usb_ids": [
         "7392:A611"
       ],
-      "family": "RTL8723BU (perfil)",
+      "family": "RTL8723BU (profile)",
       "user_working": false,
-      "observed_build55_mode": "sem controlador",
+      "observed_build55_mode": "no controller",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": null,
@@ -15063,12 +15063,12 @@
       },
       "positive_error_or_filter_deltas": {},
       "source61_changes_present": [
-        "USB quatro OUT / três filas DMA"
+        "USB four OUT / three DMA queues"
       ],
       "open_or_unconfirmed": [
-        "causa física da descoberta USB não confirmada"
+        "physical cause of USB discovery unconfirmed"
       ],
-      "physical_validation": "carregamento, busca, WPA2 e tráfego pendentes",
+      "physical_validation": "loading, scanning, WPA2 and traffic pending",
       "collection_timeouts": [
         "logs/unified-onepass"
       ],
@@ -15079,7 +15079,7 @@
         "raw_u64_decimal": "18446744073172681415",
         "result_u32": 3758097095,
         "result_hex": "0xe00002c7",
-        "scope": "único provider que publicou RTWStartResult; Controller ausente"
+        "scope": "only provider that published RTWStartResult; Controller absent"
       },
       "published_band_flags": null,
       "wpa_port_valid": null,
@@ -15105,7 +15105,7 @@
       ],
       "family": "RTL8192EU",
       "user_working": true,
-      "observed_build55_mode": "HT40/2 fluxos; canal 6",
+      "observed_build55_mode": "HT40/2 streams; channel 6",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 95848,
@@ -15200,12 +15200,12 @@
       },
       "positive_error_or_filter_deltas": {},
       "source61_changes_present": [
-        "HT40/2 fluxos já observado; sem nova correção causal isolada"
+        "HT40/2 streams already observed; no new isolated causal fix"
       ],
       "open_or_unconfirmed": [
-        "divergência RX nativo / entrega Ethernet"
+        "native RX / Ethernet delivery discrepancy"
       ],
-      "physical_validation": "regressão de conexão/tráfego e velocidade da build61 pendente",
+      "physical_validation": "build61 connection/traffic regression and speed validation pending",
       "collection_timeouts": [
         "logs/unified-onepass"
       ],
@@ -16461,7 +16461,7 @@
       ],
       "family": "RTL8821AU",
       "user_working": false,
-      "observed_build55_mode": "sem canal, busca ou associação",
+      "observed_build55_mode": "no channel, scan or association",
       "raw_before_after": {
         "RTWDiagRXBytes": {
           "before": 0,
@@ -16556,15 +16556,15 @@
       },
       "positive_error_or_filter_deltas": {},
       "source61_changes_present": [
-        "reset de MCU residente AU",
-        "calibração de potência VHT80 AU"
+        "resident AU MCU reset",
+        "AU VHT80 power calibration"
       ],
       "open_or_unconfirmed": [
-        "causa da falha não identificada",
-        "omissão de 2,4 GHz não explicada",
-        "resultado de enable/scan não capturado"
+        "failure cause unidentified",
+        "2.4 GHz omission unexplained",
+        "enable/scan result not captured"
       ],
-      "physical_validation": "carregamento funcional do rádio, busca, WPA2 e tráfego pendentes",
+      "physical_validation": "functional radio loading, scanning, WPA2 and traffic pending",
       "collection_timeouts": [],
       "radio_ready_in_raw": null,
       "controller_start_result": 0,
@@ -17823,7 +17823,7 @@
     "RTWDiagNet80211RXBABelowWindow": 18,
     "RTWDiagTXRateIgnored": 58
   },
-  "numeric_observations_note": "Valores brutos antes/depois; diferenças são calculadas somente para contadores selecionados. Flags, errno, índices, estados, canais e últimas taxas não são contagens de erro.",
+  "numeric_observations_note": "Raw before/after values; differences are calculated only for selected counters. Flags, errno, indices, states, channels and last rates are not error counts.",
   "collector_validation": {
     "offline_cases": 30,
     "original_cases_preserved": 21,

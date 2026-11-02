@@ -39,11 +39,11 @@
 - [ ] Compile kext and app from extracted delivered source, verify metadata/signatures and package artifacts with checksums.
 - [ ] Report concrete changes and that hardware validation on build50 remains pending.
 
-## Revisão adicional
+## Additional review
 
-- [x] Guardar RTW_CONTROL_SCAN antes de ieee80211_begin_scan enquanto RX está pendente, com teste real do handler.
-- [x] Adiar coex88TimerAction durante recuperação, testando pausa/retomada nas três famílias B/C e nos dois perfis de antena.
+- [x] Guard RTW_CONTROL_SCAN before ieee80211_begin_scan while RX is pending, with an actual-handler test.
+- [x] Defer coex88TimerAction during recovery, testing pause/resume in all three B/C families and both antenna profiles.
 
-## Evidência e decisões
+## Evidence and decisions
 
-A revisão independente encontrou dois acessos auxiliares a EP0 durante a espera: busca direta e timer de coexistência B/C. Ambos receberam teste RED antes da correção e teste GREEN depois. O setter de taxa do AU apenas atualiza memória; TX permanece permitido, com seu tratamento fatal de erro original. O prazo de dois segundos é verificado antes/depois de chamadas síncronas da Apple; não há preempção dessas chamadas. Validação física continua pendente.
+The independent review found two auxiliary EP0 accesses during the wait: direct scanning and the B/C coexistence timer. Both received RED tests before the fix and GREEN tests afterward. The AU rate setter only updates memory; TX remains permitted, with its original fatal-error handling. The two-second deadline is checked before/after synchronous Apple calls; those calls are not preempted. Physical validation remains pending.

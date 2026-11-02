@@ -1,19 +1,19 @@
-# Validação — 0.14.12/build59, app0.3.8/build50
+# Validation — 0.14.12/build59, app0.3.8/build50
 
-Projeto/adaptação macOS: MaLd0n. Entrega de desenvolvimento.
+Project/macOS adaptation: MaLd0n. Development delivery.
 
-A única alteração de comportamento desde a build58 é a propriedade booleana
-IOBuiltin=Yes na IOEthernetInterface. O setter fica em configureInterface,
-após validação do tipo/estatísticas e antes de ether_ifattach e publicação.
-Não há escrita no provider USB nem em IOPrimaryInterface, nomes BSD ou rotas.
-A instrução fica no caminho comum de todas as famílias que publicam interface.
+The only behavioral change since build58 is the boolean property
+IOBuiltin=Yes on IOEthernetInterface. The setter is in configureInterface,
+after type/statistics validation and before ether_ifattach and publication.
+There is no write to the USB provider or to IOPrimaryInterface, BSD names or routes.
+The instruction is in the common path for all families publishing an interface.
 
-O app50 e todos os caminhos de rádio, associação, WPA2, RX/TX e recuperação
-mantêm o source anterior. As evidências dessa rodada estão no VERIFICATION.json
-da entrega. Compilação nativa/assinatura validam o uso do setter do SDK;
-IOBuiltin no hardware só pode ser conferido após carregar a build59.
-A entrega não substitui a kext em memória nem reinicia o computador.
+App50 and all radio, association, WPA2, RX/TX and recovery paths
+retain the previous source. Evidence from this round is in the delivery's
+VERIFICATION.json. Native compilation/signing validate use of the SDK setter;
+IOBuiltin on hardware can only be checked after loading build59.
+The delivery does not replace the in-memory kext or restart the computer.
 
-Para conferir após o boot, examine a IOEthernetInterface filha de cada
-RTWUSBController no IORegistry: IOBuiltin deve ser um booleano Yes.
-Os limites anteriores permanecem em VALIDATION-0.14.11.md e README.
+To check after boot, examine each RTWUSBController's child IOEthernetInterface
+in IORegistry: IOBuiltin should be a boolean Yes.
+Previous limits remain in VALIDATION-0.14.11.md and README.

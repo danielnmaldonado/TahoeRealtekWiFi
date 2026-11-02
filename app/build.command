@@ -1,8 +1,8 @@
 #!/bin/bash
-# Compila o aplicativo completo, com assinatura ad-hoc, ao lado da kext em Release/.
-# Destino alternativo (compatibilidade): ./app/build.command /caminho/da/pasta
+# Build the complete ad-hoc signed app alongside the kext in Release/.
+# Alternative destination (compatibility): ./app/build.command /path/to/directory
 # --check-only [directory]: build/sign/verify a disposable bundle without publishing.
-# Este script nao instala nem carrega a kext ou o aplicativo.
+# This script does not install or load the kext or app.
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -48,7 +48,7 @@ build_app() (
   xcrun --find swift >/dev/null || return 1
   xcrun --sdk macosx --show-sdk-path >/dev/null || return 1
 
-  # O bundle antigo permanece intocado caso falhem compilacao, icone ou assinatura.
+  # Preserve the old bundle if compilation, icon generation or signing fails.
   local staging previous staged_bundle iconset
   staging="$(mktemp -d "$DESTINATION/.TahoeWiFi-build.XXXXXXXX")" || return 1
   previous="$DESTINATION/.Tahoe-WiFi-USB-previous.$$"
@@ -109,7 +109,7 @@ build_app() (
     return 0
   fi
 
-  # Movimentacoes na mesma pasta/volume; reverte o bundle antigo se a troca falhar.
+  # Move within the same directory/volume; restore the old bundle if replacement fails.
   if [[ -e "$BUNDLE" || -L "$BUNDLE" ]]; then
     [[ -d "$BUNDLE" && ! -L "$BUNDLE" ]] || {
       printf '[ERROR] The destination exists and is not a regular .app directory: %s\n' "$BUNDLE" >&2
@@ -133,7 +133,7 @@ build_app() (
   printf 'The application was not installed in /Applications.\n'
 )
 
-# Registra preflight e erros de compilacao mesmo quando a compilacao nao termina.
+# Log preflight and compiler errors even if the build does not finish.
 set +e
 (set -euo pipefail; build_app) 2>&1 | tee "$LOG"
 results=("${PIPESTATUS[@]}")

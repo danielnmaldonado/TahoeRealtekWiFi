@@ -13,17 +13,17 @@ if [ -z "$target_id" ]; then
  elif [ "$count" -gt 1 ] && [ "$EUID" -ne 0 ]; then
   target_id=$(/usr/bin/osascript - "$devices" <<'CHOOSE'
 on run argv
- set chosen to choose from list (paragraphs of item 1 of argv) with prompt "Qual adaptador USB deseja validar?" without multiple selections allowed
+ set chosen to choose from list (paragraphs of item 1 of argv) with prompt "Which USB adapter do you want to validate?" without multiple selections allowed
  if chosen is false then return ""
  set text item delimiters to tab
  return text item 1 of item 1 of chosen
 end run
 CHOOSE
 )
- else /bin/echo "$devices"; /bin/echo 'Execute este coletor com o ID decimal do adaptador como argumento.'; exit 4;
+ else /bin/echo "$devices"; /bin/echo 'Run this collector with the decimal adapter ID as its argument.'; exit 4;
  fi
 fi
-case "$target_id" in ''|0|*[!0-9]*) /bin/echo 'ID de adaptador inválido ou seleção cancelada.'; exit 4;; esac
+case "$target_id" in ''|0|*[!0-9]*) /bin/echo 'Invalid adapter ID or selection canceled.'; exit 4;; esac
 if [ "$EUID" -ne 0 ]; then
  /bin/mkdir -p "$base/Validation"
  collector_log="$base/Validation/postboot-$(/bin/date '+%Y%m%d-%H%M%S').txt"
@@ -44,7 +44,7 @@ bundle="$base/Experimental/TahoeRealtekWiFi.kext"
 binary="$bundle/Contents/MacOS/TahoeRealtekWiFi"
 [ "$(/usr/bin/plutil -extract CFBundleIdentifier raw -o - "$bundle/Contents/Info.plist")" = org.research.TahoeRealtekWiFi ]
 expected_uuid=$(/usr/bin/xcrun dwarfdump --uuid "$binary" | /usr/bin/awk '/\(x86_64\)/{print $2}')
-[ -n "$expected_uuid" ] || { /bin/echo 'UUID Intel não encontrado no pacote.';exit 3; }
+[ -n "$expected_uuid" ] || { /bin/echo 'Intel UUID not found in the package.';exit 3; }
 /bin/echo "EXPECTED_UUID=$expected_uuid"
 /bin/echo "SELECTED_REGISTRY_ID=$target_id"
 dump_diagnostics() {
@@ -62,22 +62,22 @@ for obj in objects:
 }
 loaded=$(/usr/bin/kmutil showloaded --list-only 2>/dev/null | /usr/bin/awk '/org.research.TahoeRealtekWiFi/')
 /bin/echo "$loaded"
-case "$loaded" in *"$expected_uuid"*) ;; *) /bin/echo 'A kext deste pacote ainda não está carregada.';exit 3;; esac
+case "$loaded" in *"$expected_uuid"*) ;; *) /bin/echo 'The kext from this package is not loaded yet.';exit 3;; esac
 status=$(/usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin "$cli" --device "$target_id" status)
 /bin/echo "$status" | /usr/bin/awk '/^device=|^state=|^TX packets=/'
 dump_diagnostics
-case "$status" in *'authorized=yes'*) ;; *) /bin/echo 'Autorização WPA2 incompleta; diagnóstico coletado acima. Testes de tráfego dependem da conexão.';exit 2;; esac
+case "$status" in *'authorized=yes'*) ;; *) /bin/echo 'WPA2 authorization is incomplete; diagnostics were collected above. Traffic tests require a connection.';exit 2;; esac
 mac=$(/bin/echo "$status" | /usr/bin/awk '/^MAC=/{sub(/^MAC=/,"",$1); print $1}')
 iface=''
 for candidate in $(/sbin/ifconfig -l); do
  case "$candidate" in en[0-9]*) ;; *) continue;; esac
  actual=$(/sbin/ifconfig "$candidate" | /usr/bin/awk '/ether /{print $2;exit}')
  if [ "$actual" = "$mac" ]; then
-  [ -z "$iface" ] || { /bin/echo 'Mais de uma interface com o MAC USB.';exit 4; }
+  [ -z "$iface" ] || { /bin/echo 'More than one interface has the USB MAC address.';exit 4; }
   iface="$candidate"
  fi
 done
-[ -n "$iface" ] || { /bin/echo 'Interface USB não encontrada.';exit 4; }
+[ -n "$iface" ] || { /bin/echo 'USB interface not found.';exit 4; }
 ip=$(/usr/sbin/ipconfig getifaddr "$iface")
 gateway=$(/usr/sbin/ipconfig getoption "$iface" router | /usr/bin/head -1)
 [ -n "$ip" ] && [ -n "$gateway" ]
@@ -111,4 +111,4 @@ result=subprocess.run(['/usr/bin/curl', '--interface', sys.argv[1], '--noproxy',
 if result.returncode: print('UPLOAD_EXIT=' + str(result.returncode))
 PY
 sample_performance after-upload
-/bin/echo 'Resultados coletados; perdas/timeout impedem aprovação automática.'
+/bin/echo 'Results collected; packet loss/timeouts prevent automatic approval.'

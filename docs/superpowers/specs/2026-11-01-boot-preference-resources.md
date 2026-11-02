@@ -1,13 +1,13 @@
-# Persistência após boot e recursos — build58/app50
+# Persistence after boot and resources — build58/app50
 
-Pedido: conservar placa/rede escolhidas após reboot com dois USB; verificar recursos e preparar source publicável. O usuário autorizou executar diretamente no source.
+Request: retain the selected adapter/network after reboot with two USB adapters; check resources and prepare publishable source. The user authorized direct execution in the source.
 
-## Arquitetura e escolhas
+## Architecture and choices
 
-A seleção volátil por RegistryID deve continuar cercando as operações da sessão. A preferência persistente deve usar a identidade física validada e voltar a resolver o RegistryID a cada enumeração; nunca reutilizar o número de outro boot. Restaurar somente correspondência inequívoca, conservar preferência quando a placa demora a aparecer e respeitar seleção manual, pausa de reconexão e Keychain. A rede preferida não deve depender de salvar uma senha.
+Volatile selection by RegistryID must continue to guard session operations. The persistent preference must use validated physical identity and resolve the RegistryID again on each enumeration; never reuse a number from another boot. Restore only an unambiguous match, retain the preference when an adapter is slow to appear and respect manual selection, reconnection pause and Keychain. The preferred network must not depend on saving a password.
 
-Alternativas descartadas: persistir RegistryID falha no reboot; selecionar a primeira placa pode conectar hardware errado; forçar ordem global de serviços não corrige a seleção do app. A rota atual do macOS deve ser observada separadamente.
+Rejected alternatives: persisting RegistryID fails on reboot; selecting the first adapter may connect the wrong hardware; forcing global service order does not fix app selection. The current macOS route must be observed separately.
 
-Recursos: medir app/helper reais em repouso; tratar kernel_task como agregado, não consumo exclusivo da kext. Corrigir somente defeitos observados: formatter criado por registro e timer de coexistência retido após liberar WorkLoop. Preservar intervalos de consulta e prazos de rádio já validados.
+Resources: measure the real app/helper at idle; treat kernel_task as an aggregate, not exclusive kext consumption. Fix only observed defects: a formatter created per record and a coexistence timer retained after releasing WorkLoop. Preserve already validated polling intervals and radio deadlines.
 
-Publicação: source completo, dependência SDK verificável, testes isolados, sem artefatos gerados/credenciais; manter licenças e proveniência obrigatórias. Resultados físicos se limitam ao hardware presente e estado realmente observado. O pacote não deve alegar homologação universal nem resolver a divergência RX nativa sem prova.
+Publication: complete source, verifiable SDK dependency, isolated tests, no generated artifacts/credentials; retain required licenses and provenance. Physical results are limited to the hardware present and state actually observed. The package must not claim universal certification or resolve the native RX discrepancy without evidence.

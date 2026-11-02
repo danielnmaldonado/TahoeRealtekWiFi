@@ -1,77 +1,79 @@
-# DFS no modo cliente USB
+# DFS in USB client mode
 
-O usuário pediu suporte DFS usando Linux, para todas as placas que têm essa
-capacidade. Implementar diretamente na árvore atual, preservando a conexão
-carregada e entregando source completo de kext e app. Não alterar EFI, carregar
-kext, reiniciar, mudar roteador ou usar credenciais pessoais.
+The user requested DFS support using Linux, for all adapters with that capability.
+Implement directly in the current tree, preserving the loaded connection and
+delivering complete kext and app source. Do not alter EFI, load the kext, restart,
+change the router or use personal credentials.
 
-## Arquitetura escolhida
+## Selected architecture
 
-Portar o comportamento de estação gerenciada, sem implementar modo AP. Linux
-cfg80211_chandef_dfs_required retorna zero para STATION: CAC/radar do master não
-é requisito de um adaptador cliente. O cliente deve buscar passivamente, conectar
-ao BSS observado e respeitar a saída de canal anunciada pelo AP. Não remover
-globalmente NO_IR após receber beacon nem forçar país por locale/IP.
+Port managed-station behavior without implementing AP mode. Linux
+cfg80211_chandef_dfs_required returns zero for STATION: master CAC/radar is not
+a client-adapter requirement. The client must scan passively, connect to the
+observed BSS and obey channel evacuation announced by the AP. Do not remove
+NO_IR globally after receiving a beacon or force a country from locale/IP.
 
-Expandir os sete backends de duas bandas: RTL8192DU, RTL8812AU, RTL8814AU,
-RTL8821AU, RTL8821CU, RTL8822BU e RTL8822CU. Novos canais HT20: 52/56/60/64 e
-100/104/108/112/116/120/124/128/132/136/140. Canal144 fica fechado nesta entrega:
-faltam linhas de potência primária nos AU/DU. Não copiar valores do canal140.
-Capacidades de placas exclusivas de2,4GHz e perfis OEM apenas5GHz permanecem.
+Expand the seven dual-band backends: RTL8192DU, RTL8812AU, RTL8814AU,
+RTL8821AU, RTL8821CU, RTL8822BU and RTL8822CU. New HT20 channels: 52/56/60/64 and
+100/104/108/112/116/120/124/128/132/136/140. Channel144 remains closed in this
+delivery: primary power rows are missing in AU/DU. Do not copy channel140 values.
+Capabilities of 2.4GHz-only boards and 5GHz-only OEM profiles remain.
 
-A lista de canais no backend depende de validação de ROM/RFE, potência/calibração
-e restrições existentes. Não basta adicionar números. AU8814 precisa do ajuste
-primário de spur no140, cleanup ao sair e grupo térmico correto100–140. Os demais
-PHYs exigem seus próprios índices OTP/limites. DFS começa em HT20; modos largos
-existentes nos canais não DFS permanecem. Anúncio do AP mais largo deve negociar
-20MHz, sem provocar falha na associação nem anunciar DFS40/80 não implementado.
+The backend channel list depends on ROM/RFE validation, power/calibration and
+existing restrictions. Adding numbers alone is insufficient. AU8814 needs the
+primary spur adjustment on140, cleanup on exit and the correct100–140 thermal
+group. Other PHYs require their own OTP indices/limits. DFS starts in HT20;
+existing wide modes on non-DFS channels remain. A wider AP advertisement must
+negotiate 20MHz without causing association failure or advertising unimplemented
+DFS40/80.
 
-## Estado comum de estação
+## Common station state
 
-Recepção passiva deve registrar beacon ESS válido por BSSID, SSID e canal,
-com limite de memória e validade temporal. Autenticação DFS só pode usar BSS
-observado recentemente no canal recebido e autorizado pelo backend. Frames
-malformados, estrangeiros, associação antiga ou campos contraditórios não
-concedem TX. Domínio/potência de fábrica não é relaxado por um beacon.
+Passive reception must record a valid ESS beacon by BSSID, SSID and channel,
+with bounded memory and time validity. DFS authentication may use only a BSS
+recently observed on the received channel and authorized by the backend.
+Malformed or foreign frames, an old association or contradictory fields do
+not grant TX. Factory domain/power is not relaxed by a beacon.
 
-CSA de beacon/action do AP associado deve interromper TX conforme necessário,
-baixar o link e iniciar recuperação passiva, sem enviar deauth no canal evacuado.
-A primeira implementação pode refazer associação/WPA2 após rescan em vez de
-trocar RF mantendo chaves. Retomada preserva perfil somente enquanto o dispositivo
-e sessão continuam válidos. Teardown, sleep, falhaUSB e seleção de outro adaptador
-cancelam tarefas; não executar stop/restart recursivamente dentro da análise RX.
-Pause usa caminhos/registradores primários verificados para cada família.
+Beacon/action CSA from the associated AP must stop TX as needed, drop the
+link and start passive recovery without sending deauth on the evacuated channel.
+The first implementation may repeat association/WPA2 after rescan instead of
+switching RF while retaining keys. Resumption preserves the profile only while
+the device and session remain valid. Teardown, sleep, USB failure and selecting
+another adapter cancel tasks; do not run stop/restart recursively inside RX
+analysis. Pause uses primary paths/registers verified for each family.
 
-## App e ABI
+## App and ABI
 
-Manter layout v1 e bytes reservados. Acrescentar duas capabilities independentes:
-DFS52–64 e DFS100–140, somente quando o mapa registrado cobre o grupo completo.
-App47 aceita e descreve os grupos anunciados pelo driver. Drivers antigos não
-passam a aceitar canais novos por nome do chipset. Não anunciar144 ou modoAP.
+Retain the v1 layout and reserved bytes. Add two independent capabilities:
+DFS52–64 and DFS100–140, only when the registered map covers the complete group.
+App47 accepts and describes the groups advertised by the driver. Old drivers
+do not gain new channels through the chipset name. Do not advertise144 or AP mode.
 
-Revisão detectou países com apenas parte do grupo100–140 (AU/DZ/KP/MY/RU).
-Adicionar consulta somente leitura do mapa exato de256 canais registrados,
-com versão e reservados zero, sem alterar estruturas/seletores ABIv1 existentes.
-App47 usa esse mapa na lista, seleção/reconexão e descrição; driver antigo retorna
-Unsupported e mantém a política conservadora das capabilities completas.
+Review detected countries with only part of the100–140 group (AU/DZ/KP/MY/RU).
+Add a read-only query for the exact map of256 registered channels, with version
+and zeroed reserved fields, without changing existing ABIv1 structures/selectors.
+App47 uses this map for the list, selection/reconnection and description; an
+old driver returns Unsupported and retains the conservative complete-capability policy.
 
-## Domínio e teto de potência
+## Domain and power cap
 
-Portar metadados do wireless-regdb oficial fixado e verificar hashes antes de
-gerar. Usar país de fábrica conhecido, senão world; nunca locale/IP ou override
-por beacon. Antes de AUTH/RFK, limite efetivo é min(world20dBm,domínioROM,
-tripletCountryAPquandoexistente) menos PowerConstraint. Aplicar uma vez pelo SAR
-absoluto de cada PHY, com arredondamento para baixo e sem segunda redução relativa.
-Preservar headroom térmico de fábrica, sem margem extra por reduzir TXAGC.
-Teto impossível não pode resultar em prontidão/TX; DU/B-C podem detectar depois
-de I/O de canal pausado e devem manter falha fechada.
+Port metadata from the pinned official wireless-regdb and verify hashes before
+generating. Use the known factory country, otherwise world; never locale/IP
+or a beacon override. Before AUTH/RFK, the effective limit is
+min(world20dBm,ROMdomain,APCountrytripletWhenPresent) minus PowerConstraint.
+Apply once through each PHY's absolute SAR, rounding down and without a second
+relative reduction. Preserve factory thermal headroom, without extra margin
+from reducing TXAGC. An impossible cap must not result in readiness/TX;
+DU/B-C may detect it after paused channel I/O and must keep the failure closed.
 
-## Prova e entrega
+## Evidence and delivery
 
-Usar testes comportamentais RED na54 e GREEN na implementação: cada canal novo,
-potência por RFE/ROM, transições de spur140, HT20 em AP largo, busca sem probes,
-autenticação ligada ao beacon e CSA/teardown/ownership. Comparar RF/PHY com fontes
-Linux/vendor fixadas e registrar hashes. Executar suítes Release/sanitizadores,
-compilação SDK, testes nativos do app e build do ZIP entregue. Revisão independente
-antes de congelar build55/app47. Testes físicos exigem carregamento posterior pelo
-usuário; não declarar todas as revisões homologadas nem a causa da rede atual provada.
+Use behavioral tests RED on54 and GREEN on the implementation: every new channel,
+power per RFE/ROM, spur140 transitions, HT20 on a wide AP, scanning without probes,
+beacon-bound authentication and CSA/teardown/ownership. Compare RF/PHY against
+pinned Linux/vendor sources and record hashes. Run Release/sanitizer suites,
+SDK compilation, native app tests and a build of the delivered ZIP. Independent
+review before freezing build55/app47. Physical tests require subsequent loading
+by the user; do not claim every revision is certified or the cause of the current
+network issue is proven.

@@ -1,54 +1,54 @@
-# Auditoria das 14 placas — 01/11/2026
+# Audit of the 14 adapters — 01/11/2026
 
-Registro histórico da build55, redigido na rodada60. Para o estado do source61 e pendências atuais, consulte [a reauditoria de02/11](RE-AUDIT-14-20261102.md).
+Historical record of build55, written during round60. For the state of source61 and current outstanding work, see [the 02/11 re-audit](RE-AUDIT-14-20261102.md).
 
-Os 14 grupos foram fornecidos pelo usuário: 12 funcionam e dois falham. As capturas usam macOS12.7.6/21H1320, kext55 e app0.3.5/build48; não são validação física da build60. A versão atual continua direcionada ao Tahoe/Intel.
+The user supplied the 14 groups: 12 work and two fail. The captures use macOS12.7.6/21H1320, kext55 and app0.3.5/build48; they are not hardware validation of build60. The current version remains targeted at Tahoe/Intel.
 
-Nas 12 conexões há WPA2 autorizado, interface ativa com IPv4/rota e contadores de entrega Ethernet avançando. Isso comprova conectividade local e recepção durante a janela, sem demonstrar teste de internet, velocidade sustentada ou ausência de todos os descartes.
+The 12 connections show authorized WPA2, an active interface with IPv4/route, and increasing Ethernet delivery counters. This demonstrates local connectivity and reception during the window, without demonstrating internet testing, sustained speed or the absence of all drops.
 
-| Captura | USB VID:PID | Família | Modo observado | Erros/descartes na janela |
+| Capture | USB VID:PID | Family | Observed mode | Errors/drops during the window |
 |---|---|---|---|---|
-| 18:49:15 | 0BDA:B812 | RTL8822BU | HT20 / 2 fluxo(s); canal 157 | sem incremento de erro RX/TX/USB nos contadores disponíveis |
-| 18:54:14 | 2357:010C | RTL8188EU | b/g, sem HT; canal 6 | replay CCMP +2; decrypt +2; RX net80211 +2; duplicados +7 |
-| 18:58:06 | 2357:0107 | RTL8192EU | HT40 / 2 fluxo(s); canal 6 | duplicados +2; BA abaixo da janela +3 |
-| 19:00:28 | 2357:0109 | RTL8192EU | HT40 / 2 fluxo(s); canal 6 | BA abaixo da janela +11 |
-| 19:02:05 | 0BDA:0179 | RTL8188EU | b/g, sem HT; canal 6 | duplicados +7 |
-| 19:03:36 | 0BDA:C811 | RTL8821CU | HT20 / 1 fluxo(s); canal 157 | sem incremento de erro RX/TX/USB nos contadores disponíveis |
-| 19:04:55 | 0BDA:C811 | RTL8821CU | HT20 / 1 fluxo(s); canal 157 | BA abaixo da janela +2 |
-| 19:06:32 | 0BDA:8179 | RTL8188EU | b/g, sem HT; canal 6 | sem incremento de erro RX/TX/USB nos contadores disponíveis |
-| 19:08:00 | 20F4:808A | RTL8822BU | HT20 / 2 fluxo(s); canal 157 | BA abaixo da janela +2 |
-| 19:09:42 | 0BDA:8178 | RTL8192CU | b/g, sem HT; canal 6 | duplicados +1 |
-| 19:11:07 | 2357:0115 | RTL8822BU | HT20 / 2 fluxo(s); canal 157 | sem incremento de erro RX/TX/USB nos contadores disponíveis |
-| 19:13:20 | 7392:A611 | RTL8723BU (perfil USB) | sem controlador | start USB rejeitado, 0xe00002c7 |
-| 19:15:01 | 2357:0108 | RTL8192EU | HT40 / 2 fluxo(s); canal 6 | sem incremento de erro RX/TX/USB nos contadores disponíveis |
-| 19:20:26 | 2357:0120 | RTL8821AU | sem canal/associação | canal/SCAN/RX/WPA sem avanço |
+| 18:49:15 | 0BDA:B812 | RTL8822BU | HT20 / 2 stream(s); channel 157 | no increase in RX/TX/USB errors in the available counters |
+| 18:54:14 | 2357:010C | RTL8188EU | b/g, no HT; channel 6 | CCMP replay +2; decrypt +2; net80211 RX +2; duplicates +7 |
+| 18:58:06 | 2357:0107 | RTL8192EU | HT40 / 2 stream(s); channel 6 | duplicates +2; BA below window +3 |
+| 19:00:28 | 2357:0109 | RTL8192EU | HT40 / 2 stream(s); channel 6 | BA below window +11 |
+| 19:02:05 | 0BDA:0179 | RTL8188EU | b/g, no HT; channel 6 | duplicates +7 |
+| 19:03:36 | 0BDA:C811 | RTL8821CU | HT20 / 1 stream(s); channel 157 | no increase in RX/TX/USB errors in the available counters |
+| 19:04:55 | 0BDA:C811 | RTL8821CU | HT20 / 1 stream(s); channel 157 | BA below window +2 |
+| 19:06:32 | 0BDA:8179 | RTL8188EU | b/g, no HT; channel 6 | no increase in RX/TX/USB errors in the available counters |
+| 19:08:00 | 20F4:808A | RTL8822BU | HT20 / 2 stream(s); channel 157 | BA below window +2 |
+| 19:09:42 | 0BDA:8178 | RTL8192CU | b/g, no HT; channel 6 | duplicates +1 |
+| 19:11:07 | 2357:0115 | RTL8822BU | HT20 / 2 stream(s); channel 157 | no increase in RX/TX/USB errors in the available counters |
+| 19:13:20 | 7392:A611 | RTL8723BU (USB profile) | no controller | USB start rejected, 0xe00002c7 |
+| 19:15:01 | 2357:0108 | RTL8192EU | HT40 / 2 stream(s); channel 6 | no increase in RX/TX/USB errors in the available counters |
+| 19:20:26 | 2357:0120 | RTL8821AU | no channel/association | channel/SCAN/RX/WPA do not advance |
 
-## Velocidade
+## Speed
 
-Nenhuma captura contém teste de download/upload. IOLinkSpeed=0 e LinkSpeedKnown=0 significam taxa desconhecida. RXLastRate e histogramas incluem quadros de gerenciamento e amostras cumulativas; não são velocidade da conexão ou capacidade máxima. O JSON anexo conserva taxas/MCS/SGI/histogramas para cada grupo.
+No capture contains a download/upload test. IOLinkSpeed=0 and LinkSpeedKnown=0 mean unknown rate. RXLastRate and histograms include management frames and cumulative samples; they are not connection speed or maximum capacity. The attached JSON retains rates/MCS/SGI/histograms for each group.
 
-- RTL8192EU: as três amostras negociaram HT40 com dois fluxos.
-- RTL8821CU/RTL8822BU: cinco amostras operaram HT20 em 5GHz; nenhuma negociou VHT. A implementação B/C da build55 capturada era HT20. O source61 acrescenta os modos indicados na reauditoria.
-- RTL8188EU/RTL8192CU: quatro amostras estão no caminho b/g, sem HT, como definido no source55 capturado. O limite de implementação reduz a velocidade possível desses adaptadores N.
-- RTL8821AU2357:0120: sem modo negociado, sem dados suficientes para avaliar velocidade.
+- RTL8192EU: the three samples negotiated HT40 with two streams.
+- RTL8821CU/RTL8822BU: five samples operated at HT20 in 5GHz; none negotiated VHT. The captured build55 B/C implementation was HT20. Source61 adds the modes listed in the re-audit.
+- RTL8188EU/RTL8192CU: four samples use the b/g path without HT, as defined in the captured source55. This implementation limit reduces the possible speed of these N adapters.
+- RTL8821AU2357:0120: no negotiated mode, insufficient data to assess speed.
 
-## Todos os contadores e a interpretação
+## All counters and their interpretation
 
-O CSV ADAPTER-ERRORS-20261101.csv lista 58 observações não nulas de erros/filtros: valores antes/depois/delta, categoria e significado. Não são 58 falhas distintas. Vários contadores refletem o mesmo descarte, e muitos são históricos sem incremento na captura. SignalForeignFrames/SignalMissingPHY filtram medição de sinal e não contam perda total de dados.
+The CSV ADAPTER-ERRORS-20261101.csv lists 58 nonzero observations of errors/filters: before/after/delta values, category and meaning. These are not 58 distinct failures. Several counters reflect the same drop, and many are historical with no increase during the capture. SignalForeignFrames/SignalMissingPHY filter signal measurement and do not count total data loss.
 
-A 2357:010C teve replay CCMP+2, decrypt+2 e inputErrors+2, além de duplicados+7. A conexão permaneceu autorizada. A causa desses reenvios/descartes não foi registrada; não há fundamento para desabilitar proteção CCMP nem afirmar falha USB ou senha errada. Os demais grupos contêm duplicados/BA e alguns erros históricos sem avanço, conforme o CSV.
+The 2357:010C had CCMP replay+2, decrypt+2 and inputErrors+2, plus duplicates+7. The connection remained authorized. The cause of these retransmissions/drops was not recorded; there is no basis for disabling CCMP protection or claiming USB failure or an incorrect password. The other groups contain duplicates/BA and some historical errors with no increase, as shown in the CSV.
 
-Nas 12 placas conectadas: erros USB/TX, recuperação RX e erros de agregação RX têm valores/deltas zero. Os totais RX nativos ficam zero mesmo com entrega Ethernet crescente; essa divergência de contagem permanece aberta, sem incrementos artificiais.
+Across the 12 connected adapters: USB/TX errors, RX recovery and RX aggregation errors have zero values/deltas. Native RX totals stay at zero even while Ethernet delivery increases; this counting discrepancy remains open, without artificial increments.
 
-## Correções na build60
+## Fixes in build60
 
-- Edimax7392:a611: o source rejeitava quatro OUT físicos, apesar do mapeamento Linux de até três filas lógicas. Corrigidos armazenamento, descoberta, inicialização e roteamento de filas, com limites e guardas Bluetooth preservados. O log registra seis endpoints e falha de descoberta; falta o descritor bruto para confirmar que quatro OUT são a causa física exata.
-- AU8812/8821: firmware MCU residente antes do boot agora passa pelo reset limitado usado no Linux. Antes retornava EBUSY sem recuperação. Não é possível afirmar que a 2357:0120 estava nesse estado. A nova telemetria mostra estágio/erro original/reset e resultados de potência nos canais de referência, sem ignorar a calibração de fábrica.
-- Caminho comum de recepção: corrigidos limites da cópia de cache IE e propriedade de memória em falta de alocação. Os dois panics históricos incluídos no ZIP são compatíveis com esse caminho; UUID/binário exato não foi localizado, portanto não há causalidade física comprovada.
-- Coletor: mostra a falha no provider USB mesmo sem controlador, preserva estágios e erros AU e distingue resultados publicados de novas operações.
+- Edimax 7392:a611: the source rejected four physical OUT endpoints despite the Linux mapping of up to three logical queues. Queue storage, discovery, initialization and routing were fixed, preserving bounds and Bluetooth guards. The log records six endpoints and discovery failure; the raw descriptor is still needed to confirm that four OUT endpoints are the exact physical cause.
+- AU8812/8821: MCU firmware resident before boot now undergoes the bounded reset used in Linux. Previously it returned EBUSY without recovery. It cannot be asserted that the 2357:0120 was in this state. The new telemetry shows stage/original error/reset and power results on reference channels without bypassing factory calibration.
+- Common receive path: IE cache copy bounds and memory ownership on allocation failure were fixed. The two historical panics included in the ZIP are consistent with this path; the exact UUID/binary was not located, so hardware causality is unproven.
+- Collector: shows USB provider failure even without a controller, preserves AU stages and errors, and distinguishes published results from new operations.
 
-## Captura e validação
+## Capture and validation
 
-Os mesmos arquivos de panic foram repetidos nos 14 ZIPs; representam dois eventos anteriores, não 14 crashes novos. Há conflito entre cabeçalho e corpo quanto à versão do macOS. Cinco consultas de log terminaram por timeout e o comando Gatekeeper retornou1 em todos os grupos; os timeouts são falhas de coleta; o exit1 com assessments disabled descreve estado do Gatekeeper. Nenhum dos dois comprova falha de rádio.
+The same panic files were repeated in the 14 ZIPs; they represent two earlier events, not 14 new crashes. The header and body conflict over the macOS version. Five log queries timed out and the Gatekeeper command returned 1 in every group; the timeouts are collection failures; exit 1 with assessments disabled describes Gatekeeper state. Neither demonstrates radio failure.
 
-O pacote inclui testes de software, comparação com Linux fixado e compilação nativa a partir do source. Edimax e2357:0120 precisam de novo teste físico na build60. Os 12 resultados anteriores também precisam de regressão de conexão/tráfego ao mudar o driver. Não há benchmark, teste RF ou homologação universal implícita.
+The package includes software tests, comparison against pinned Linux and a native build from source. Edimax and 2357:0120 need another hardware test on build60. The 12 previous results also need connection/traffic regression testing when changing the driver. No benchmark, RF test or universal certification is implied.

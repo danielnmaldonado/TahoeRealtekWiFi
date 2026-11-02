@@ -1,89 +1,89 @@
-# Validação — 0.14.4/build51 e app 0.3.4/build46
+# Validation — 0.14.4/build51 and app 0.3.4/build46
 
-Projeto e adaptação macOS: MaLd0n. Estado: desenvolvimento.
+Project and macOS adaptation: MaLd0n. Status: development.
 
-## Evidência na build50
+## Evidence in build50
 
-kmutil confirmou a build50 carregada, UUID 2A9BFFFC-E0B2-34BC-BA34-EEF2B306D7EE.
-O RTL8814AU 2357:0106 estava com WPA2 autorizado, link ativo e zero erros ou
-tentativas de recuperação USB publicados. O usuário relatou estabilidade.
-Isso é uma observação dessa sessão; não é certificação de tráfego sustentado.
+kmutil confirmed build50 loaded, UUID 2A9BFFFC-E0B2-34BC-BA34-EEF2B306D7EE.
+RTL8814AU 2357:0106 had authorized WPA2, an active link and zero published USB errors
+or recovery attempts. The user reported stability.
+This is an observation from that session; it is not certification of sustained traffic.
 
-O PHY mediu valores entre −44 e −42 dBm, com amostras recentes e milhares de
-leituras válidas. Nesses níveis, três barras são o resultado esperado dos
-limiares existentes. Testes nativos AppKit distinguiram as imagens de 1/2/3
-barras e verificaram retorno correto às imagens em cache. Não se constatou
-defeito de renderização ou necessidade de modificar a calibração RSSI.
+The PHY measured values between −44 and −42 dBm, with recent samples and thousands of
+valid readings. At these levels, three bars are the expected result of the
+existing thresholds. Native AppKit tests distinguished the 1/2/3-bar images
+and checked correct return to cached images. No rendering defect
+or need to change RSSI calibration was found.
 
-O roteador foi descrito como Wi-Fi 6 com canal/bandas automáticos e mesmo SSID.
-O canal real de 5 GHz não foi informado e não pôde ser obtido pela interface
-de controle sem autenticação administrativa. Não houve pedido de senha,
-alteração de roteador, troca de USB, instalação ou reinício pelo agente.
+The router was described as Wi-Fi 6 with automatic channel/bands and the same SSID.
+The actual 5 GHz channel was not reported and could not be obtained from the control
+interface without administrative authentication. The agent did not request a password,
+change the router or USB, install or restart.
 
-## Mudanças no app
+## App changes
 
-Tooltip, acessibilidade e linha de sinal mostram a leitura dBm medida e o
-valor filtrado usado pelas barras. Leituras retidas são marcadas como antigas;
-expiração, desconexão e indisponibilidade não produzem 0 dBm fictício. A largura
-do ícone, os limiares e a filtragem não foram alterados.
+Tooltip, accessibility and signal row show the measured dBm reading and the
+filtered value used for bars. Retained readings are marked stale;
+expiry, disconnection and unavailability do not produce fictitious 0 dBm. Icon
+width, thresholds and filtering were not changed.
 
-Refresh networks, quando conectado, antes apenas solicitava nova leitura do
-cache. Agora a ação explícita solicita uma busca real. O driver pode precisar
-reassociar durante esse scan foreground; o perfil permanece no mesmo caminho
-de controle. Polls periódicos continuam somente leitura, sem buscas automáticas
-disruptivas. Testes cobrem duplicidade, adaptador, resultado e preferências.
+When connected, Refresh networks previously only requested another cache
+read. The explicit action now requests an actual search. The driver may need
+to reassociate during this foreground scan; the profile remains in the same control
+path. Periodic polls remain read-only without disruptive automatic
+searches. Tests cover duplication, adapter, result and preferences.
 
-## Rádio e diagnóstico
+## Radio and diagnostics
 
-A revisão comparou o RTL8814AU com o Linux fixado no manifesto de origem.
-O caminho HT20 omitia o ajuste NBI/CSI de canal 153; foi portado e verificado
-contra os registradores finais do código primário, incluindo retorno a 149/157.
-Essa omissão não demonstra que o AP do usuário utiliza 153 nem explica, por si,
-a ausência de todas as redes 5 GHz.
+The review compared RTL8814AU against Linux pinned in the provenance manifest.
+The HT20 path omitted the channel 153 NBI/CSI adjustment; it was ported and checked
+against the final registers from primary code, including return to 149/157.
+This omission does not demonstrate that the user's AP uses 153 or explain, by itself,
+the absence of all 5 GHz networks.
 
-O scan foreground já percorre os nove canais 5 GHz implementados antes de
-escolher BSS. A nova telemetria distingue transições/visitas, quadros de
-beacon/probe response por canal de software e por canal PHY conhecido, além
-de divergências entre ambos e contagem do cache por banda. Ausência de canal
-PHY não vira uma suposta medição física. Nenhuma alteração é feita na entrega
-de quadros ou nos controles de USB para produzir esses diagnósticos.
+Foreground scan already visits the nine implemented 5 GHz channels before
+choosing a BSS. New telemetry distinguishes transitions/visits, beacon/probe
+response frames by software channel and known PHY channel, as well as
+mismatches between them and cache counts by band. Missing PHY channel
+does not become an assumed physical measurement. No change is made to frame
+delivery or USB controls to produce these diagnostics.
 
-Somente contadores escalares são publicados, sem SSID, BSSID, endereço MAC,
-senha, PMK, dados de tráfego ou conteúdo de pacotes. A publicação ocorre nas
-fronteiras de estado/consulta; não há mutações de IORegistry a cada quadro RX.
+Only scalar counters are published, without SSID, BSSID, MAC address,
+password, PMK, traffic data or packet content. Publication occurs at
+state/query boundaries; there are no IORegistry mutations on each RX frame.
 
-Os canais autorizados continuam 1–11 e, em 5 GHz, 36/40/44/48 e 149/153/157/161/165,
-conforme backend/ROM. DFS continua fora da implementação. O nome Wi-Fi 6 do
-roteador não identifica seu canal ou suas opções de segurança. Não houve
-desbloqueio de canais sem implementação nem mudanças em WPA2/CCMP.
+Authorized channels remain 1–11 and, in 5 GHz, 36/40/44/48 and 149/153/157/161/165,
+according to backend/ROM. DFS remains outside the implementation. The router's Wi-Fi 6
+name does not identify its channel or security options. No channels were unlocked
+without implementation and no changes were made to WPA2/CCMP.
 
-## Leitura dos contadores de scan
+## Reading scan counters
 
-RTWDiagScanState usa 0=Idle, 1=Active, 2=Complete, 3=Cancelled e 4=Failed.
-Complete identifica a saída de scan para AUTH; não comprova autorização WPA2
-ou acesso à rede. RTWDiagScanVisited0–3 são palavras de 64 bits: para o canal C,
-consulte a palavra C/64 e o bit C%64. Visita indica programação aceita pelo
-backend, não recepção RF comprovada. LastError é o erro de transição.
+RTWDiagScanState uses 0=Idle, 1=Active, 2=Complete, 3=Cancelled and 4=Failed.
+Complete identifies scan exit to AUTH; it does not prove WPA2 authorization
+or network access. RTWDiagScanVisited0–3 are 64-bit words: for channel C,
+check word C/64 and bit C%64. A visit indicates programming accepted by the
+backend, not proven RF reception. LastError is the transition error.
 
-RTWDiagScanSoftware5Frames conta quadros rotulados pelo canal de software;
-RTWDiagScanPHY5Frames usa somente canal PHY decodificado. UnknownPHYFrames e
-PHYChannelMismatches deixam explícita a ausência ou divergência dessa informação.
-RTWDiagScanCacheBSS5 conta registros do cache, não quadros nem redes distintas
-por SSID. CurrentChannel é o canal de estado atual. Não confundir esses valores
-com a banda que o roteador utiliza fora dos canais observados.
+RTWDiagScanSoftware5Frames counts frames labeled by software channel;
+RTWDiagScanPHY5Frames uses only decoded PHY channel. UnknownPHYFrames and
+PHYChannelMismatches make the absence or mismatch of this information explicit.
+RTWDiagScanCacheBSS5 counts cache records, not frames or distinct networks
+by SSID. CurrentChannel is the current state channel. Do not confuse these values
+with the band the router uses outside the observed channels.
 
-## Verificação e entrega
+## Verification and delivery
 
-A suíte passou 150/150 em Release e 150/150 com ASan/UBSan no host.
-As 15 suítes nativas do app também passaram. O PHY executou 35.657 verificações,
-incluindo os 22 registros de referência e 472 posições de falha do canal 153;
-a telemetria portátil passou 34 e o controlador/WPA 1.186 verificações.
-Os resultados detalhados e a compilação nativa do ZIP entregue são registrados
-em VERIFICATION.json. Testes de modelos, imagens ou
-registradores não substituem a observação de redes e tráfego no hardware.
-O source contém app46 e kext51; o script de build não instala ou reinicia.
+The suite passed 150/150 in Release and 150/150 with ASan/UBSan on the host.
+The 15 native app suites also passed. The PHY executed 35.657 checks,
+including the 22 reference records and 472 failure positions for channel 153;
+portable telemetry passed 34 and controller/WPA 1.186 checks.
+Detailed results and the native build of the delivered ZIP are recorded
+in VERIFICATION.json. Tests of models, images or
+registers do not replace observing networks and traffic on hardware.
+The source contains app46 and kext51; the build script does not install or restart.
 
-O inventário e os limites de hardware anteriores são preservados: 270 IDs,
-263 identidades primárias, 262 IDs elegíveis aos 13 backends de estação mais
-descoberta restrita separada 13b1:0043. RTL8814BU e identidades sem prova
-continuam nos estados documentados.
+The previous hardware inventory and limits are preserved: 270 IDs,
+263 primary identities, 262 IDs eligible for 13 station backends plus
+separate restricted discovery 13b1:0043. RTL8814BU and unproven identities
+remain in their documented states.

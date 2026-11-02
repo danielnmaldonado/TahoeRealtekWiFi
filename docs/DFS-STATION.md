@@ -1,87 +1,90 @@
-# DFS de estação — build55/app47
+# Station DFS — build55/app47
 
-Projeto e adaptação macOS: MaLd0n.
+Design and macOS adaptation: MaLd0n.
 
-## Canais e famílias
+## Channels and families
 
-RTL8192DU, RTL8812AU, RTL8814AU, RTL8821AU, RTL8821CU, RTL8822BU e RTL8822CU
-recebem DFS HT20 em 52/56/60/64 e
-100/104/108/112/116/120/124/128/132/136/140. Os canais não DFS existentes continuam.
-O mapa registrado depende de ROM/RFE, domínio de fábrica, calibração e potência.
-As restrições OEM exclusivamente 5 GHz são preservadas. Canal 144 permanece fechado:
-não se extrapolam tabelas primárias AU/DU ausentes a partir do canal 140. Não se anuncia
-DFS40/80. O caminho AU negocia20 MHz com APs mais largos; seus modos não DFS não
-são reduzidos por esta mudança. As famílias exclusivamente2,4 GHz não ganham DFS.
+RTL8192DU, RTL8812AU, RTL8814AU, RTL8821AU, RTL8821CU, RTL8822BU and RTL8822CU
+receive DFS HT20 on 52/56/60/64 and
+100/104/108/112/116/120/124/128/132/136/140. Existing non-DFS channels remain.
+The registered map depends on ROM/RFE, factory domain, calibration and power.
+OEM restrictions to 5 GHz only are preserved. Channel 144 remains closed:
+missing primary AU/DU tables are not extrapolated from channel 140. DFS40/80
+is not advertised. The AU path negotiates 20 MHz with wider APs; this change
+does not reduce its non-DFS modes. Families limited to 2.4 GHz do not gain DFS.
 
-O app47 aceita dois novos bits de capacidade, mantendo o layout ABIv1.
-Cada bit requer o grupo completo no mapa do controlador; um driver antigo ou
-um catálogo de chipsets não concede autorização para canais novos. Agrupamento
-por SSID continua preservando as bandas efetivamente observadas e utilizáveis.
+App47 accepts two new capability bits, retaining the ABIv1 layout.
+Each bit requires the complete group in the controller map; an old driver or
+a chipset catalog does not authorize new channels. SSID grouping continues
+to preserve the bands actually observed and usable.
 
-O seletor somente leitura 5 acrescenta um mapa exato de 256 canais registrados,
-com resposta de 48 bytes, versão e reservados zero. Todas as estruturas e os
-seletores anteriores mantêm tamanho e significado. Esse mapa evita esconder
-canais válidos nos países com faixas parciais (AU/DZ/KP/MY/RU), sem anunciar os
-que ficaram proibidos. App vincula mapa ao adaptador e à geração selecionados;
-erro/ausência invalida os canais, e somente Unsupported de um driver antigo
-permite fallback para os bits de grupos completos. Modelo, reconexão e descrição
-usam o mesmo mapa. A consulta não sintoniza rádio nem concede uma licença de TX.
+Read-only selector 5 adds an exact map of 256 registered channels, with a
+48-byte response, version and zeroed reserved fields. All previous structures
+and selectors retain their size and meaning. This map avoids hiding valid
+channels in countries with partial ranges (AU/DZ/KP/MY/RU), without advertising
+prohibited channels. The app binds the map to the selected adapter and generation;
+an error or missing response invalidates the channels, and only Unsupported from
+an older driver permits fallback to complete-group bits. The model, reconnection
+and description use the same map. The query neither tunes the radio nor grants TX permission.
 
-## Descoberta, associação e saída de canal
+## Discovery, association and channel evacuation
 
-O cliente busca passivamente. Beacon ESS completo deve corresponder ao SSID
-desejado, BSSID/TA, canal realmente sintonizado e canal PHY quando disponível.
-O cache é limitado a 32 observações; a permissão de AUTH expira em 30 s. Campos
-contraditórios, frames incompletos/estrangeiros e registros antigos não concedem
-TX. A permissão é ligada ao BSS, sem liberar probes ou remover NO_IR globalmente.
-ASSOC/RUN permanecem ligados ao BSSID/canal admitido. WPA2/CCMP usa o net80211.
-Beacons do AP já vinculado atualizam potência mesmo com SSID oculto; o relógio
-dessa atualização não renova a permissão de AUTH visível. Isso vale durante
-AUTH/ASSOC já vinculados, antes de RUN. Perfis salvos ocultos preservam descoberta
-dirigida em 2,4 GHz quando o mapa atual permite essa faixa. Mapa inválido, sem
-canais ativos de 2,4 GHz ou placa apenas 5 GHz não libera esse fallback.
+The client scans passively. A complete ESS beacon must match the desired SSID,
+BSSID/TA, the channel actually tuned and the PHY channel when available.
+The cache is limited to 32 observations; AUTH permission expires after 30 s.
+Contradictory fields, incomplete/foreign frames and stale records do not grant
+TX. Permission is bound to the BSS, without allowing probes or removing NO_IR
+globally. ASSOC/RUN remain bound to the admitted BSSID/channel. WPA2/CCMP uses
+net80211. Beacons from the already bound AP update power even with a hidden SSID;
+the timestamp for that update does not renew visible AUTH permission. This also
+applies during already bound AUTH/ASSOC, before RUN. Saved hidden profiles preserve
+directed discovery on 2.4 GHz when the current map permits that band. An invalid
+map, a map without active 2.4 GHz channels or a 5 GHz-only adapter does not enable
+this fallback.
 
-CSA/ECSA válido do AP associado interrompe imediatamente transmissão de host e
-hardware, baixa o link e fecha a porta controlada. A retenção de TX também cobre
-escritas posteriores em TXPAUSE, incluindo endereço MAC1 do 8192DU. O watchdog
-executa stop/drain completo antes de liberar a retenção e tentar busca passiva,
-associação e WPA2 novamente. O destino anunciado não programa RF diretamente.
-Não se envia deauth no canal evacuado nem se encerra recursivamente dentro do RX.
-Remoção, sleep, perfil apagado e falhaUSB impedem retomada indevida.
+A valid CSA/ECSA from the associated AP immediately stops host and hardware
+transmission, drops the link and closes the controlled port. The TX hold also
+covers later TXPAUSE writes, including the 8192DU MAC1 address. The watchdog
+performs a full stop/drain before releasing the hold and attempting passive
+scanning, association and WPA2 again. The advertised destination does not program
+RF directly. No deauth is sent on the evacuated channel, and shutdown is not
+performed recursively within RX. Removal, sleep, a deleted profile and USB failure
+prevent an improper restart.
 
-## País e potência
+## Country and power
 
-O país conhecido vem dos campos de fábrica já decodificados por família.
-DU não reutiliza posições OTP de outro chipset e usa a base world. País ausente
-ou desconhecido também usa world; locale, IP e Country IE não substituem o ROM.
-`DFSRegulatoryTables.inc` contém183 domínios derivados do wireless-regdb oficial,
-com cobertura completa de20 MHz e teto mBm por canal. Uma borda ou lacuna de regra
-não é estendida. O gerador verifica SHA256 e gitblob dos três inputs antes de
-executar o parser primário ou escrever a tabela.
+The known country comes from factory fields already decoded per family.
+DU does not reuse another chipset's OTP offsets and uses the world baseline.
+A missing or unknown country also uses world; locale, IP and Country IE do not
+replace ROM. `DFSRegulatoryTables.inc` contains 183 domains derived from the
+official wireless-regdb, with complete 20 MHz coverage and an mBm cap per channel.
+A rule boundary or gap is not extended. The generator verifies SHA256 and gitblob
+for all three inputs before running the primary parser or writing the table.
 
-Antes de AUTH/RFK, o teto DFS é o menor entre world20 dBm, país de fábrica e o
-limite do triplet Country do AP quando presente, subtraindo PowerConstraint.
-O valor é arredondado para baixo na unidade da PHY. O limite absoluto usa a
-conversão SAR por caminho/seção de taxa e base ROM/PG das fontes primárias; a
-compensação térmica não ganha margem extra devido ao teto reduzido. Um limite
-impossível recusa prontidão/TX: AU faz preflight do plano; DU/B-C podem executar
-I/O de canal ainda pausado antes de detectar e manter a falha bloqueada.
-Não há uma segunda redução relativa sobre a taxa já limitada. Limite do AP mais
-restritivo durante RUN interrompe TX e exige nova admissão. Esses controles de
-software não substituem medição de EIRP, ganho de antena e certificação da placa.
+Before AUTH/RFK, the DFS cap is the minimum of world 20 dBm, factory country and
+the AP's Country triplet limit when present, minus PowerConstraint.
+The value is rounded down to the PHY's unit. The absolute limit uses the SAR
+conversion per path/rate section and ROM/PG baseline from the primary sources;
+thermal compensation gains no extra headroom from the reduced cap. An impossible
+limit refuses readiness/TX: AU performs plan preflight; DU/B-C may perform channel
+I/O while still paused before detecting the failure and keeping it blocked.
+There is no second relative reduction applied to an already limited rate. A more
+restrictive AP limit during RUN stops TX and requires new admission. These
+software controls do not replace EIRP measurement, antenna gain assessment or
+board certification.
 
-## Fontes primárias e reprodução
+## Primary sources and reproduction
 
-- Linux fixado em `0e135910deec43ffe97eca0b6af1f8f847285b59`:
-  [STATION não exige CAC local](https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/net/wireless/chan.c#L1015),
-  [CSA de estação](https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/net/mac80211/spectmgmt.c#L220),
-  [regras rtw88](https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/regd.c#L336).
-- [wireless-regdb oficial](https://git.kernel.org/pub/scm/linux/kernel/git/wens/wireless-regdb.git),
-  revisão `40095bd16e53d5c5682fd6e7e3dbbbfaf0fe5410`.
-  Inputs ISC intactos em `vendor/wireless-regdb/`; hashes e origem em
+- Linux pinned at `0e135910deec43ffe97eca0b6af1f8f847285b59`:
+  [STATION does not require local CAC](https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/net/wireless/chan.c#L1015),
+  [station CSA](https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/net/mac80211/spectmgmt.c#L220),
+  [rtw88 rules](https://github.com/torvalds/linux/blob/0e135910deec43ffe97eca0b6af1f8f847285b59/drivers/net/wireless/realtek/rtw88/regd.c#L336).
+- [Official wireless-regdb](https://git.kernel.org/pub/scm/linux/kernel/git/wens/wireless-regdb.git),
+  revision `40095bd16e53d5c5682fd6e7e3dbbbfaf0fe5410`.
+  Intact ISC inputs in `vendor/wireless-regdb/`; hashes and origin in
   `src/DFSRegulatory-Upstream.json`.
-- PHYs específicos mantêm seus arquivos `*-Upstream.json`, geradores,
-  golden fixtures e avisos de licença. Não se copiam tabelas de outra família.
+- The specific PHYs retain their `*-Upstream.json` files, generators,
+  golden fixtures and license notices. Tables are not copied from another family.
 
 ```sh
 python3 scripts/generate-dfs-regulatory.py --check
@@ -92,7 +95,8 @@ bash ./build.command --kext
 bash ./app/build.command
 ```
 
-É modo cliente, sem AP/hotspot, CAC/radar local, WPA3 ou AX. O canal automático
-da rede do usuário ainda não foi identificado e esta entrega não prova que DFS
-era a causa da ausência daquela rede. A nova kext deve ser carregada para validar
-associação, DHCP, tráfego e CSA no hardware. RTL8814BU continua sem estação.
+This is client mode, without AP/hotspot, local CAC/radar, WPA3 or AX. The user's
+network's automatic channel has not yet been identified, and this delivery does
+not prove that DFS caused that network to be missing. The new kext must be loaded
+to validate association, DHCP, traffic and CSA on hardware. RTL8814BU still has
+no station mode.

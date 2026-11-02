@@ -410,9 +410,9 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         records = json.loads((report / "drivers/USB-STARTUP.json").read_text())
         self.assertEqual(records[0]["start_result"], 0xe00002c7)
         summary = (report / "USB-STARTUP.txt").read_text()
-        self.assertIn("parcial", summary)
+        self.assertIn("partial", summary)
         self.assertIn("77", summary)
-        self.assertNotIn("Nenhum", summary)
+        self.assertNotIn("No RTW startup properties observed", summary)
         self.assert_safe_commands()
 
     def test_usb_startup_rejects_unbounded_or_non_ascii_stage_text(self):
@@ -489,10 +489,10 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         summary = (report / "RTW-SUMMARY.txt").read_text()
         au = summary.split("Controller %d" % ADAPTER_A)[1].split("Controller ")[0]
         eu = summary.split("Controller %d" % ADAPTER_B)[1].split("Controller ")[0]
-        self.assertIn("Publicacao: geracao avancou 10 -> 12", au)
+        self.assertIn("Publication: generation advanced 10 -> 12", au)
         self.assertIn("RTWDiagPublicationMonotonicMS=1050", au)
-        self.assertIn("Publicacao: frescor desconhecido", eu)
-        self.assertIn("nao atomica", summary)
+        self.assertIn("Publication: freshness unknown", eu)
+        self.assertIn("not atomic", summary)
         self.assert_safe_commands()
 
     def test_unchanged_publication_generation_is_not_called_live(self):
@@ -502,8 +502,8 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
                                        RTWDiagPublicationMonotonicMS=555)
         report = self.harness.run()
         summary = (report / "RTW-SUMMARY.txt").read_text()
-        self.assertEqual(summary.count("Publicacao: sem nova publicacao observada; geracao=8"), 2)
-        self.assertNotIn("Publicacao: geracao avancou", summary)
+        self.assertEqual(summary.count("Publication: no new publication observed; generation=8"), 2)
+        self.assertNotIn("Publication: generation advanced", summary)
 
     def test_regressed_or_incomplete_publication_is_unknown(self):
         for entry in self.harness.before:
@@ -514,9 +514,9 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         self.harness.after[1]["values"].update(RTWDiagPublicationGeneration=14)
         report = self.harness.run()
         summary = (report / "RTW-SUMMARY.txt").read_text()
-        self.assertIn("Publicacao: geracao/tempo regrediu; comparacao indisponivel", summary)
-        self.assertIn("Publicacao: frescor desconhecido", summary)
-        self.assertNotIn("Publicacao: geracao avancou", summary)
+        self.assertIn("Publication: generation/time regressed; comparison unavailable", summary)
+        self.assertIn("Publication: freshness unknown", summary)
+        self.assertNotIn("Publication: generation advanced", summary)
 
     def test_odd_publication_generation_is_in_progress(self):
         for entry in self.harness.before:
@@ -527,8 +527,8 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
                                    RTWDiagPublicationMonotonicMS=1000)
         report = self.harness.run()
         summary = (report / "RTW-SUMMARY.txt").read_text()
-        self.assertEqual(summary.count("Publicacao: em andamento; comparacao indisponivel"), 2)
-        self.assertNotIn("Publicacao: geracao avancou", summary)
+        self.assertEqual(summary.count("Publication: in progress; comparison unavailable"), 2)
+        self.assertNotIn("Publication: generation advanced", summary)
 
     def test_invalid_native_ifnet_statistics_are_not_zero_traffic(self):
         for entry in self.harness.before:
@@ -545,9 +545,9 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         report = self.harness.run()
         summary = (report / "RTW-SUMMARY.txt").read_text()
         self.assertIn("RTWDiagNativeIfnetStatsValid=0", summary)
-        self.assertIn("RTWDiagNativeIfnetInputPackets leitura nativa indisponivel/incomparavel", summary)
+        self.assertIn("RTWDiagNativeIfnetInputPackets native read unavailable/incomparable", summary)
         self.assertNotRegex(summary, r"RTWDiagNativeIfnetInputPackets[^\n]*delta=")
-        self.assertIn("RTWDiagNativeIfnetOutputPackets leitura nativa indisponivel/incomparavel", summary)
+        self.assertIn("RTWDiagNativeIfnetOutputPackets native read unavailable/incomparable", summary)
 
     def test_native_boundary_samples_are_gauges_per_interface(self):
         for phase in (self.harness.before, self.harness.after):
@@ -688,19 +688,19 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
 
     def test_gatekeeper_disabled_state_preserves_exit_code_without_failure(self):
         report = self.harness.run(gatekeeper="disabled")
-        row = next(row for row in self.status_rows(report) if row["arquivo"] == "system/gatekeeper.txt")
-        self.assertEqual(row["resultado"], "estado_esperado")
-        self.assertEqual(row["status_saida"], "1")
+        row = next(row for row in self.status_rows(report) if row["file"] == "system/gatekeeper.txt")
+        self.assertEqual(row["result"], "expected_state")
+        self.assertEqual(row["exit_status"], "1")
         self.assertEqual((report / "system/gatekeeper.txt").read_text(), "assessments disabled\n")
-        self.assertIn("Comandos indisponíveis / negados / com erro: 0", (report / "RESULTADO.txt").read_text())
+        self.assertIn("Unavailable / denied / failed commands: 0", (report / "RESULT.txt").read_text())
         self.assert_safe_commands()
 
     def test_gatekeeper_query_error_remains_a_collection_failure(self):
         report = self.harness.run(gatekeeper="error")
-        row = next(row for row in self.status_rows(report) if row["arquivo"] == "system/gatekeeper.txt")
-        self.assertEqual((row["resultado"], row["status_saida"]), ("falhou", "1"))
+        row = next(row for row in self.status_rows(report) if row["file"] == "system/gatekeeper.txt")
+        self.assertEqual((row["result"], row["exit_status"]), ("failed", "1"))
         self.assertIn("assessment query failed", (report / "system/gatekeeper.txt").read_text())
-        self.assertIn("Comandos indisponíveis / negados / com erro: 1", (report / "RESULTADO.txt").read_text())
+        self.assertIn("Unavailable / denied / failed commands: 1", (report / "RESULT.txt").read_text())
         self.assert_safe_commands()
 
     def test_gatekeeper_disabled_state_requires_exact_output_and_exit_one(self):
@@ -710,9 +710,9 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
                 harness = CollectorHarness()
                 self.addCleanup(harness.close)
                 report = harness.run(gatekeeper=scenario)
-                row = next(row for row in self.status_rows(report) if row["arquivo"] == "system/gatekeeper.txt")
-                self.assertEqual((row["resultado"], row["status_saida"]), ("falhou", expected_rc))
-                self.assertIn("Comandos indisponíveis / negados / com erro: 1", (report / "RESULTADO.txt").read_text())
+                row = next(row for row in self.status_rows(report) if row["file"] == "system/gatekeeper.txt")
+                self.assertEqual((row["result"], row["exit_status"]), ("failed", expected_rc))
+                self.assertIn("Unavailable / denied / failed commands: 1", (report / "RESULT.txt").read_text())
 
     def test_successful_unified_query_records_coverage_without_retry(self):
         report = self.harness.run()
@@ -726,8 +726,8 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         self.assertEqual(coverage["capture_status"], "query_completed")
         self.assertEqual(coverage["first_received_timestamp"], "2026-11-01 18:00:00.100000-0500")
         self.assertEqual(coverage["last_received_timestamp"], "2026-11-01 18:01:00.200000-0500")
-        row = next(row for row in self.status_rows(report) if row["arquivo"] == "system/gatekeeper.txt")
-        self.assertEqual((row["resultado"], row["status_saida"]), ("ok", "0"))
+        row = next(row for row in self.status_rows(report) if row["file"] == "system/gatekeeper.txt")
+        self.assertEqual((row["result"], row["exit_status"]), ("ok", "0"))
         self.assert_safe_commands()
 
     def test_historical_timeout_captures_recent_window_without_completing_history(self):
@@ -740,10 +740,10 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         self.assertEqual(re.sub(r"--last \S+", "--last WINDOW", commands[0]),
                          re.sub(r"--last \S+", "--last WINDOW", commands[1]))
         self.assertTrue(all("--debug" in command and "--info" in command for command in commands))
-        rows = {row["arquivo"]: row for row in self.status_rows(report)}
-        self.assertEqual((rows["logs/unified-onepass"]["resultado"], rows["logs/unified-onepass"]["status_saida"]),
-                         ("falhou", "124"))
-        self.assertEqual((rows["logs/recent/unified-onepass"]["resultado"], rows["logs/recent/unified-onepass"]["status_saida"]),
+        rows = {row["file"]: row for row in self.status_rows(report)}
+        self.assertEqual((rows["logs/unified-onepass"]["result"], rows["logs/unified-onepass"]["exit_status"]),
+                         ("failed", "124"))
+        self.assertEqual((rows["logs/recent/unified-onepass"]["result"], rows["logs/recent/unified-onepass"]["exit_status"]),
                          ("ok", "0"))
         main, recent = self.coverage(report), self.coverage(report, recent=True)
         self.assertEqual((main["requested_window_minutes"], main["command_exit_status"], main["capture_status"]),
@@ -761,8 +761,8 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         self.assertNotIn("recent-window", historical)
         self.assertIn("recent-window first", recent_log)
         self.assertNotIn("historical-window", recent_log)
-        self.assertIn("parcial", (report / "logs/unified-summary.txt").read_text().lower())
-        self.assertIn("Comandos indisponíveis / negados / com erro: 1", (report / "RESULTADO.txt").read_text())
+        self.assertIn("partial", (report / "logs/unified-summary.txt").read_text().lower())
+        self.assertIn("Unavailable / denied / failed commands: 1", (report / "RESULT.txt").read_text())
         with zipfile.ZipFile(self.harness.archive) as archive:
             for path in ("logs/recent/USB_Realtek.log", "logs/recent/unified-coverage.json"):
                 text = archive.read(report.name + "/" + path).decode()
@@ -780,10 +780,10 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
             self.assertEqual((coverage["command_exit_status"], coverage["capture_status"]),
                              (124, "partial_or_unavailable"))
             self.assertEqual(coverage["present_time_coverage"], "not_established")
-        rows = [row for row in self.status_rows(report) if row["arquivo"].endswith("unified-onepass")]
+        rows = [row for row in self.status_rows(report) if row["file"].endswith("unified-onepass")]
         self.assertEqual(len(rows), 2, rows)
-        self.assertTrue(all(row["status_saida"] == "124" for row in rows), rows)
-        self.assertIn("Comandos indisponíveis / negados / com erro: 2", (report / "RESULTADO.txt").read_text())
+        self.assertTrue(all(row["exit_status"] == "124" for row in rows), rows)
+        self.assertIn("Unavailable / denied / failed commands: 2", (report / "RESULT.txt").read_text())
         self.assert_safe_commands()
 
     def test_non_timeout_unified_failure_is_not_retried(self):
@@ -808,11 +808,11 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
             directory = report / "logs/recent" if recent else report / "logs"
             for name in ("USB_Realtek", "WiFi_80211", "Network_Ethernet"):
                 text = (directory / (name + ".log")).read_text()
-                self.assertNotIn("Nenhum evento correspondente foi encontrado", text)
-                self.assertIn("Nenhuma linha correspondente recebida", text)
+                self.assertNotIn("No matching events were found", text)
+                self.assertIn("No matching line received", text)
             summary = (directory / "unified-summary.txt").read_text().lower()
-            self.assertIn("indisponivel", summary)
-            self.assertIn("parcial", summary)
+            self.assertIn("unavailable", summary)
+            self.assertIn("partial", summary)
         self.assert_safe_commands()
 
     def test_recent_fallback_uses_the_same_administrative_read_path(self):
@@ -858,7 +858,7 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         self.assertTrue(any(row[0] == "drivers/RTW-after.txt" and row[2] == "77" for row in rows[1:]), rows)
         summary = (report / "RTW-SUMMARY.txt").read_text()
         self.assertRegex(summary.lower(), r"indispon|parcial|incomplet|unavailable|partial|falh|failed")
-        self.assertNotRegex(summary, r"(?im)^Removido/ausente|^Novo Registry ID|^RTWDiag[^\n]*reset/reiniciado")
+        self.assertNotRegex(summary, r"(?im)^Removed/missing|^New Registry ID|^RTWDiag[^\n]*reset/restarted")
         self.assert_archive_matches(report)
 
     def test_empty_failed_second_snapshot_does_not_claim_removal(self):

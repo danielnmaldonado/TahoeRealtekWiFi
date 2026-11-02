@@ -1,48 +1,48 @@
-# RTL8814BU — estado do source
+# RTL8814BU — source status
 
-Projeto e adaptação macOS: MaLd0n. O backend de estação continua desabilitado.
+Design and macOS adaptation: MaLd0n. The station backend remains disabled.
 
-## Componentes presentes
+## Components present
 
-O HALMAC/USB é próprio da geração B14: identificação positiva SYS_CFG2=0x11,
-OTP de 1024 bytes, descritores TX de corpo de 16 bytes com IEs e RX de 24 bytes, fluxo de firmware
-USB/reserved-page/DDMA/MCU e verificação de propriedade do contexto. Não usa
-HAL, descritores ou tabelas RF do RTL8814AU.
+HALMAC/USB is specific to the B14 generation: positive SYS_CFG2=0x11 identification,
+1024-byte OTP, 16-byte TX descriptor bodies with IEs and 24-byte RX descriptors,
+a USB/reserved-page/DDMA/MCU firmware flow and context ownership checks. It does
+not use RTL8814AU HAL, descriptors or RF tables.
 
-O PHY/RFK importa 159 funções da revisão fixada em
-`src/RTW8814BPHY-Upstream.json`: tabelas BB/AGC/RFK-init, quatro caminhos RF e
-dois sintetizadores, DACK, RTC/LCK, TXGAPK, IQK e DPK. Os bypasses de PA externo
-seguem a fonte primária. Os contextos de calibração pertencem a cada objeto.
-Uma lease privada do HAL limita o PHY à sessão de firmware atual; transições
-de potência, falhas e fechamento invalidam essa relação sem USB I/O.
+PHY/RFK imports 159 functions from the revision pinned in
+`src/RTW8814BPHY-Upstream.json`: BB/AGC/RFK-init tables, four RF paths and
+two synthesizers, DACK, RTC/LCK, TXGAPK, IQK and DPK. External-PA bypasses
+follow the primary source. Calibration contexts belong to each object.
+A private HAL lease limits the PHY to the current firmware session; power
+transitions, failures and closure invalidate this relationship without USB I/O.
 
-As fontes, cabeçalhos, geradores e notices estão no source. Os manifestos
-registram o commit primário e as adaptações locais; licenças são preservadas.
+Sources, headers, generators and notices are included in the source tree.
+Manifests record the primary commit and local adaptations; licenses are preserved.
 
-## O que ainda impede habilitar estação
+## What still prevents enabling station mode
 
-- Firmware USB NIC licenciado e protocolo de estação qualificados. O parser
-  aceitar cabeçalho/ABI11 não prova compatibilidade operacional. Imagens de
-  roteador ABI15 e de AU são distintas; nenhum firmware proprietário extraído
-  de driver Windows é distribuído neste pacote.
-- Perfil USB real de fábrica/regulatório, incluindo produção dos metadados
-  RFE, pacote, front-end e cristal a partir do OTP. O plano de potência recebido
-  pelo PHY é validado quanto à representação; não é derivado de um perfil
-  USB de fábrica/regulatório já qualificado.
-- A leitura dos dados de fábrica TSSI/thermal existe. Programação TSSI DE/DCK,
-  runtime genérico TSSI/thermal swing e CFO tracking não foram portados.
-  `track` executa atualmente apenas o tracking DPK da fonte primária.
-- Integração de estação e validação física: associação/WPA2, DHCP, tráfego,
-  reconexão, suspensão, remoção USB e diferentes revisões de placa.
+- Qualified, licensed USB NIC firmware and station protocol. The parser accepting
+  a header/ABI11 does not establish operational compatibility. ABI15 router
+  images and AU images are distinct; no proprietary firmware extracted from a
+  Windows driver is distributed in this package.
+- A real factory/regulatory USB profile, including generation of RFE, package,
+  front-end and crystal metadata from OTP. The power plan received by the PHY
+  is validated for representation; it is not derived from an already qualified
+  factory/regulatory USB profile.
+- Factory TSSI/thermal data reading exists. TSSI DE/DCK programming, generic
+  TSSI/thermal-swing runtime and CFO tracking have not been ported.
+  `track` currently performs only DPK tracking from the primary source.
+- Station integration and physical validation: association/WPA2, DHCP, traffic,
+  reconnection, sleep, USB removal and different board revisions.
 
-A geometria do componente é limitada a HT20 não DFS: canais 1–11, 36/40/44/48
-e 149/153/157/161/165. A implementação deste componente não habilita uma
-personalidade de estação B14 nem altera o catálogo para anunciar conexão.
+The component's geometry is limited to non-DFS HT20: channels 1–11, 36/40/44/48
+and 149/153/157/161/165. Implementing this component does not enable a B14 station
+personality or change the catalog to advertise connection capability.
 
-## Verificação
+## Verification
 
-Os testes de host exercitam os algoritmos importados com DSP/registradores
-modelados, falhas de I/O e restauração de estado, com ASan/UBSan. O HAL real
-possui testes separados de firmware, OTP, codecs e ciclo de vida da lease.
-Esses resultados não são medições RF nem validação de throughput em hardware.
-A compilação nativa usa os cabeçalhos reais do kernel e checa frames de pilha.
+Host tests exercise the imported algorithms with modeled DSP/registers, I/O
+failures and state restoration, using ASan/UBSan. The real HAL has separate
+firmware, OTP, codec and lease-lifecycle tests.
+These results are neither RF measurements nor hardware throughput validation.
+The native build uses real kernel headers and checks stack frames.

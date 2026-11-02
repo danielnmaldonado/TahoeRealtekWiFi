@@ -46,7 +46,7 @@ class SDKPolicyTests(unittest.TestCase):
                       for name, data in PAYLOAD.items()},
         }))
         source = (ROOT / "build.command").read_text()
-        failure = source[source.index("fail() {"):source.index("\n# Rodar inclusive")]
+        failure = source[source.index("fail() {"):source.index("\nrun_logged() {")]
         prepare = source[source.index("prepare_sdk() {"):source.index("\npreflight_kext() {")]
         self.runner = self.folder / "prepare.sh"
         self.runner.write_text('set -euo pipefail\nROOT="$1"\nSDK="$ROOT/MacKernelSDK"\n'

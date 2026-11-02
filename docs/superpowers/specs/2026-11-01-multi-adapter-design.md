@@ -1,29 +1,29 @@
-# Atualização por adaptador e recuperação das famílias USB
+# Refresh per adapter and USB family recovery
 
-Pedido: conferir os dois USB reais, buscar redes automaticamente quando necessário
-na troca de placa e aplicar as correções recentes a todos os backends elegíveis.
-A execução continua diretamente no source, conforme instrução do usuário.
+Request: check both real USB adapters, scan networks automatically when needed
+on adapter changes and apply recent fixes to every eligible backend.
+Execution continues directly in the source, as instructed by the user.
 
-O app atual muda o adaptador e lê SCAN_RESULTS, sem iniciar necessariamente SCAN.
-Usaremos estado de busca por RegistryID: cache sem origem confiável ou vencido
-num adaptador selecionado e ocioso exige uma busca real coalescida. Uma associação
-ativa não deve ser interrompida por busca automática. Hotplug, wake, troca rápida,
-resultados atrasados e falha têm invalidação/limites explícitos. Rádio ainda não
-inicializado não significa rádio desabilitado. Sem novas credenciais ou JOIN.
+The current app changes the adapter and reads SCAN_RESULTS without necessarily
+starting SCAN. We will use scan state per RegistryID: cache with unreliable
+provenance or expired cache on a selected, idle adapter requires a real coalesced
+scan. Automatic scanning must not interrupt an active association. Hotplug, wake,
+rapid switching, late results and failure have explicit invalidation/limits.
+An uninitialized radio does not mean a disabled radio. No new credentials or JOIN.
 
-Alternativas consideradas: timer de SCAN global interromperia links e misturaria
-placas; somente cache mantém o defeito; política por adaptador e estado atende ao
-pedido e conserva os epochs existentes. A escolha é de implementação do agente.
+Alternatives considered: a global SCAN timer would interrupt links and mix
+adapters; cache alone retains the defect; a policy per adapter and state meets
+the request and preserves existing epochs. The implementation choice is the agent's.
 
-O registro PM e a recuperação RX em operação já são comuns aos 13 backends.
-A validação da recepção inicial, drenagem e orçamento de clearStall passa ao mesmo
-conjunto, preservando capacidade/tipo e erros originais. UNKNOWN/8814BU não ganham
-estação. O retry completo de bootstrap exige stop próprio verificado, drain de
-callbacks e identidade imutável. As rotinas AU não serão copiadas para outro chip.
-Outras famílias recebem seus próprios stops e reidentificação; o legado requer
-power-off primário antes de habilitar retry de erro persistente.
+PM registration and runtime RX recovery are already common to all 13 backends.
+Initial reception validation, draining and the clearStall budget move to the same
+set, preserving capacity/type and original errors. UNKNOWN/8814BU do not gain
+station mode. Full bootstrap retry requires a verified family-specific stop,
+callback drain and immutable identity. AU routines will not be copied to another
+chip. Other families receive their own stops and reidentification; the legacy
+path requires primary power-off before enabling retry for a persistent error.
 
-Testes de métodos reais com erro antes da correção, limites de retry, callbacks
-fora de ordem, troca de ID/epoch e dois controladores independentes. A entrega
-trará source completo, compilações do ZIP e evidência das limitações físicas.
-Sem reboot, alteração de EFI, firmware de roteador ou proteções do sistema.
+Tests of real methods failing before the fix, retry bounds, out-of-order callbacks,
+ID/epoch changes and two independent controllers. The delivery will contain
+complete source, builds from the ZIP and evidence of physical limitations.
+No reboot or changes to EFI, router firmware or system protections.

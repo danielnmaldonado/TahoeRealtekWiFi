@@ -1,60 +1,60 @@
-# Validação — 0.14.10/build57 e app 0.3.7/build49
+# Validation — 0.14.10/build57 and app 0.3.7/build49
 
-Projeto e adaptação macOS: MaLd0n. Desenvolvimento.
+Project and macOS adaptation: MaLd0n. Development.
 
-## Sistema real verificado
+## Actual system checked
 
-Em 01/11/2026, o usuário já havia carregado sua build56. UUID carregado:
-3B3FC579-9C48-3D8F-B104-89C9D314100D. App instalado no começo: 0.3.6/build48.
-IDs atuais AU 4294968519/en3 e EU 4294968559/en1 substituem os do boot anterior.
+On 01/11/2026, the user had already loaded their build56. Loaded UUID:
+3B3FC579-9C48-3D8F-B104-89C9D314100D. Initially installed app: 0.3.6/build48.
+Current IDs AU 4294968519/en3 and EU 4294968559/en1 replace those from the previous boot.
 
-Duas consultas reais LIST/STATUS/MAP por placa passaram, aproximadamente 5,11 s
-entre amostras. Ambas estavam presentes, habilitadas, com rádio/RUN e WPA2/CCMP
-PTKDONE/porta autorizada/IP. AU: canal 36/−46 dBm; EU: canal 6/−44 dBm. PM do driver
-estava no estado 1. USB alta velocidade 480 Mb/s; AU direto, EU no hub USB2.
-As rotas padrão IPv4/IPv6 usavam AU/en3; Ethernet en0 estava inativa.
-Não cresceram erros USB/TX/RX ou falhas de recuperação na amostragem.
+Two actual LIST/STATUS/MAP queries per adapter passed, approximately 5,11 s
+between samples. Both were present and enabled, with radio/RUN and WPA2/CCMP
+PTKDONE/authorized port/IP. AU: channel 36/−46 dBm; EU: channel 6/−44 dBm. Driver PM
+was in state 1. High-speed USB 480 Mb/s; AU direct, EU on USB2 hub.
+IPv4/IPv6 default routes used AU/en3; Ethernet en0 was inactive.
+USB/TX/RX errors and recovery failures did not increase during sampling.
 
-Dois GET HTTPS limitados, vinculados separadamente a en1 e en3 e sem proxy,
-retornaram HTTP 200 e 577 bytes cada, cerca de 60 ms. Assim há entrega de dados em
-ambas, além da associação/IP. Não é teste de velocidade, persistência ou WPA2
-a partir de uma nova tentativa; o agente não alterou senha, AP ou associação.
+Two bounded HTTPS GETs, bound separately to en1 and en3 without a proxy,
+returned HTTP 200 and 577 bytes each, about 60 ms. This demonstrates data delivery
+on both, in addition to association/IP. It is not a speed, persistence or fresh-attempt WPA2
+test; the agent did not change password, AP or association.
 
-## Contagem RX nativa
+## Native RX accounting
 
-O driver ofereceu e esvaziou filas Ethernet, mas ifnet_stat/netstat continuaram
-com RX cumulativo zero nas duas interfaces. Os dois testes HTTPS funcionaram.
-A revisão de Apple IONetworkingFamily/XNU não comprovou um defeito do driver;
-há caminhos de contagem distintos, incluindo Skywalk. Uma leitura posterior de
-ifconfig -m confirmou options/capabilities0x400 (CHANNEL_IO) nas duas interfaces,
-correspondente ao IFCAP_SKYWALK do SDK. Isso não prova sozinho onde a contagem
-foi omitida. A build57 publica capacidades suportadas/ativas e SkywalkEnabled
-para investigar. Não há incremento manual artificial, desativação de recursos
-ou substituição do handoff IOKit por tentativa. A divergência continua aberta.
+The driver offered and flushed Ethernet queues, but ifnet_stat/netstat continued
+to show zero cumulative RX on both interfaces. Both HTTPS tests worked.
+Review of Apple IONetworkingFamily/XNU did not prove a driver defect;
+there are distinct accounting paths, including Skywalk. A later ifconfig -m
+read confirmed options/capabilities 0x400 (CHANNEL_IO) on both interfaces,
+matching IFCAP_SKYWALK in the SDK. This alone does not prove where accounting
+was omitted. Build57 publishes supported/active capabilities and SkywalkEnabled
+for investigation. There is no artificial manual increment, feature disabling
+or speculative replacement of the IOKit handoff. The discrepancy remains open.
 
-## App e recuperação comum
+## App and common recovery
 
-O app49 troca leitura de cache por uma busca real quando o USB selecionado está
-ocioso e sem conclusão RF fresca. Validade de 30 s, timeout de 30 s, retries de 4/8 s e pausa de 300 s
-após três falhas. Estado por RegistryID, geração e work epoch. Link autorizado,
-JOIN, credenciais, erro USB e serviço/sessão indisponíveis bloqueiam autoSCAN.
-RADIO ausente em interface ainda não iniciada não bloqueia a primeira busca.
-A UI conserva o contrato de menuNeedsUpdate; o modelo é renovado na conclusão.
+App49 replaces cache reading with an actual search when the selected USB is
+idle with no fresh RF completion. Validity 30 s, timeout 30 s, retries at 4/8 s and a 300 s pause
+after three failures. State is per RegistryID, generation and work epoch. An authorized link,
+JOIN, credentials, USB error and unavailable service/session block autoSCAN.
+Missing RADIO on an interface not yet started does not block the first search.
+UI retains the menuNeedsUpdate contract; the model is refreshed on completion.
 
-PM e recuperação RX em operação já eram comuns. A validação do RX inicial agora
-atinge todos os 13 backends; quatro leituras válidas são exigidas antes de sucesso,
-com orçamento de clearStall, drain por geração e preservação de erro tardio.
-A parada comum também rastreia a geração dos RX/TX pendentes: erro USB tardio
-não desaparece ao cancelar e TX curto não vira sucesso. Metadados são verificados
-antes de liberar o slot, inclusive quando o callback chega após o preflight.
-A recuperação de bootstrap usa shutdown verificado e reidentificação por família;
-a implementação e as revisões/testes exatos são fornecidos com a entrega.
+PM and operational RX recovery were already common. Initial RX validation now
+reaches all 13 backends; four valid reads are required before success,
+with a clearStall budget, generation-based drain and preservation of late error.
+Common stop also tracks the generation of pending RX/TX: a late USB error
+does not disappear upon cancellation and short TX does not become success. Metadata is checked
+before freeing the slot, including when the callback arrives after preflight.
+Bootstrap recovery uses verified shutdown and per-family reidentification;
+the implementation and exact reviews/tests accompany the delivery.
 
-## Limites da entrega
+## Delivery limits
 
-A build57 ainda depende de carregamento e validação no hardware. Não equivale
-a certificação de todas as 262 identidades/revisões. RTL8814AU continua HT20 e até
-dois fluxos, sem VHT/AC. Canal 144 e estação RTL8814BU continuam fechados.
-As contagens de software, produtos nativos, payload, hashes e revisões fechadas
-constam de VERIFICATION.json e REVIEWS junto ao pack. Source completo fornecido.
-Nenhum reboot, EFI, roteador, Keychain ou proteção do macOS foi alterado.
+Build57 still requires loading and validation on hardware. It does not equate
+to certification of all 262 identities/revisions. RTL8814AU remains HT20 and up to
+two streams, without VHT/AC. Channel 144 and RTL8814BU station operation remain closed.
+Software counts, native products, payload, hashes and closed reviews
+are in VERIFICATION.json and REVIEWS alongside the pack. Complete source supplied.
+No reboot, EFI, router, Keychain or macOS protection was changed.

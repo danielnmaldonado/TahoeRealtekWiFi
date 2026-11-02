@@ -1,90 +1,90 @@
-# Validação — driver 0.14.11/build58 e app 0.3.8/build50
+# Validation — driver 0.14.11/build58 and app 0.3.8/build50
 
-Projeto e adaptação macOS: MaLd0n. Entrega de desenvolvimento, com source
-completo de app/helper/kext, testes, geradores e licenças. O arquivo
-VERIFICATION.json do pacote registra os resultados exatos e hashes finais.
+Project and macOS adaptation: MaLd0n. Development delivery with complete
+app/helper/kext source, tests, generators and licenses. The package's
+VERIFICATION.json records exact results and final hashes.
 
-## Preferência de placa e rede
+## Adapter and network preference
 
-A causa original era seleção somente em memória por RegistryID e seleção
-automática limitada a uma única placa. Com dois USB após reboot, nenhum era
-selecionado. Agora a identidade física validada é persistida, o RegistryID é
-resolvido novamente e cada placa conserva sua última rede confirmada.
-Serial/MAC gravados precisam estar presentes e coincidir; porta é fallback
-somente quando não existe identidade durável. Identificadores que aparecem
-mais tarde fortalecem a preferência da mesma sessão. Uma placa diferente ou
-ambiguidade não substitui silenciosamente a preferência.
+The original cause was selection held only in memory by RegistryID and automatic
+selection limited to a single adapter. With two USB devices after reboot, neither was
+selected. Validated physical identity is now persisted, RegistryID is
+resolved again and each adapter retains its last confirmed network.
+Stored serial/MAC must be present and match; the port is a fallback
+only when there is no durable identity. Identifiers appearing
+later strengthen the preference in the same session. A different adapter or
+ambiguity does not silently replace the preference.
 
-A rede de uso único é lembrada, sem guardar sua senha. Reconexão automática
-continua exigindo perfil salvo no Chaves e opção habilitada. Desativar/reativar
-a opção invalida consultas automáticas antigas e JOIN ainda enfileirado.
-A migração de versões antigas pode adotar um único link já autorizado, compatível
-com a preferência de rede antiga; dois links exigem escolha. A seleção do app
-e a ordem global de serviços do macOS são estados distintos.
+A one-time network is remembered without saving its password. Automatic reconnection
+still requires a saved Keychain profile and the option enabled. Disabling/re-enabling
+the option invalidates old automatic queries and JOIN still queued.
+Migration from older versions can adopt a single already-authorized link compatible
+with the old network preference; two links require a choice. App selection
+and macOS global service order are distinct states.
 
-Os testes executam os métodos reais de Main com boundaries de IOKit/Chaves
-substituídos: IDs/ordem novos, enumeração/identidade atrasadas, troca de porta,
-identidade ambígua, escolha manual, rede por placa, credencial sem interação,
-pausa/opção desabilitada e cancelamento assíncrono. Ambos USB reais produziram
-identidades válidas com serial/MAC/VID/PID/porta, sem registrar seus valores.
-Isso não substitui repetir boot e associação na máquina com os produtos novos.
+Tests execute actual Main methods with substituted IOKit/Keychain
+boundaries: new IDs/order, delayed enumeration/identity, port change,
+ambiguous identity, manual selection, per-adapter network, noninteractive credentials,
+pause/disabled option and asynchronous cancellation. Both actual USB devices produced
+valid identities with serial/MAC/VID/PID/port without logging their values.
+This does not replace repeating boot and association on the machine with the new products.
 
-## CPU e memória
+## CPU and memory
 
-App49 instalado, menu fechado, 16 amostras em aproximadamente 30 segundos:
-`top` registrou CPU 0–0,1%, memória MEM estável em 39 MB, quatro threads.
-Auxiliar: 0%, 3.236 KB MEM, três threads. São observações desse intervalo,
-não um teto de uso sob todas as redes/operações. RSS e MEM de top usam métricas
-diferentes e não devem ser somados à memória da kext.
+Installed app49, menu closed, 16 samples over approximately 30 seconds:
+`top` recorded CPU 0–0,1%, stable MEM memory at 39 MB, four threads.
+Helper: 0%, 3.236 KB MEM, three threads. These are observations of that interval,
+not a usage ceiling for all networks/operations. RSS and MEM from top use different
+metrics and must not be added to kext memory.
 
-O formatador ISO8601 era criado/configurado duas vezes por exchange. O cache
-sincronizado mantém o formato e evita essa construção repetida. Benchmark de
-10.000 registros reais: cerca de 1,10–1,12 s de CPU antes, 20–24 ms depois.
-Esse ganho se refere à rotina de logs; não significa que todo o app ficou
-50 vezes mais rápido. O teste concorrente também valida conteúdo/timestamps,
-FIFO/lock não bloqueantes, permissões e limite do arquivo privado.
+The ISO8601 formatter was created/configured twice per exchange. A synchronized
+cache retains the format and avoids repeated construction. Benchmark of
+10.000 actual records: about 1,10–1,12 s CPU before, 20–24 ms after.
+This gain applies to the logging routine; it does not mean the entire app became
+50 times faster. The concurrent test also validates content/timestamps,
+nonblocking FIFO/lock, permissions and private file limit.
 
-A revisão da kext encontrou timer B/C retido no WorkLoop compartilhado após
-releasePlatform soltar a referência do loop. A remoção agora ocorre antes.
-O teste real de teardown mantém uma segunda placa simulada e repete 10.000
-ciclos; mede propriedade/retenção, não apenas ausência de crash.
+Kext review found a B/C timer retained in the shared WorkLoop after
+releasePlatform released the loop reference. Removal now happens first.
+The actual teardown test retains a second simulated adapter and repeats 10.000
+cycles; it measures ownership/retention, not only absence of a crash.
 
-Os pedidos de payload DMA são fixos/reutilizados: 117.760 bytes por placa,
-ou 183.296 no RTL8814AU. Isso exclui arredondamento por página, descritores,
-mbufs, nós net80211, objetos IOKit e heaps próprios de cada família. Não é
-memória total da kext. CPU/memória de kernel_task são agregados do kernel;
-não foram atribuídos exclusivamente a este driver.
+DMA payload requests are fixed/reused: 117.760 bytes per adapter,
+or 183.296 on RTL8814AU. This excludes page rounding, descriptors,
+mbufs, net80211 nodes, IOKit objects and each family's own heaps. It is not
+total kext memory. CPU/memory of kernel_task are kernel aggregates;
+they were not attributed exclusively to this driver.
 
-## Sistema real observado nesta rodada
+## Actual system observed in this round
 
-macOS 26.7.2/25G332, kext compilada pelo usuário build57,
-UUID 4D759E33-4832-38A0-9518-54607CC0D327; app49 no início.
-T9UH/RTL8814AU: en3, canal36/5GHz, WPA2/CCMP autorizado, USBerror0.
-RTL8192EU: en1, presente e procurando redes de 2,4GHz, sem link/IP naquele
-momento, USBerror0. LIST/STATUS/MAP passaram nos dois. Não houve nova associação
-forçada para mudar esse estado. A rota padrão usa en3; serviço en3 precede en1.
-GET HTTPS vinculado a en3 retornou HTTP200/577 bytes em aproximadamente65 ms.
-Isso verifica entrega de dados e não mede velocidade sustentada.
+macOS 26.7.2/25G332, user-built kext build57,
+UUID 4D759E33-4832-38A0-9518-54607CC0D327; app49 initially.
+T9UH/RTL8814AU: en3, channel 36/5GHz, WPA2/CCMP authorized, USBerror 0.
+RTL8192EU: en1, present and searching for 2.4GHz networks, without link/IP at that
+moment, USBerror 0. LIST/STATUS/MAP passed on both. No new association was
+forced to change this state. The default route uses en3; service en3 precedes en1.
+An HTTPS GET bound to en3 returned HTTP200/577 bytes in approximately 65 ms.
+This verifies data delivery and does not measure sustained speed.
 
-O EU ocioso repetia canais com a mesma geração de busca. A busca infinita vem
-da política importada de procurar AP; a alteração desta entrega separa busca
-para listar redes da busca que procura o perfil de JOIN. A validação nova do
-rádio precisa da build58 carregada pelo usuário.
+The idle EU repeated channels with the same search generation. Infinite search comes
+from the imported AP-search policy; this delivery's change separates searching
+to list networks from searching for the JOIN profile. New radio validation
+requires the user to load build58.
 
-## Publicação e limites
+## Publication and limits
 
-Diretórios gerados build-*/out-*, SDK e Release estão excluídos do Git e do ZIP
-de source. SDK local ou extraído sem Git é verificado por manifesto completo
-Headers/Library e revisão quando existe metadata Git. Dependência divergente
-é recusada e preservada. Firmware, licenças e notices de terceiros permanecem.
+Generated build-*/out-* directories, SDK and Release are excluded from Git and the source
+ZIP. A local or extracted SDK without Git is checked using a complete Headers/Library
+manifest and revision when Git metadata exists. A divergent dependency
+is rejected and preserved. Firmware, licenses and third-party notices remain.
 
-O source não contém dados de autenticação reais identificados pela varredura
-realizada; testes usam somente fixtures. Esse exame tem limite de padrões e
-não é prova matemática de ausência de toda informação privada.
+The source contains no actual authentication data identified by the scan
+performed; tests use fixtures only. This examination is limited by patterns and
+is not mathematical proof that all private information is absent.
 
-Os limites documentados na matriz continuam: RTL8814AU HT20/até dois fluxos,
-RTL8814BU estação fechada, canal144 fechado e sem WPA3/AX/modo AP. Não há
-homologação física de todas as 262 identidades elegíveis/revisões. Contadores
-RX nativos continuam zerados apesar de tráfego entregue; Skywalk está ativo.
-A causa exata dessa divergência ainda não foi demonstrada. Não há incrementos
-manuais ou alteração de capacidades para mascarar essa observação.
+Documented matrix limits remain: RTL8814AU HT20/up to two streams,
+RTL8814BU station closed, channel 144 closed and no WPA3/AX/AP mode. There is no
+physical certification of all 262 eligible identities/revisions. Native RX
+counters remain zero despite delivered traffic; Skywalk is active.
+The exact cause of this discrepancy has not yet been demonstrated. There are no manual
+increments or capability changes to conceal this observation.

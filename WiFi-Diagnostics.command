@@ -1,13 +1,13 @@
 #!/bin/bash
-# TahoeRealtekWiFi — coletor de diagnósticos somente leitura para macOS Tahoe / Intel.
-# Compatível com o Bash 3.2 fornecido pelo macOS; sem Homebrew, Python ou kext.
-# Não instala, não carrega drivers e não altera SIP/AMFI ou a configuração de rede.
+# TahoeRealtekWiFi — read-only diagnostic collector for macOS Tahoe / Intel.
+# Compatible with macOS Bash 3.2; no Homebrew, Python or kext required.
+# Does not install/load drivers or change SIP/AMFI or network settings.
 set -u
 set -o pipefail
 umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
-COLLECTOR_REVISION=2
+COLLECTOR_REVISION=3
 MINUTES=30
 INCLUDE_DEBUG=0
 RAW=0
@@ -18,85 +18,85 @@ COMMAND_TIMEOUT=30
 NO_PAUSE=0
 
 usage() {
-    printf 'Revisão do coletor: %s\n\n' "$COLLECTOR_REVISION"
+    printf 'Collector revision: %s\n\n' "$COLLECTOR_REVISION"
     cat <<'HELP'
 TahoeRealtekWiFi — WiFi-Diagnostics.command
 
-Duplo clique: coleta detalhada dos últimos 30 minutos, com mascaramento básico de dados
-pessoais. Salva uma pasta e um ZIP em ~/Library/Logs/Tahoe-WiFi-USB/Diagnostics/.
-Inclui duas leituras por adaptador e diferenças dos contadores USB/RX/TX.
-Se a consulta principal de logs exceder o prazo, tenta uma janela recente de 2min.
+Double-click: collect detailed diagnostics from the last 30 minutes with basic
+personal-data masking. Save a directory and ZIP in ~/Library/Logs/Tahoe-WiFi-USB/Diagnostics/.
+Includes two readings per adapter and USB/RX/TX counter differences.
+If the main log query times out, try an independent recent 2-minute window.
 
-Opções no Terminal:
-  --minutes N       Janela de logs: 30 ou 60 minutos (padrão: 30)
-  --hours 1         Atalho compatível: seleciona 60 minutos
-  --debug           Inclui mensagens DEBUG na consulta (padrão: INFO)
-  --admin           Usa sudo SOMENTE em leituras de logs e 'wdutil info'
-  --raw             Não mascara dados pessoais: compartilhe apenas em privado
-  --full-unified    Inclui o logarchive COMPLETO da janela (exige --raw);
-                    pode ser grande e conter dados sensíveis
-  --output-dir DIR  Destino personalizado para a pasta e ZIP
-  --command-timeout N  Limite de cada comando: 1–120 segundos (padrão: 30)
-  --no-pause        Não aguarda Enter ao finalizar
-  --help            Mostra esta ajuda
+Terminal options:
+  --minutes N       Log window: 30 or 60 minutes (default: 30)
+  --hours 1         Compatibility shortcut: select 60 minutes
+  --debug           Include DEBUG messages in the query (default: INFO)
+  --admin           Use sudo ONLY for log reads and 'wdutil info'
+  --raw             Do not mask personal data: share privately only
+  --full-unified    Include the COMPLETE logarchive window (requires --raw);
+                    it may be large and contain sensitive data
+  --output-dir DIR  Custom destination for the directory and ZIP
+  --command-timeout N  Per-command limit: 1–120 seconds (default: 30)
+  --no-pause        Do not wait for Enter when finished
+  --help            Show this help
 
-Nunca solicita sua senha de Wi-Fi. Sem --admin não solicita senha de macOS.
-Não envia dados pela internet; é necessário anexar o ZIP manualmente ao chat.
+Never requests your Wi-Fi password. Without --admin, no macOS password is requested.
+Does not send data over the Internet; attach the ZIP manually to the chat.
 HELP
 }
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --minutes)
-            if [ "$#" -lt 2 ]; then echo "Falta valor após --minutes" >&2; exit 2; fi
+            if [ "$#" -lt 2 ]; then echo "Missing value after --minutes" >&2; exit 2; fi
             MINUTES="$2"; shift 2 ;;
         --hours)
-            if [ "$#" -lt 2 ]; then echo "Falta valor após --hours" >&2; exit 2; fi
-            if [ "$2" != "1" ]; then echo "--hours aceita somente 1 (60 minutos)." >&2; exit 2; fi
+            if [ "$#" -lt 2 ]; then echo "Missing value after --hours" >&2; exit 2; fi
+            if [ "$2" != "1" ]; then echo "--hours accepts only 1 (60 minutes)." >&2; exit 2; fi
             MINUTES=60; shift 2 ;;
         --debug) INCLUDE_DEBUG=1; shift ;;
         --admin) ADMIN=1; shift ;;
         --raw) RAW=1; shift ;;
         --full-unified) FULL_UNIFIED=1; shift ;;
         --output-dir)
-            if [ "$#" -lt 2 ]; then echo "Falta diretório após --output-dir" >&2; exit 2; fi
+            if [ "$#" -lt 2 ]; then echo "Missing directory after --output-dir" >&2; exit 2; fi
             OUTPUT_BASE="$2"; shift 2 ;;
         --command-timeout)
-            if [ "$#" -lt 2 ]; then echo "Falta valor após --command-timeout" >&2; exit 2; fi
+            if [ "$#" -lt 2 ]; then echo "Missing value after --command-timeout" >&2; exit 2; fi
             COMMAND_TIMEOUT="$2"; shift 2 ;;
         --no-pause) NO_PAUSE=1; shift ;;
         --help|-h) usage; exit 0 ;;
-        *) echo "Opção desconhecida: $1" >&2; usage >&2; exit 2 ;;
+        *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
 done
 
 case "$MINUTES" in
     30|60) ;;
-    *) echo "--minutes aceita somente 30 ou 60 minutos." >&2; exit 2 ;;
+    *) echo "--minutes accepts only 30 or 60 minutes." >&2; exit 2 ;;
 esac
 case "$COMMAND_TIMEOUT" in
-    ''|*[!0-9]*|????*) echo "--command-timeout aceita inteiros de 1 a 120." >&2; exit 2 ;;
+    ''|*[!0-9]*|????*) echo "--command-timeout accepts integers from 1 to 120." >&2; exit 2 ;;
 esac
-# Prefixo decimal evita interpretação octal de valores como 08 no Bash3.2.
+# A decimal prefix prevents octal interpretation of values such as 08 in Bash 3.2.
 COMMAND_TIMEOUT=$((10#$COMMAND_TIMEOUT))
 if [ "$COMMAND_TIMEOUT" -lt 1 ] || [ "$COMMAND_TIMEOUT" -gt 120 ]; then
-    echo "--command-timeout aceita inteiros de 1 a 120." >&2; exit 2
+    echo "--command-timeout accepts integers from 1 to 120." >&2; exit 2
 fi
 if [ "$FULL_UNIFIED" -eq 1 ] && [ "$RAW" -ne 1 ]; then
-    echo "--full-unified exige --raw: arquivos logarchive não podem ser mascarados." >&2
+    echo "--full-unified requires --raw: logarchive files cannot be masked." >&2
     exit 2
 fi
 if ! /usr/bin/perl -MJSON::PP -MPOSIX -MTime::HiRes -e 1 >/dev/null 2>&1; then
-    echo "Este Mac precisa do Perl nativo e seus módulos padrão para coletar. Nada coletado." >&2
+    echo "This Mac needs native Perl and its standard modules for collection. Nothing was collected." >&2
     exit 1
 fi
 if [ "$(uname -s)" != "Darwin" ]; then
-    echo "Este .command deve ser executado diretamente no macOS." >&2
+    echo "Run this .command directly on macOS." >&2
     exit 1
 fi
 
 if ! mkdir -p "$OUTPUT_BASE"; then
-    echo "Sem permissão de escrita em: $OUTPUT_BASE" >&2
+    echo "No write permission for: $OUTPUT_BASE" >&2
     exit 1
 fi
 OUTPUT_BASE="$(cd "$OUTPUT_BASE" && pwd -P)"
@@ -106,13 +106,13 @@ ZIP_PATH="$RUN_DIR.zip"
 mkdir -p "$RUN_DIR/system" "$RUN_DIR/usb" "$RUN_DIR/network" \
          "$RUN_DIR/drivers" "$RUN_DIR/logs" "$RUN_DIR/crashes"
 STATUS="$RUN_DIR/STATUS.tsv"
-printf 'arquivo\tresultado\tstatus_saida\tcomando\n' > "$STATUS"
+printf 'file\tresult\texit_status\tcommand\n' > "$STATUS"
 SUCCESS=0
 FAILURE=0
 
-# Cada comando tem um grupo próprio. O coletor só termina seus filhos,
-# incluindo descendentes; o PID permanece reservado até waitpid concluir.
-# O relógio monotônico independe de ajustes de data/NTP durante a coleta.
+# Each command has its own group. The collector terminates only its children
+# and descendants; the PID remains reserved until waitpid completes.
+# The monotonic clock is independent of date/NTP adjustments during collection.
 BOUNDED_PERL=$(cat <<'PERL_TIMEOUT'
 use strict;
 use warnings;
@@ -152,13 +152,13 @@ run_bounded() {
     /usr/bin/perl -e "$BOUNDED_PERL" "$COMMAND_TIMEOUT" "$@"
 }
 run_admin_bounded() {
-    # O monitor também precisa ser root para poder encerrar seus próprios filhos.
+    # The monitor also needs root to terminate its own children.
     sudo -n /usr/bin/perl -e "$BOUNDED_PERL" "$COMMAND_TIMEOUT" "$@"
 }
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-# Uma falha pontual deve constar no pacote, sem interromper os demais exames.
+# Include individual failures in the package without interrupting other checks.
 run_capture() {
     local rel="$1" rc quoted="" a
     shift
@@ -169,7 +169,7 @@ run_capture() {
         SUCCESS=$((SUCCESS + 1))
     else
         rc=$?
-        printf '%s\tfalhou\t%s\t%s\n' "$rel" "$rc" "$quoted" >> "$STATUS"
+        printf '%s\tfailed\t%s\t%s\n' "$rel" "$rc" "$quoted" >> "$STATUS"
         FAILURE=$((FAILURE + 1))
     fi
 }
@@ -177,20 +177,20 @@ run_capture() {
 run_admin_capture() {
     local rel="$1" rc quoted="" a
     shift
-    printf '  • %s (leitura administrativa)\n' "$rel"
+    printf '  • %s (administrative read)\n' "$rel"
     for a in "$@"; do quoted="$quoted $(printf '%q' "$a")"; done
     if run_admin_bounded "$@" > "$RUN_DIR/$rel" 2>&1; then
         printf '%s\tok\t0\tsudo%s\n' "$rel" "$quoted" >> "$STATUS"
         SUCCESS=$((SUCCESS + 1))
     else
         rc=$?
-        printf '%s\tfalhou\t%s\tsudo%s\n' "$rel" "$rc" "$quoted" >> "$STATUS"
+        printf '%s\tfailed\t%s\tsudo%s\n' "$rel" "$rc" "$quoted" >> "$STATUS"
         FAILURE=$((FAILURE + 1))
     fi
 }
 
-# spctl usa exit1 para o estado desabilitado. Aceitar somente essa resposta
-# exata; mensagens adicionais, outros erros ou códigos continuam sendo falha.
+# spctl uses exit1 for the disabled state. Accept only this exact response;
+# additional messages, other errors or other exit codes remain failures.
 capture_gatekeeper_state() {
     local rc
     echo '  • system/gatekeeper.txt'
@@ -204,10 +204,10 @@ capture_gatekeeper_state() {
             exit(defined($text) && ($text eq "assessments disabled\n" ||
                 $text eq "assessments disabled")?0:1);
         ' "$RUN_DIR/system/gatekeeper.txt"; then
-            printf 'system/gatekeeper.txt\testado_esperado\t1\tspctl --status\n' >> "$STATUS"
+            printf 'system/gatekeeper.txt\texpected_state\t1\tspctl --status\n' >> "$STATUS"
             SUCCESS=$((SUCCESS + 1))
         else
-            printf 'system/gatekeeper.txt\tfalhou\t%s\tspctl --status\n' "$rc" >> "$STATUS"
+            printf 'system/gatekeeper.txt\tfailed\t%s\tspctl --status\n' "$rc" >> "$STATUS"
             FAILURE=$((FAILURE + 1))
         fi
     fi
@@ -216,23 +216,23 @@ capture_gatekeeper_state() {
 cat <<EOM
 
 ========================================================
- TahoeRealtekWiFi — diagnóstico USB / Wi-Fi do macOS
+ TahoeRealtekWiFi — macOS USB / Wi-Fi diagnostics
 ========================================================
-Revisão do coletor: ${COLLECTOR_REVISION}
-Janela dos logs: ${MINUTES} minutos
-Privacidade: $(if [ "$RAW" -eq 1 ]; then echo 'dados originais (SENSÍVEL)'; else echo 'mascaramento básico'; fi)
-Coleta: somente leitura de sistema; cria apenas arquivos de relatório.
-Destino: $RUN_DIR
+Collector revision: ${COLLECTOR_REVISION}
+Log window: ${MINUTES} minutes
+Privacy: $(if [ "$RAW" -eq 1 ]; then echo 'original data (SENSITIVE)'; else echo 'basic masking'; fi)
+Collection: read-only system queries; creates report files only.
+Destination: $RUN_DIR
 
 EOM
 
 ADMIN_READY=0
 if [ "$ADMIN" -eq 1 ]; then
-    echo "--admin solicitado: sudo será usado apenas para ler diagnósticos."
-    if sudo -v; then ADMIN_READY=1; else echo "Sem sudo: prosseguindo sem privilégios adicionais."; fi
+    echo "--admin requested: sudo will be used only to read diagnostics."
+    if sudo -v; then ADMIN_READY=1; else echo "No sudo: continuing without additional privileges."; fi
 fi
 
-# Capturar cedo mantém evidência do adaptador falho antes dos comandos lentos.
+# Capture early to preserve failed-adapter evidence before slow commands.
 run_capture drivers/RTW-before-time.txt date -u '+%Y-%m-%dT%H:%M:%SZ'
 run_capture drivers/RTW-before.txt ioreg -r -c RTWUSBController -l -w0
 run_capture drivers/loaded-RTW-kext.txt kextstat -l -b org.research.TahoeRealtekWiFi
@@ -249,8 +249,8 @@ if [ -f "$app_control_log" ] && [ ! -L "$app_control_log" ]; then
     run_capture logs/app-control.jsonl tail -c 2097152 "$app_control_log"
 fi
 
-# Inventário de sistema: sem exportação de NVRAM completo, senhas ou perfis Wi-Fi.
-echo '[1/7] Sistema e estado de segurança'
+# System inventory: do not export complete NVRAM, passwords or Wi-Fi profiles.
+echo '[1/7] System and security state'
 run_capture system/macOS.txt sw_vers
 run_capture system/kernel.txt uname -sr
 run_capture system/architecture.txt uname -m
@@ -261,8 +261,8 @@ run_capture system/hardware.txt system_profiler SPHardwareDataType
 run_capture system/software.txt system_profiler SPSoftwareDataType
 run_capture system/power.txt pmset -g
 
-# No macOS Tahoe 26 o nome passou de SPUSBDataType para SPUSBHostDataType.
-echo '[2/7] Inventário USB completo: VID:PID, portas, interfaces e endpoints'
+# macOS Tahoe 26 renamed SPUSBDataType to SPUSBHostDataType.
+echo '[2/7] Complete USB inventory: VID:PID, ports, interfaces and endpoints'
 run_capture usb/system_profiler_types.txt system_profiler -listDataTypes
 USB_TYPE_FOUND=0
 if grep -Eq '(^|[[:space:]])SPUSBHostDataType([[:space:]]|$)' "$RUN_DIR/usb/system_profiler_types.txt"; then
@@ -276,7 +276,7 @@ if grep -Eq '(^|[[:space:]])SPUSBDataType([[:space:]]|$)' "$RUN_DIR/usb/system_p
     USB_TYPE_FOUND=1
 fi
 if [ "$USB_TYPE_FOUND" -eq 0 ]; then
-    # Fallback caso a enumeração de tipos falhe ou varie entre builds.
+    # Fall back if type enumeration fails or varies between builds.
     run_capture usb/SPUSBHostDataType.txt system_profiler -detailLevel full SPUSBHostDataType
     run_capture usb/SPUSBDataType.txt system_profiler -detailLevel full SPUSBDataType
 fi
@@ -286,18 +286,18 @@ run_capture usb/ioreg_USBHostInterface.txt ioreg -r -c IOUSBHostInterface -l -w0
 run_capture usb/ioreg_USBHostPipe.txt ioreg -r -c IOUSBHostPipe -l -w0
 run_capture usb/ioreg_legacy_USBDevice.txt ioreg -r -c IOUSBDevice -l -w0
 
-# Enumerar TODOS os USB: adaptadores rebatizados podem não usar VID 0BDA.
-# Se o IORegistry não revelar os dois IDs, os relatórios completos são a fonte.
+# Enumerate ALL USB devices: rebranded adapters may not use VID 0BDA.
+# If IORegistry does not expose both IDs, use the complete reports.
 {
-    echo 'DISPOSITIVOS USB ENCONTRADOS (nome e IDs lidos de IOUSBHostDevice)'
-    echo 'Atenção: VID:PID identifica o dispositivo USB, mas não garante o chip interno.'
+    echo 'USB DEVICES FOUND (names and IDs read from IOUSBHostDevice)'
+    echo 'Notice: VID:PID identifies the USB device, but does not guarantee its internal chipset.'
     echo
     if command -v perl >/dev/null 2>&1; then
         perl - "$RUN_DIR/usb/ioreg_USBHostDevice.txt" <<'PERL_USB'
 use strict;
 use warnings;
 my $source = shift;
-open my $fh, '<', $source or die "Não consegui ler $source: $!\n";
+open my $fh, '<', $source or die "Could not read $source: $!\n";
 my ($name, $vid, $pid, $revision, $manufacturer, $product);
 my $emit = sub {
     return unless defined($vid) && defined($pid);
@@ -307,10 +307,10 @@ my $emit = sub {
     };
     my ($v, $p) = ($fmt->($vid), $fmt->($pid));
     return if $v > 65535 || $p > 65535;
-    my $n = defined($product) ? $product : (defined($name) ? $name : '(sem nome)');
+    my $n = defined($product) ? $product : (defined($name) ? $name : '(unnamed)');
     $n =~ s/[\r\n\t]+/ /g;
     printf "VID:PID %04X:%04X | %s", $v, $p, $n;
-    print " | fabricante: $manufacturer" if defined($manufacturer);
+    print " | manufacturer: $manufacturer" if defined($manufacturer);
     print " | bcdDevice: $revision" if defined($revision);
     print "\n";
 };
@@ -328,16 +328,16 @@ while (my $line = <$fh>) {
 $emit->();
 PERL_USB
     else
-        echo 'Perl indisponível; confira os arquivos ioreg_USB*.txt.'
+        echo 'Perl unavailable; check the ioreg_USB*.txt files.'
     fi
 } > "$RUN_DIR/USB-IDENTIFICATION.txt" 2>&1
 if ! grep -q '^VID:PID ' "$RUN_DIR/USB-IDENTIFICATION.txt"; then
-    printf '\nNenhum VID:PID extraído automaticamente. Consulte as saídas integrais de ioreg e system_profiler em usb/.\n' >> "$RUN_DIR/USB-IDENTIFICATION.txt"
+    printf '\nNo VID:PID extracted automatically. See the complete ioreg and system_profiler output in usb/.\n' >> "$RUN_DIR/USB-IDENTIFICATION.txt"
 fi
 
 {
-    echo 'POSSÍVEIS ADAPTADORES WI-FI USB (extratos, não lista exaustiva)'
-    echo 'Para confirmação, conferir o inventário USB INTEGRAL do pacote.'
+    echo 'POSSIBLE USB WI-FI ADAPTERS (excerpts, not an exhaustive list)'
+    echo 'For confirmation, check the COMPLETE USB inventory in the package.'
     echo
     for f in "$RUN_DIR"/usb/SPUSB*txt "$RUN_DIR"/usb/ioreg_USB_tree.txt; do
         [ -f "$f" ] || continue
@@ -346,8 +346,8 @@ fi
     done
 } > "$RUN_DIR/USB-WIFI-CANDIDATES.txt"
 
-# Redes ativas e como o macOS associa serviços a interfaces en0, en1, etc.
-echo '[3/7] Rede, Wi-Fi nativo e interfaces Ethernet'
+# Active networks and how macOS maps services to en0, en1 and other interfaces.
+echo '[3/7] Networking, native Wi-Fi and Ethernet interfaces'
 run_capture network/hardware_ports.txt networksetup -listallhardwareports
 run_capture network/network_services.txt networksetup -listallnetworkservices
 run_capture network/ifconfig_all.txt ifconfig -a
@@ -363,8 +363,8 @@ if command -v wdutil >/dev/null 2>&1; then
     fi
 fi
 
-# Drivers em execução e os dispositivos que os serviços IOKit reivindicaram.
-echo '[4/7] Kexts, System Extensions e matching de drivers'
+# Running drivers and the devices claimed by IOKit services.
+echo '[4/7] Kexts, System Extensions and driver matching'
 run_capture drivers/kmutil_showloaded.txt kmutil showloaded
 run_capture drivers/kextstat.txt kextstat -l
 run_capture drivers/systemextensionsctl.txt systemextensionsctl list
@@ -373,20 +373,20 @@ run_capture drivers/network_interfaces.txt ioreg -r -c IONetworkInterface -l -w0
 run_capture drivers/installed_kexts.txt ls -la /Library/Extensions
 run_capture drivers/installed_systemextensions.txt ls -la /Library/SystemExtensions
 
-# Uma consulta principal ao log unificado; apenas timeout124 permite uma
-# segunda consulta independente dos ultimos 2min. Historico parcial e preservado.
-# O filtro prioriza USB e mensagens de Wi-Fi/Ethernet; evita coletar todos os
-# eventos de configd/networkd por 24h. INFO e mensagens padrao por default;
-# DEBUG somente com --debug para nao inflar os arquivos desnecessariamente.
-echo "[5/7] Logs unificados (${MINUTES} minutos, consulta principal; DEBUG=$(if [ "$INCLUDE_DEBUG" -eq 1 ]; then echo sim; else echo nao; fi))"
+# One main unified-log query; only timeout124 allows a second, independent
+# query for the last 2 minutes. Preserve partial history.
+# The filter prioritizes USB and Wi-Fi/Ethernet messages rather than all
+# configd/networkd events over 24 hours. Include INFO and default messages;
+# enable DEBUG only with --debug to avoid unnecessarily large files.
+echo "[5/7] Unified logs (${MINUTES} minutes, main query; DEBUG=$(if [ "$INCLUDE_DEBUG" -eq 1 ]; then echo yes; else echo no; fi))"
 USB_PRED='(subsystem CONTAINS[c] "usb" OR eventMessage CONTAINS[c] "Realtek" OR eventMessage CONTAINS[c] "RtWlan" OR eventMessage CONTAINS[c] "rtl8192" OR eventMessage CONTAINS[c] "2357" OR eventMessage CONTAINS[c] "TahoeRealtekWiFi")'
 WIFI_PRED='(subsystem CONTAINS[c] "wifi" OR subsystem CONTAINS[c] "80211" OR eventMessage CONTAINS[c] "AirPort" OR eventMessage CONTAINS[c] "itlwm")'
 NET_PRED='(eventMessage CONTAINS[c] "IOEthernet" OR eventMessage CONTAINS[c] "IONetwork" OR subsystem CONTAINS[c] "network")'
 UNIFIED_PRED="($USB_PRED OR $WIFI_PRED OR $NET_PRED)"
-# Cada consulta usa o mesmo conversor: ate 6MiB por categoria, mantendo as
-# ultimas linhas RECEBIDAS. Um timeout pode parar antes de chegar ao presente.
-# A cobertura registra os timestamps efetivamente recebidos, inclusive quando
-# nenhuma linha tem timestamp reconhecivel; isso nao confirma ausencia de eventos.
+# Each query uses the same converter: up to 6 MiB per category, retaining the
+# last RECEIVED lines. A timeout may stop before reaching the present.
+# Coverage records timestamps actually received, including when no line has
+# a recognized timestamp; that does not establish the absence of events.
 UNIFIED_CONVERTER=$(cat <<'PERL_UNIFIED'
     use strict;
     use warnings;
@@ -427,19 +427,19 @@ UNIFIED_CONVERTER=$(cat <<'PERL_UNIFIED'
         }
     }
     open my $summary, ">", "$outdir/unified-summary.txt" or die "$outdir: $!";
-    print $summary "Consulta de logs unificados; janela solicitada: ultimos ${minutes}min.\n";
-    print $summary "Limite de conteudo por categoria: $max bytes, mantendo as ultimas mensagens RECEBIDAS.\n";
+    print $summary "Unified-log query; requested window: last ${minutes}min.\n";
+    print $summary "Content limit per category: $max bytes, retaining the last RECEIVED messages.\n";
     for my $n (@names) {
         open my $fh, ">", "$outdir/$n.log" or die "$n: $!";
-        print $fh "# $n: mensagens recebidas nesta consulta, eventualmente truncadas por tamanho.\n";
-        print $fh "# Mensagens antigas descartadas pelo limite: $dropped{$n}\n";
+        print $fh "# $n: messages received in this query, possibly truncated by the size limit.\n";
+        print $fh "# Old messages discarded by the limit: $dropped{$n}\n";
         if (!@{$queue{$n}}) {
-            print $fh "# Nenhuma linha correspondente recebida nesta consulta; confira cobertura e status.\n";
+            print $fh "# No matching line received in this query; check coverage and status.\n";
         } else {
             print $fh $_ for @{$queue{$n}};
         }
         close $fh or die "close $n: $!";
-        printf $summary "%s: identificadas=%d; retidas=%d; antigas_descartadas=%d; bytes_retidos=%d\n",
+        printf $summary "%s: matched=%d; retained=%d; old_discarded=%d; bytes_retained=%d\n",
             $n, $count{$n}, scalar(@{$queue{$n}}), $dropped{$n}, $size{$n};
     }
     close $summary or die "close summary: $!";
@@ -462,7 +462,7 @@ capture_unified_query() {
     local -a log_args log_cmd pipeline_rc
     outdir="$RUN_DIR/$rel"
     if ! mkdir -p "$outdir"; then
-        printf '%s/unified-onepass\tfalhou\t125\tnao foi possivel criar destino\n' "$rel" >> "$STATUS"
+        printf '%s/unified-onepass\tfailed\t125\tcould not create destination\n' "$rel" >> "$STATUS"
         FAILURE=$((FAILURE + 1))
         return 125
     fi
@@ -473,9 +473,9 @@ capture_unified_query() {
     else
         log_cmd=(run_bounded log "${log_args[@]}")
     fi
-    # O grupo do log e encerrado no prazo; EOF permite guardar a saida parcial.
-    # Guardar os dois status imediatamente preserva o rc real da consulta,
-    # mesmo se o conversor tambem falhar.
+    # Terminate the log process group at the deadline; EOF preserves partial output.
+    # Save both statuses immediately to preserve the real query return code,
+    # even if the converter also fails.
     if "${log_cmd[@]}" 2>"$outdir/log-show.stderr.txt" | /usr/bin/perl -e "$UNIFIED_CONVERTER" "$outdir" 6291456 "$minutes"; then
         pipeline_rc=("${PIPESTATUS[@]}")
     else
@@ -487,12 +487,12 @@ capture_unified_query() {
         printf '%s/unified-onepass\tok\t0\tlog show --last %sm\n' "$rel" "$minutes" >> "$STATUS"
         SUCCESS=$((SUCCESS + 1))
     else
-        printf '%s/unified-onepass\tfalhou\t%s\tlog show --last %sm\n' "$rel" "$query_rc" "$minutes" >> "$STATUS"
+        printf '%s/unified-onepass\tfailed\t%s\tlog show --last %sm\n' "$rel" "$query_rc" "$minutes" >> "$STATUS"
         FAILURE=$((FAILURE + 1))
-        echo "[AVISO] Consulta de ${minutes}min falhou ($query_rc): confira $rel/log-show.stderr.txt" >&2
+        echo "[WARNING] ${minutes}min query failed ($query_rc): see $rel/log-show.stderr.txt" >&2
     fi
     if [ "$converter_rc" -ne 0 ]; then
-        printf '%s/unified-converter\tfalhou\t%s\tPerl: categorias recebidas\n' "$rel" "$converter_rc" >> "$STATUS"
+        printf '%s/unified-converter\tfailed\t%s\tPerl: received categories\n' "$rel" "$converter_rc" >> "$STATUS"
         FAILURE=$((FAILURE + 1))
     fi
     if /usr/bin/perl - "$outdir" "$minutes" "$query_rc" "$converter_rc" <<'PERL_COVERAGE'
@@ -516,19 +516,19 @@ open my $out,">",$path or die "coverage output: $!";
 print $out JSON::PP->new->canonical->pretty->encode($coverage);
 close $out or die "close coverage output: $!";
 open my $summary,">>","$root/unified-summary.txt" or die "coverage summary: $!";
-print $summary "\nJanela solicitada: ultimos ${minutes}min; status de saida da consulta: $query_rc.\n";
-print $summary "Captura: ".($coverage->{capture_status} eq "query_completed"?
-    "consulta encerrada sem erro":"parcial ou indisponivel").".\n";
-print $summary "Primeiro timestamp recebido: ".($coverage->{first_received_timestamp}//"indisponivel")."\n";
-print $summary "Ultimo timestamp recebido: ".($coverage->{last_received_timestamp}//"indisponivel")."\n";
-print $summary "Cobertura ate o presente: nao estabelecida; consulte os timestamps recebidos.\n";
+print $summary "\nRequested window: last ${minutes}min; query exit status: $query_rc.\n";
+print $summary "Capture: ".($coverage->{capture_status} eq "query_completed"?
+    "query completed without error":"partial or unavailable").".\n";
+print $summary "First received timestamp: ".($coverage->{first_received_timestamp}//"unavailable")."\n";
+print $summary "Last received timestamp: ".($coverage->{last_received_timestamp}//"unavailable")."\n";
+print $summary "Coverage through the present: not established; inspect the received timestamps.\n";
 close $summary or die "close coverage summary: $!";
 PERL_COVERAGE
     then
         :
     else
         coverage_rc=$?
-        printf '%s/unified-coverage\tfalhou\t%s\tPerl: cobertura recebida\n' "$rel" "$coverage_rc" >> "$STATUS"
+        printf '%s/unified-coverage\tfailed\t%s\tPerl: received coverage\n' "$rel" "$coverage_rc" >> "$STATUS"
         FAILURE=$((FAILURE + 1))
     fi
     return "$query_rc"
@@ -537,12 +537,12 @@ PERL_COVERAGE
 PRIMARY_LOG_RC=0
 capture_unified_query "$MINUTES" logs || PRIMARY_LOG_RC=$?
 if [ "$PRIMARY_LOG_RC" -eq 124 ]; then
-    echo '[5b/7] Historico parcial; tentativa independente dos ultimos 2min em logs/recent/'
+    echo '[5b/7] Partial history; independent last-2min attempt in logs/recent/'
     capture_unified_query 2 logs/recent || true
 fi
 
-# Relatórios históricos por nome, sem filtro de idade/ordem/dedup.
-echo '[6/7] Relatórios históricos por nome (até 20 arquivos, até 10 MB cada)'
+# Historical reports selected by name, without age filtering/sorting/deduplication.
+echo '[6/7] Historical reports by name (up to 20 files, up to 10 MB each)'
 CRASH_COUNT=0
 for crash_root in "$HOME/Library/Logs/DiagnosticReports" /Library/Logs/DiagnosticReports; do
     [ -d "$crash_root" ] || continue
@@ -561,11 +561,11 @@ for crash_root in "$HOME/Library/Logs/DiagnosticReports" /Library/Logs/Diagnosti
         fi
     done < <(find "$crash_root" -maxdepth 1 -type f \( -name '*.ips' -o -name '*.crash' -o -name '*.panic' \) -print0 2>/dev/null)
 done
-printf '%s\n' "Relatórios de falha copiados: $CRASH_COUNT" > "$RUN_DIR/crashes/INDEX.txt"
+printf '%s\n' "Crash reports copied: $CRASH_COUNT" > "$RUN_DIR/crashes/INDEX.txt"
 
-# Esta opção NÃO executa alterações em 'log config' nem 'wdutil log'.
+# This option does not change 'log config' or 'wdutil log'.
 if [ "$FULL_UNIFIED" -eq 1 ]; then
-    echo '[6b/7] Arquivo completo de logs unificados (não pode ser anonimizado)'
+    echo '[6b/7] Complete unified-log archive (cannot be anonymized)'
     if [ "$ADMIN_READY" -eq 1 ]; then
         run_admin_capture logs/unified_collection_status.txt log collect --last "${MINUTES}m" --output "$RUN_DIR/logs/unified-complete.logarchive"
     else
@@ -573,7 +573,7 @@ if [ "$FULL_UNIFIED" -eq 1 ]; then
     fi
 fi
 
-# Segunda leitura: a ordem de enumeração pode mudar; comparar somente por ID.
+# Second reading: enumeration order may change; compare only by ID.
 run_capture drivers/RTW-after-time.txt date -u '+%Y-%m-%dT%H:%M:%SZ'
 run_capture drivers/RTW-after.txt ioreg -r -c RTWUSBController -l -w0
 if /usr/bin/perl - "$RUN_DIR" 2>"$RUN_DIR/drivers/RTW-summary.stderr.txt" <<'PERL_RTW'
@@ -605,7 +605,7 @@ for my $phase (qw(before after)) {
     my (@rows,$row);
     while (my $line=<$in>) {
         if ($line =~ /<class RTWUSBController,\s*id\s+(0x[0-9a-f]+),/i) {
-            # IORegistry IDs são inteiros64 no macOS alvo, inclusive acima de2^32.
+            # IORegistry IDs are 64-bit integers on the target macOS, including values above 2^32.
             {no warnings "portable";$row={registry_id=>hex($1)};}
             push @rows,$row;next;
         }
@@ -676,12 +676,12 @@ if (open my $usb_in,"<","$root/usb/ioreg_USBHostInterface.txt") {
 open my $usb_json,">","$root/drivers/USB-STARTUP.json" or die "USB startup JSON: $!";
 print $usb_json $json->encode(\@usb_rows);close $usb_json or die "close USB startup JSON: $!";
 open my $usb_summary,">","$root/USB-STARTUP.txt" or die "USB startup summary: $!";
-print $usb_summary "TAHOE WI-FI USB - inicializacao observada no provider/controlador\n";
-print $usb_summary "Fonte: usb/ioreg_USBHostInterface.txt; propriedades proprias de cada Registry ID.\n";
+print $usb_summary "TAHOE WI-FI USB - startup observed on the provider/controller\n";
+print $usb_summary "Source: usb/ioreg_USBHostInterface.txt; properties belonging to each Registry ID.\n";
 if (($capture_rc{usb}//-1)!=0) {
-    print $usb_summary "Captura USB indisponivel/parcial; status=".($capture_rc{usb}//"ausente")."; nao conclui ausencia de adaptador ou de falha.\n";
+    print $usb_summary "USB capture unavailable/partial; status=".($capture_rc{usb}//"missing")."; does not establish the absence of an adapter or a failure.\n";
 }
-print $usb_summary "Sem propriedades RTW de inicializacao observadas; isto nao confirma ausencia de adaptador/falha.\n" unless @usb_rows;
+print $usb_summary "No RTW startup properties observed; this does not establish the absence of an adapter/failure.\n" unless @usb_rows;
 for my $r (@usb_rows) {
     my $vid=exists $r->{vid}?sprintf("%04x",$r->{vid}):"????";
     my $pid=exists $r->{pid}?sprintf("%04x",$r->{pid}):"????";
@@ -694,55 +694,55 @@ for my $r (@usb_rows) {
 }
 close $usb_summary or die "close USB startup summary: $!";
 open my $out,">","$root/RTW-SUMMARY.txt" or die "summary: $!";
-print $out "TAHOE WI-FI USB - duas leituras por Registry ID\n";
-print $out "Horários em drivers/RTW-before-time.txt e RTW-after-time.txt.\n";
-print $out "Contadores são cumulativos; ausência de campo não significa zero.\n";
-print $out "IORegistry contem os ultimos valores publicados; esta leitura nao solicita STATUS ao driver.\n";
-print $out "Delta0 significa valores publicados iguais, nao ausencia comprovada de erros/trafego novos.\n";
-print $out "Geracao/tempo, quando presentes, pertencem ao controlador; comparacao nao atomica.\n";
-print $out "WPA2 autorizado não confirma DHCP nem acesso à internet.\n";
-print $out "Inicializacao USB, inclusive sem controlador: USB-STARTUP.txt e drivers/USB-STARTUP.json.\n";
+print $out "TAHOE WI-FI USB - two readings per Registry ID\n";
+print $out "Timestamps in drivers/RTW-before-time.txt and RTW-after-time.txt.\n";
+print $out "Counters are cumulative; a missing field does not mean zero.\n";
+print $out "IORegistry contains the last published values; this read does not request driver STATUS.\n";
+print $out "Delta0 means equal published values, not a proven absence of new errors/traffic.\n";
+print $out "Generation/time, when available, belong to the controller; comparison is not atomic.\n";
+print $out "WPA2 authorization does not confirm DHCP or Internet access.\n";
+print $out "USB startup, including providers without a controller: USB-STARTUP.txt and drivers/USB-STARTUP.json.\n";
 my %ids=map {$_=>1} (keys %{$snapshots{before}},keys %{$snapshots{after}});
 unless (keys %ids) {
     if (($capture_rc{before}//-1)==0 && ($capture_rc{after}//-1)==0) {
-        print $out "Nenhum RTWUSBController encontrado; confira USB, kext carregada e STATUS.tsv.\n";
+        print $out "No RTWUSBController found; check USB, the loaded kext and STATUS.tsv.\n";
     } else {
-        print $out "Leitura RTW indisponivel/parcial; nao conclui ausencia de adaptador. Consulte STATUS.tsv.\n";
+        print $out "RTW read unavailable/partial; does not establish the absence of an adapter. See STATUS.tsv.\n";
     }
 }
 for my $id (sort {$a<=>$b} keys %ids) {
     my $before=$snapshots{before}{$id};my $after=$snapshots{after}{$id};my $r=$after||$before;
     printf $out "\nController %s | %s | USB %04x:%04x | %s\n",$id,
-        $r->{family}//"UNKNOWN",$r->{vid}//0,$r->{pid}//0,$r->{interface}//"interface ausente";
+        $r->{family}//"UNKNOWN",$r->{vid}//0,$r->{pid}//0,$r->{interface}//"interface missing";
     my $both_complete=($capture_rc{before}//-1)==0 && ($capture_rc{after}//-1)==0;
     unless ($both_complete) {
-        printf $out "Captura indisponivel/parcial: before status=%s; after status=%s; deltas indisponiveis.\n",
-            $capture_rc{before}//"ausente",$capture_rc{after}//"ausente";
+        printf $out "Capture unavailable/partial: before status=%s; after status=%s; deltas unavailable.\n",
+            $capture_rc{before}//"missing",$capture_rc{after}//"missing";
     }
     if (!$after) {
         print $out (($capture_rc{after}//-1)==0?
-            "Removido/ausente na segunda leitura; sem delta entre dispositivos.\n":
-            "Segunda leitura falhou; evidencia anterior preservada, estado atual desconhecido.\n");
+            "Removed/missing in the second reading; no cross-device delta.\n":
+            "Second reading failed; previous evidence preserved, current state unknown.\n");
         next;
     }
-    print $out "Novo Registry ID; sem leitura anterior para comparar.\n" if !$before && $both_complete;
+    print $out "New Registry ID; no previous reading for comparison.\n" if !$before && $both_complete;
     my @publication=qw(RTWDiagPublicationGeneration RTWDiagPublicationMonotonicMS);
     my $publication_complete=$both_complete && $before &&
         !grep {!exists $before->{$_} || !exists $after->{$_}} @publication;
     my $publication_unsafe=0;
     if (!$publication_complete) {
-        print $out "Publicacao: frescor desconhecido; marcadores/captura incompletos.\n";
+        print $out "Publication: freshness unknown; incomplete markers/capture.\n";
     } elsif (($before->{$publication[0]} % 2) || ($after->{$publication[0]} % 2)) {
-        print $out "Publicacao: em andamento; comparacao indisponivel.\n";
+        print $out "Publication: in progress; comparison unavailable.\n";
         $publication_unsafe=1;
     } elsif ($after->{$publication[0]}<$before->{$publication[0]} ||
              $after->{$publication[1]}<$before->{$publication[1]}) {
-        print $out "Publicacao: geracao/tempo regrediu; comparacao indisponivel.\n";
+        print $out "Publication: generation/time regressed; comparison unavailable.\n";
         $publication_unsafe=1;
     } elsif ($after->{$publication[0]}==$before->{$publication[0]}) {
-        print $out "Publicacao: sem nova publicacao observada; geracao=$after->{$publication[0]}.\n";
+        print $out "Publication: no new publication observed; generation=$after->{$publication[0]}.\n";
     } else {
-        print $out "Publicacao: geracao avancou $before->{$publication[0]} -> $after->{$publication[0]}.\n";
+        print $out "Publication: generation advanced $before->{$publication[0]} -> $after->{$publication[0]}.\n";
     }
     for my $k (@publication) {print $out "$k=$after->{$k}\n" if exists $after->{$k};}
     for my $k (qw(RTWDiagCurrentChannel RTWDiagWPAPortValid RTWDiagWPAState RTWDiagRXRecoveryStage IOLinkStatus IOLinkSpeed
@@ -777,88 +777,88 @@ for my $id (sort {$a<=>$b} keys %ids) {
              ($before->{RTWDiagNativeIfnetStatsValid}//0)!=1 ||
              !($after->{RTWDiagNativeIfnetIndex}//0) ||
              ($after->{RTWDiagNativeIfnetIndex}//0)!=($before->{RTWDiagNativeIfnetIndex}//0))) {
-            print $out "$k leitura nativa indisponivel/incomparavel; consulte StatsValid/Index.\n";next;
+            print $out "$k native read unavailable/incomparable; see StatsValid/Index.\n";next;
         }
-        if (!$both_complete) {print $out "$k observado=$after->{$k}; delta indisponivel por captura parcial\n";next;}
-        if ($publication_unsafe) {print $out "$k observado=$after->{$k}; delta indisponivel por publicacao em andamento/regredida\n";next;}
-        if (!$before || !exists $before->{$k}) {print $out "$k atual=$after->{$k}; anterior ausente\n";next;}
-        if ($after->{$k}<$before->{$k}) {print $out "$k antes=$before->{$k} depois=$after->{$k}; reset/reiniciado, delta indisponivel\n";next;}
-        print $out "$k antes=$before->{$k} depois=$after->{$k} delta=".($after->{$k}-$before->{$k})."\n";
+        if (!$both_complete) {print $out "$k observed=$after->{$k}; delta unavailable because the capture is partial\n";next;}
+        if ($publication_unsafe) {print $out "$k observed=$after->{$k}; delta unavailable because publication is in progress/regressed\n";next;}
+        if (!$before || !exists $before->{$k}) {print $out "$k current=$after->{$k}; previous missing\n";next;}
+        if ($after->{$k}<$before->{$k}) {print $out "$k before=$before->{$k} after=$after->{$k}; reset/restarted, delta unavailable\n";next;}
+        print $out "$k before=$before->{$k} after=$after->{$k} delta=".($after->{$k}-$before->{$k})."\n";
     }
-    print $out "Calib timing AU: nao instrumentado; RTWDiagCalib*=0 nao mede ausencia de atraso.\n" if ($r->{family}//"") =~ /AU$/;
+    print $out "AU calibration timing: not instrumented; RTWDiagCalib*=0 does not measure the absence of delay.\n" if ($r->{family}//"") =~ /AU$/;
 }
 close $out or die "close summary: $!";
 PERL_RTW
 then
-    printf 'drivers/RTW-summary\tok\t0\tPerl: RTW snapshots por Registry ID\n' >> "$STATUS"
+    printf 'drivers/RTW-summary\tok\t0\tPerl: RTW snapshots by Registry ID\n' >> "$STATUS"
     SUCCESS=$((SUCCESS + 1))
 else
     rc=$?
-    printf 'drivers/RTW-summary\tfalhou\t%s\tPerl: RTW snapshots por Registry ID\n' "$rc" >> "$STATUS"
+    printf 'drivers/RTW-summary\tfailed\t%s\tPerl: RTW snapshots by Registry ID\n' "$rc" >> "$STATUS"
     FAILURE=$((FAILURE + 1))
 fi
 
-cat > "$RUN_DIR/README-DIAGNOSTICO.txt" <<EOM
-TAHOEREALTEKWIFI — CAPTURA DE DIAGNÓSTICOS
-Revisão do coletor: ${COLLECTOR_REVISION}
-Data de execução: $(date '+%Y-%m-%d %H:%M:%S %z')
-Intervalo de eventos: últimos ${MINUTES} minutos (logs existentes no macOS)
-Prazo por comando: ${COMMAND_TIMEOUT}s; status124 indica timeout, não sucesso.
-Modo: $(if [ "$RAW" -eq 1 ]; then echo 'RAW / NÃO ANONIMIZADO'; else echo 'anonimização básica de linhas sensíveis'; fi)
-Administrador: $(if [ "$ADMIN_READY" -eq 1 ]; then echo 'somente comandos de leitura de diagnóstico'; else echo 'não'; fi)
+cat > "$RUN_DIR/README-DIAGNOSTICS.txt" <<EOM
+TAHOEREALTEKWIFI — DIAGNOSTIC CAPTURE
+Collector revision: ${COLLECTOR_REVISION}
+Run date: $(date '+%Y-%m-%d %H:%M:%S %z')
+Event window: last ${MINUTES} minutes (existing macOS logs)
+Per-command deadline: ${COMMAND_TIMEOUT}s; status124 means timeout, not success.
+Mode: $(if [ "$RAW" -eq 1 ]; then echo 'RAW / NOT ANONYMIZED'; else echo 'basic masking of sensitive lines'; fi)
+Administrator: $(if [ "$ADMIN_READY" -eq 1 ]; then echo 'read-only diagnostic commands'; else echo 'no'; fi)
 
-LEIA PRIMEIRO:
-  RTW-SUMMARY.txt - família/VID:PID/interface, erro USB e diferenças por adaptador.
-  drivers/RTW-before/after.txt e .json - propriedades e contadores de cada controlador.
-  USB-STARTUP.txt / drivers/USB-STARTUP.json - inicializacao, inclusive providers sem controlador.
-  drivers/loaded-RTW-kext.txt / installed-app-Info.txt - versões realmente ativas.
-  USB-IDENTIFICATION.txt  - todos os USB com VID:PID extraídos do IORegistry.
-  USB-WIFI-CANDIDATES.txt - trechos suspeitos (inclusive dispositivos rebatizados).
-  usb/SPUSBHostDataType.txt ou SPUSBDataType.txt - árvore USB e IDs por dispositivo.
-  usb/ioreg_USB_tree.txt - topologia USB, fornecedor e provedores/drivers.
-  usb/ioreg_USBHostInterface.txt - interfaces/interfaces driver.
-  drivers/kmutil_showloaded.txt / systemextensionsctl.txt - drivers ativos.
-  network/hardware_ports.txt / ifconfig_all.txt - interface e status.
-  logs/USB_Realtek.log / WiFi_80211.log / Network_Ethernet.log - eventos.
-  logs/unified-summary.txt - total de linhas mantidas e descartadas por limite.
-  logs/unified-coverage.json - janela solicitada, rc e timestamps recebidos.
-  logs/recent/ - consulta independente de 2min, somente apos timeout124 principal.
-  STATUS.tsv - detalhes de comandos que falharam ou foram bloqueados.
+READ FIRST:
+  RTW-SUMMARY.txt - family/VID:PID/interface, USB error and per-adapter differences.
+  drivers/RTW-before/after.txt and .json - each controller's properties and counters.
+  USB-STARTUP.txt / drivers/USB-STARTUP.json - startup, including providers without a controller.
+  drivers/loaded-RTW-kext.txt / installed-app-Info.txt - versions actually in use.
+  USB-IDENTIFICATION.txt - all USB devices with VID:PID extracted from IORegistry.
+  USB-WIFI-CANDIDATES.txt - possible matches, including rebranded devices.
+  usb/SPUSBHostDataType.txt or SPUSBDataType.txt - USB tree and per-device IDs.
+  usb/ioreg_USB_tree.txt - USB topology, vendor and providers/drivers.
+  usb/ioreg_USBHostInterface.txt - USB interfaces and their drivers.
+  drivers/kmutil_showloaded.txt / systemextensionsctl.txt - active drivers.
+  network/hardware_ports.txt / ifconfig_all.txt - interface and status.
+  logs/USB_Realtek.log / WiFi_80211.log / Network_Ethernet.log - events.
+  logs/unified-summary.txt - lines retained and discarded because of limits.
+  logs/unified-coverage.json - requested window, return code and received timestamps.
+  logs/recent/ - independent 2min query, only after main-query timeout124.
+  STATUS.tsv - details of failed or blocked commands.
 
-LOGS: a consulta principal pede ${MINUTES}min. Se exceder o prazo, preserva a
-saida parcial e tenta UMA consulta adicional de 2min, com o mesmo prazo de
-${COMMAND_TIMEOUT}s por consulta. logs/recent/ nao completa o historico parcial.
-Os timestamps primeiro/ultimo mostram somente eventos efetivamente recebidos;
-quando indisponiveis, nao se conclui ausencia de eventos. Mesmo com dados
-recebidos, cobertura ate o presente nao e garantida; examine os timestamps.
-Gatekeeper desabilitado: resposta exata 'assessments disabled'/exit1 e estado
-esperado; STATUS preserva rc1 sem contar falha. Nenhuma configuracao e alterada.
-CRASHES: relatorios historicos selecionados por nome, sem filtro de idade,
-ordem ou deduplicacao. A contagem de arquivos nao equivale a eventos novos
-nem garante relacao com a janela solicitada para os logs unificados.
+LOGS: the main query requests ${MINUTES}min. If it times out, partial output is
+preserved and ONE additional 2min query is attempted, with the same deadline of
+${COMMAND_TIMEOUT}s per query. logs/recent/ does not complete the partial history.
+First/last timestamps describe only events actually received. If unavailable,
+they do not establish the absence of events. Even when data is received,
+coverage through the present is not guaranteed; inspect the timestamps.
+Gatekeeper disabled: the exact 'assessments disabled'/exit1 response is an
+expected state; STATUS preserves rc1 without counting a failure. No settings change.
+CRASHES: historical reports selected by name, without age filtering, sorting or
+deduplication. The file count does not equal new events or guarantee a relationship
+to the requested unified-log window.
 
-FRESCOR: snapshots do IORegistry sao os ultimos valores publicados pelo driver.
-STATUS nao e forcado para os adaptadores; delta0 nao prova ausencia de erros
-novos ou de trafego. A build54 publica geracao/tempo monotonico por controlador;
-geracao impar indica publicacao em andamento. Sem marcadores, frescor desconhecido.
-A leitura do IORegistry nao e atomica; os marcadores nao substituem trafego real.
+FRESHNESS: IORegistry snapshots contain the last values published by the driver.
+STATUS is not forced for adapters; delta0 does not prove the absence of new errors
+or traffic. Build54 publishes per-controller generation/monotonic time; an odd
+generation means publication is in progress. Without markers, freshness is unknown.
+IORegistry reads are not atomic; the markers do not replace real traffic tests.
 
-IMPORTANTE: VID/PID, hardware revision e binding a driver permitem determinar
-qual hardware o macOS DETECTA. A identificação definitiva do silício interno,
-do firmware correto e de um driver operacional pode exigir inspeção física
-ou leitura segura do chipset com uma ferramenta específica.
+IMPORTANT: VID/PID, hardware revision and driver binding identify the hardware
+macOS DETECTS. Definitive identification of the internal silicon, correct firmware
+and an operational driver may require physical inspection or a safe chipset read
+using a dedicated tool.
 
-PRIVACIDADE:
-O mascaramento básico pode deixar escapar outros identificadores, caminhos,
-nomes de rede, IPs, tokens ou dados pessoais contidos nos logs; REVISE antes
-de compartilhar. Os logs RAW não têm qualquer anonimização. Este programa
-NÃO envia relatórios a servidores nem faz alterações de driver ou segurança.
+PRIVACY:
+Basic masking may miss identifiers, paths, network names, IPs, tokens or personal
+data in logs; REVIEW before sharing. RAW logs have no anonymization. This program
+does not send reports to servers or change driver/security settings.
+
 EOM
 
-# Mascara por padrão, preservando VID/PID, códigos de erro, endereços de
-# registradores, versões, endpoints e parte do OUI do MAC. Não é garantia
-# criptográfica de anonimato, especialmente em textos arbitrários do log.
-echo '[7/7] Privacidade, integridade e ZIP'
+# Mask by default while preserving VID/PID, error codes, register addresses,
+# versions, endpoints and part of the MAC OUI. This is not a cryptographic
+# guarantee of anonymity, especially in arbitrary log text.
+echo '[7/7] Privacy, integrity and ZIP'
 if [ "$RAW" -eq 0 ]; then
     while IFS= read -r -d '' file; do
         case "$file" in
@@ -868,7 +868,7 @@ if [ "$RAW" -eq 0 ]; then
         if command -v perl >/dev/null 2>&1; then
             if perl -pe '
                 s{((?:IOMACAddress|local-mac-address|MAC Address)"?\s*=\s*)<[^>]*>}{${1}<[REDACTED]>}gi;
-                s{(/Users/)[^/\s"\x27]+}{${1}[USUARIO]}gi;
+                s{(/Users/)[^/\s"\x27]+}{${1}[USER]}gi;
                 s{\b([A-Z0-9._%+\x2d]+)\@([A-Z0-9.\x2d]+\.[A-Z]{2,})\b}{[EMAIL]}gi;
                 s{\b([0-9a-f]{2}(?::[0-9a-f]{2}){2}):(?:[0-9a-f]{2}:){2}[0-9a-f]{2}\b}{$1:XX:XX:XX}gi;
                 s{\b(192\.168\.\d+)\.\d+\b}{$1.X}g;
@@ -880,52 +880,53 @@ if [ "$RAW" -eq 0 ]; then
                 mv -f "$file.redacting" "$file"
             else
                 rm -f "$file.redacting"
-                echo "FALHA AO ANONIMIZAR: $file" >&2
-                echo "FALHA AO ANONIMIZAR: $file" >> "$RUN_DIR/ANONYMIZATION-ERROR.txt"
+                echo "ANONYMIZATION FAILED: $file" >&2
+                echo "ANONYMIZATION FAILED: $file" >> "$RUN_DIR/ANONYMIZATION-ERROR.txt"
             fi
         else
-            echo 'Perl não encontrado. Não é seguro empacotar dados não anonimizados.' >&2
-            echo 'Use --raw para permitir coleta sem anonimização, após avaliar a privacidade.' >&2
+            echo 'Perl was not found. Packaging non-anonymized data is unsafe.' >&2
+            echo 'Use --raw to allow collection without anonymization after considering privacy.' >&2
             exit 1
         fi
     done < <(find "$RUN_DIR" -type f -print0)
     if [ -f "$RUN_DIR/ANONYMIZATION-ERROR.txt" ]; then
-        echo 'Uma ou mais tentativas de anonimização falharam. O ZIP NÃO será criado.' >&2
+        echo 'One or more anonymization attempts failed. The ZIP will not be created.' >&2
         exit 1
     fi
 fi
 
-cat > "$RUN_DIR/RESULTADO.txt" <<EOM
-TAHOEREALTEKWIFI — RESULTADO DA COLETA
-Revisão do coletor: ${COLLECTOR_REVISION}
-Data: $(date '+%Y-%m-%d %H:%M:%S %z')
-Janela de logs: ${MINUTES} minutos
-Comandos aprovados: $SUCCESS
-Comandos indisponíveis / negados / com erro: $FAILURE
-Arquivos de crash relevantes: $CRASH_COUNT
-Modalidade: $(if [ "$RAW" -eq 1 ]; then echo 'RAW (SENSÍVEL)'; else echo 'mascaramento básico'; fi)
+cat > "$RUN_DIR/RESULT.txt" <<EOM
+TAHOEREALTEKWIFI — COLLECTION RESULT
+Collector revision: ${COLLECTOR_REVISION}
+Date: $(date '+%Y-%m-%d %H:%M:%S %z')
+Log window: ${MINUTES} minutes
+Successful commands: $SUCCESS
+Unavailable / denied / failed commands: $FAILURE
+Selected historical crash files: $CRASH_COUNT
+Mode: $(if [ "$RAW" -eq 1 ]; then echo 'RAW (SENSITIVE)'; else echo 'basic masking'; fi)
 
-Leitura do driver:
-  RTW-SUMMARY.txt separa os dois adaptadores e registra quedas/resets.
-  USB-STARTUP.txt registra fases/erros de providers e controladores USB.
-  STATUS.tsv registra falhas, inclusive timeout124 e log sem permissão.
-  Gatekeeper: estado_esperado/exit1 preserva assessments disabled sem contar erro.
-  logs/unified-coverage.json registra janela, rc e timestamps recebidos.
-  logs/recent/ e tentativa separada de 2min apos timeout; historico segue parcial.
+Driver readings:
+  RTW-SUMMARY.txt separates the adapters and records drops/resets.
+  USB-STARTUP.txt records USB provider/controller stages and errors.
+  STATUS.tsv records failures, including timeout124 and denied log access.
+  Gatekeeper: expected_state/exit1 preserves assessments disabled without counting an error.
+  logs/unified-coverage.json records the window, return code and received timestamps.
+  logs/recent/ is a separate 2min attempt after timeout; history remains partial.
 
-Para descobrir o USB:
+USB identification:
   1. USB-IDENTIFICATION.txt
-  2. usb/SPUSBHostDataType.txt ou usb/SPUSBDataType.txt
+  2. usb/SPUSBHostDataType.txt or usb/SPUSBDataType.txt
   3. usb/ioreg_USB_tree.txt
   4. usb/ioreg_USBHostInterface.txt
 
-OBS: ausência de mensagens não implica hardware compatível nem driver funcional.
-Se um comando falhou, ver STATUS.tsv e a saída de erro do arquivo respectivo.
-E-mail, SSID, senha, serial e MAC são parcialmente mascarados no modo padrão.
-Examine os arquivos antes de compartilhar; o mascaramento não é infalível.
+NOTE: no messages does not establish compatible hardware or a working driver.
+If a command failed, see STATUS.tsv and the corresponding file's error output.
+Email, SSID, passwords, serials and MAC addresses are partially masked by default.
+Review files before sharing; masking is not infallible.
+
 EOM
 
-# Hashes DOS ARQUIVOS exportados, para detectar corrupção ao compartilhar.
+# Hash exported files to detect corruption when sharing.
 if command -v shasum >/dev/null 2>&1; then
     (
         cd "$RUN_DIR" || exit 1
@@ -936,7 +937,7 @@ if command -v shasum >/dev/null 2>&1; then
 fi
 chmod -R go-rwx "$RUN_DIR" 2>/dev/null || true
 
-# 'ditto' é nativo do macOS e preserva a pasta; fallback 'zip' se necessário.
+# Native macOS 'ditto' preserves the directory; fall back to 'zip' if necessary.
 if command -v ditto >/dev/null 2>&1; then
     if ! ditto -c -k --keepParent "$RUN_DIR" "$ZIP_PATH"; then
         rm -f "$ZIP_PATH"
@@ -948,20 +949,20 @@ if [ ! -s "$ZIP_PATH" ]; then
     fi
 fi
 if [ ! -s "$ZIP_PATH" ]; then
-    echo 'Não foi possível criar o ZIP; a pasta com todos os relatórios foi mantida:' >&2
+    echo 'Could not create the ZIP; the directory containing all reports was preserved:' >&2
     echo "$RUN_DIR" >&2
     exit 1
 fi
 
 printf '\n==============================================\n'
-printf ' DIAGNÓSTICO CONCLUÍDO\n'
+printf ' DIAGNOSTICS COMPLETE\n'
 printf '==============================================\n'
-printf 'ZIP PARA ANEXAR A ESTE CHAT:\n%s\n' "$ZIP_PATH"
-printf '\nPasta para inspeção:\n%s\n' "$RUN_DIR"
-printf '\nExamine o ZIP antes de compartilhar (logs podem conter dados privados).\n'
-printf 'Nenhum driver, SIP ou ajuste de rede foi alterado.\n\n'
+printf 'ZIP TO ATTACH TO THIS CHAT:\n%s\n' "$ZIP_PATH"
+printf '\nDirectory for inspection:\n%s\n' "$RUN_DIR"
+printf '\nReview the ZIP before sharing (logs may contain private data).\n'
+printf 'No driver, SIP or network setting was changed.\n\n'
 if [ "$NO_PAUSE" -eq 0 ] && [ -t 0 ]; then
-    printf 'Pressione Enter para encerrar esta janela... '
+    printf 'Press Enter to close this window... '
     IFS= read -r ignored || true
 fi
 exit 0

@@ -1,298 +1,306 @@
+# English documentation — collector revision 3
+
+- Translate project documentation, build output and diagnostic messages into
+  English while preserving historical findings and hardware-validation limits.
+- Use English diagnostic report filenames, STATUS headers and result labels;
+  preserve collection, redaction, timeout and counter behavior.
+- Keep kext61 and app53 implementation code unchanged.
+
 # 0.14.14 / build61 — app0.3.11 / build53 — macOS13/14/15/26
 
-- App, helper, testes e instalador passam de mínimo26.0 para13.0; os alvos
-  são Ventura, Sonoma, Sequoia e Tahoe em Intel. Identificadores e preferências
-  são preservados.
-- Build trata uso desprotegido de API posterior ao mínimo como erro. O
-  empacotador verifica também a versão mínima dos executáveis Mach-O.
-- Kext61 e coletor revisão2 preservados. Matriz de compatibilidade distingue
-  auditoria estática, build e teste físico; os quatro sistemas ainda exigem
-  homologação de carregamento, WPA2 e tráfego desta entrega.
+- App, helper, tests and installer move from a minimum of 26.0 to 13.0; targets
+  are Ventura, Sonoma, Sequoia and Tahoe on Intel. Identifiers and preferences
+  are preserved.
+- The build treats unguarded use of an API newer than the minimum as an error. The
+  packager also checks the minimum version of Mach-O executables.
+- Kext61 and collector revision 2 preserved. The compatibility matrix distinguishes
+  static audit, build and hardware testing; all four systems still require
+  validation of loading, WPA2 and traffic for this release.
 
-# 0.14.14 / build61 — app0.3.10 / build52 — coletor revisão 2
+# 0.14.14 / build61 — app0.3.10 / build52 — collector revision 2
 
-- Reabertos os 14logs originais e conferidos 784 hashes de arquivos, além de
- 7.368 propriedades (ver relatório), causas e limitações por captura.
-- O coletor preserva rc1/assessments disabled como estado esperado e faz uma
- tentativa recente separada de 2 min somente após timeout124 no histórico.
-- Cobertura registra status e timestamps recebidos; histórico parcial continua
- parcial. Relatórios de crash são identificados explicitamente como históricos.
-- Preservados21 testes anteriores e adicionados 9, com revisão independente.
-- Kext/app mantêm o código da61. RX nativo zerado, causa CCMP+2, duas falhas
- físicas e throughput continuam abertos ou sem comprovação de resolução.
+- Reopened the 14 original logs and checked 784 file hashes, plus
+  7,368 properties (see report), causes and limits per capture.
+- The collector preserves rc1/assessments disabled as an expected state and makes a
+  separate recent 2 min attempt only after timeout 124 in the historical query.
+- Coverage records received statuses and timestamps; partial history remains
+  partial. Crash reports are explicitly identified as historical.
+- Preserved 21 earlier tests and added 9, with independent review.
+- Kext/app retain build61 code. Zero native RX counters, the CCMP+2 cause, two
+  hardware failures and throughput remain open or lack demonstrated resolution.
 
-# Rodada61 — mudanças anteriores a esta revisão do coletor
+# Round 61 — changes before this collector revision
 
-- CU/88E: HT20/MCS/QoS/BA/SGI; CU com RA de firmware e limite de SMPS do peer;
- 88E com AMRR host a partir de relatórios CCX reais.
-- B/C: HT40/VHT20/40/80 em 5 GHz não DFS, com largura/PHY/RA/RX/coexistência/BA.
-- AU: correção do layout de potência 80 MHz conforme referência Linux fixada.
-- net80211: capacidades/negociação limitadas ao mapa do canal de destino.
-- Native RX/TX: amostras de observação antes/depois da entrega, sem forçar contagem.
+- CU/88E: HT20/MCS/QoS/BA/SGI; CU with firmware RA and the peer's SMPS limit;
+  88E with host AMRR based on actual CCX reports.
+- B/C: HT40/VHT20/40/80 on non-DFS 5 GHz, with bandwidth/PHY/RA/RX/coexistence/BA.
+- AU: fix the 80 MHz power layout according to the pinned Linux reference.
+- net80211: capabilities/negotiation limited to the destination channel's map.
+- Native RX/TX: observation samples before/after delivery, without forcing counts.
 
 # 0.14.13 / build60 — app0.3.9 / build51
 
-- RTL8723BU: quatro OUT físicos, três filas DMA; limites/rollback e Bluetooth
-  preservados. TupleFF/FF/FF exata no perfil7392:a611.
-- Descoberta USB: estágios/contagens permanecem no provider original retido,
-  inclusive após revogação e falha anterior ao controlador.
-- AU8812/8821: reset limitado de MCU residente conforme Linux; propagação de
-  timeout/erro e telemetria de boot/reset/calibração sem relaxar guardas.
-- CacheIE: região de cópia exata, alocação transacional/limpeza e limites de
-  leitura preservando fluxo RSN. Testes somente de memória local.
-- Coletor: startup USB/AU em resumo/JSON; análise individual dos 14logs e todos
-  os contadores não nulos, com distinção entre taxa observada e throughput.
-- App51: catálogo USB atualizado; preferência/reconexão mantêm o código anterior.
+- RTL8723BU: four physical OUT endpoints, three DMA queues; bounds/rollback and Bluetooth
+  preserved. Exact FF/FF/FF tuple in profile 7392:a611.
+- USB discovery: stages/counts remain on the retained original provider,
+  including after revocation and failures before the controller.
+- AU8812/8821: bounded resident MCU reset according to Linux; timeout/error
+  propagation and boot/reset/calibration telemetry without relaxing guards.
+- CacheIE: exact copy region, transactional allocation/cleanup and read
+  bounds preserving the RSN flow. Local-memory-only tests.
+- Collector: USB/AU startup in summary/JSON; individual analysis of the 14 logs and all
+  nonzero counters, distinguishing observed rate from throughput.
+- App51: updated USB catalog; preference/reconnect retain the previous code.
 
 # 0.14.12 / build59 — app 0.3.8 / build50
 
-- Publica `IOBuiltin = Yes` como OSBoolean na interface de rede de todos os
-  adaptadores suportados, durante configureInterface e antes de registerService.
-- Marcação de apresentação na interface; sem definir IOPrimaryInterface,
-  alterar identidade/propriedades USB, nome BSD ou prioridade dos serviços.
+- Publishes `IOBuiltin = Yes` as OSBoolean on the network interface of all
+  supported adapters, during configureInterface and before registerService.
+- Interface presentation flag; does not set IOPrimaryInterface or
+  change USB identity/properties, BSD name or service priority.
 
 # 0.14.11 / build58 — app 0.3.8 / build50
 
-- Persiste a placa por identidade física e resolve RegistryIDs após reboot;
-  mantém a preferência com enumeração atrasada e rejeita identidades ambíguas.
-- Rede confirmada por placa, incluindo uso único sem guardar senha; migração
-  conservadora de um único link já autorizado na atualização do app antigo.
-- Epoch de reconexão cancela lookup/requests automáticos ainda na fila após
-  desativar a opção. Preferência de rede e senha no Chaves continuam distintas.
-- Busca para listar redes sem JOIN encerra ao fim da varredura completa,
-  preservando cache/recepção e os retries de associação dos perfis JOIN.
-  Callback opcional mantém o caminho net80211 existente quando não consumido.
-- Remove timer de coexistência B/C antes de liberar o WorkLoop compartilhado,
-  corrigindo retenção quando outra placa mantém o loop ativo.
-- Reutiliza o formatador de timestamp com sincronização. Benchmark local de
-  10 mil registros reduziu CPU de cerca de 1,1 s para 20–24 ms.
-- Confere revisão/conteúdo do SDK; exclui diretórios gerados build-*/out-* do Git.
+- Persists the board by physical identity and resolves RegistryIDs after reboot;
+  retains the preference with delayed enumeration and rejects ambiguous identities.
+- Confirmed network per board, including one-time use without saving a password; conservative
+  migration of a single already-authorized link when upgrading the old app.
+- Reconnect epoch cancels queued automatic lookups/requests after
+  the option is disabled. Network preference and Keychain password remain distinct.
+- A scan to list networks without JOIN ends after a complete sweep,
+  preserving cache/reception and JOIN profiles' association retries.
+  An optional callback retains the existing net80211 path when unused.
+- Removes the B/C coexistence timer before releasing the shared WorkLoop,
+  fixing retention when another board keeps the loop active.
+- Reuses the timestamp formatter with synchronization. A local benchmark of
+  10 thousand records reduced CPU time from about 1.1 s to 20–24 ms.
+- Checks SDK revision/contents; excludes generated build-*/out-* directories from Git.
 
 # 0.14.10 / build57 — app 0.3.7 / build49
 
-- Busca real automática por adaptador selecionado quando ocioso e cache RF sem
-  conclusão fresca. Coalescimento, geração/epoch, timeout30s e retries limitados.
-- Placas conectadas mantêm consulta de cache; nenhum JOIN/senha novo por refresh.
-- RX inicial: validação de quatro buffers, clear limitado e drain/proveniência
-  ampliados aos 13 backends de estação, preservando a capacidade de cada família.
-- Parada comum preserva erros tardios de RX/TX e gerações antes de reutilizar
-  buffers; TX curto mantém Underrun. Callbacks após o preflight são verificados.
-- Shutdown verificado e identidade próprios para recuperação das famílias;
-  legado CU/8188EU/8192EU recebe power-off das fontes Linux fixadas.
-- Diagnóstico publica capacidades ifnet/Skywalk para investigar RX nativo zero;
-  nenhum contador nativo é incrementado manualmente.
-- Checkup da build56 encontrou ambos autorizados e HTTPS separado funcional:
-  RTL8814AU em 5 GHz/canal36 e RTL8192EU em2,4GHz/canal6. Não valida a build57.
+- Automatic real scan for the selected adapter when idle and the RF cache has no
+  fresh completion. Coalescing, generation/epoch, 30 s timeout and bounded retries.
+- Connected boards retain cache queries; no new JOIN/password request from refresh.
+- Initial RX: four-buffer validation, bounded clear and drain/provenance
+  extended to the 13 station backends, preserving each family's capacity.
+- Common stop preserves late RX/TX errors and generations before reusing
+  buffers; short TX retains Underrun. Callbacks after preflight are checked.
+- Verified shutdown and family-specific identity for recovery;
+  legacy CU/8188EU/8192EU receive power-off from the pinned Linux sources.
+- Diagnostics publish ifnet/Skywalk capabilities to investigate zero native RX;
+  no native counter is incremented manually.
+- The build56 checkup found both authorized and separate HTTPS working:
+  RTL8814AU on 5 GHz/channel 36 and RTL8192EU on 2.4 GHz/channel 6. This does not validate build57.
 
 # 0.14.9 / build56 — app 0.3.6 / build48
 
-- RTL8814AU: retry manual SCAN/JOIN após erro elegível, somente depois de
-  drenagem, desligamento verificado e reidentificação do mesmo dispositivo.
-  Orçamento limitado; erro original separado do resultado da limpeza.
-- Corrige stop/start antes do fim dos callbacks e finaliza desligamento após
-  a última conclusão, sem iniciar rádio ou contornar erro USB/perfil/identidade.
-- RX inicial AU: NotResponding recebe limpeza limitada e EAGAIN, sem sucesso
-  falso. Proveniência sobrevive a EBUSY e erros tardios distintos ficam fatais.
-- IOKit: registro de energia no registerWithPolicyMaker, antes de attach,
-  com pedido inicial de estado1 e PMstop antes de liberar recursos em falhas.
-- Diagnósticos exportam core errno, estados reais e fases de inicialização AU.
-- App48: CLI autenticada por ID exato para LIST/STATUS/MAP/SCAN e JSONL privado,
-  sem credenciais. Logs não podem bloquear em FIFO ou lock de outro processo.
-- Fixtures de diagnóstico usam home isolado e não poluem o log do app instalado.
-- Teste físico na55 reproduziu SCAN recusado em0,765ms, USBerror0; código da
-  primeira falha não era publicado. Validação física da56 continua necessária.
+- RTL8814AU: manual SCAN/JOIN retry after an eligible error, only after
+  draining, verified shutdown and reidentification of the same device.
+  Bounded budget; original error separate from cleanup result.
+- Fixes stop/start before callbacks finish and completes shutdown after
+  the last completion, without starting the radio or bypassing USB/profile/identity errors.
+- Initial AU RX: NotResponding receives bounded cleanup and EAGAIN, without false
+  success. Provenance survives EBUSY and distinct late errors remain fatal.
+- IOKit: power registration in registerWithPolicyMaker, before attach,
+  with an initial state 1 request and PMstop before releasing resources on failures.
+- Diagnostics export core errno, actual states and AU initialization phases.
+- App48: exact-ID authenticated CLI for LIST/STATUS/MAP/SCAN and private JSONL,
+  without credentials. Logs cannot block on a FIFO or another process's lock.
+- Diagnostic fixtures use an isolated home and do not pollute the installed app's log.
+- Hardware test on build55 reproduced SCAN rejection in 0.765 ms, USB error 0; the first
+  failure's code was not published. Hardware validation of build56 remains necessary.
 
 # 0.14.8 / build55 — app 0.3.5 / build47
 
-- DFS HT20 nos sete backends dual band: RTL8192DU, RTL8812AU, RTL8814AU,
-  RTL8821AU, RTL8821CU, RTL8822BU e RTL8822CU. Canais52–64/100–140;144 fechado.
-- Índices de potência/calibração próprios, grupos OTP AU corrigidos, spur140
-  e grupo térmico100–140 no8814AU; fallback20 em APs largos nos AU correspondentes.
-- Busca passiva, autorização ligada a beacon recente do BSSID/SSID/canal e
-  teto local de potência limitado por ROM/país, world, Country/PowerConstraint doAP.
-  wireless-regdb primário fixado; nenhuma substituição de país por beacon/locale.
-- CSA pausa todas as filas TX, inclusive MAC1 DU, drena USB e refaz busca/WPA2
-  fora da chamada RX. Teardown/sleep/falhaUSB cancelam a retomada.
-- App47 valida e descreve os grupos DFS anunciados, mantendo ABIv1/driver antigo.
-- Consulta exata de canais registrados preserva faixas regionais parciais;
-  mapa por adaptador/geração e fallback somente em driver antigo Unsupported.
-- Catálogo USB inalterado; não habilita8814BU, WPA3/AX, AP ou CAC/radar local.
-  Carregamento e validação física da nova build permanecem necessários.
+- DFS HT20 on the seven dual-band backends: RTL8192DU, RTL8812AU, RTL8814AU,
+  RTL8821AU, RTL8821CU, RTL8822BU and RTL8822CU. Channels 52–64/100–140; 144 closed.
+- Dedicated power/calibration indices, corrected AU OTP groups, spur 140
+  and thermal group 100–140 on 8814AU; fallback to 20 MHz on wide APs on the corresponding AU backends.
+- Passive scanning, authorization tied to a recent beacon from the BSSID/SSID/channel and
+  local power ceiling bounded by ROM/country, world, and the AP's Country/PowerConstraint.
+  Pinned primary wireless-regdb; no country substitution from beacon/locale.
+- CSA pauses all TX queues, including MAC1 DU, drains USB and repeats scanning/WPA2
+  outside the RX call. Teardown/sleep/USB failure cancel resumption.
+- App47 validates and describes advertised DFS groups, retaining ABIv1/older driver support.
+- Exact query of registered channels preserves partial regional ranges;
+  map per adapter/generation and fallback only for an old driver returning Unsupported.
+- USB catalog unchanged; does not enable 8814BU, WPA3/AX, AP or local CAC/radar.
+  Loading and hardware validation of the new build remain necessary.
 
 # 0.14.7 / build54 — app 0.3.4 / build46
 
-- Fila TX cheia preserva ownership e retorna stall/retry; conclusões retomam o
-  output queue de forma assíncrona quando a admissão pode avançar.
-- STATUS observa HT/BA em todos os backends, separado da política de rate control.
-- Publicação por controlador ganha sequência ímpar/par e tempo monotônico;
-  coletor distingue geração avançada, igual, incompleta ou em andamento.
-- Expõe eventos existentes de BA/reorder e a fronteira de entrega RX/ifnet;
-  não atribui os sete erros históricos a uma causa sem evidência.
-- Remove metadado Ethernet54Mb/s inventado; taxa PHY incompleta fica desconhecida.
-- Source inclui lista integral de identidades elegíveis e limites por família.
-- A build53 foi observada com tráfego rápido e sem erros USB/truncamentos novos.
-  A validação física da54 e a causa da contabilidade RX0 no BSD permanecem abertas.
+- A full TX queue preserves ownership and returns stall/retry; completions resume the
+  output queue asynchronously when admission can proceed.
+- STATUS observes HT/BA on all backends, separately from rate-control policy.
+- Per-controller publication gains an odd/even sequence and monotonic time;
+  the collector distinguishes advanced, identical, incomplete or in-progress generations.
+- Exposes existing BA/reorder events and the RX/ifnet delivery boundary;
+  does not attribute the seven historical errors to a cause without evidence.
+- Removes invented Ethernet 54 Mb/s metadata; an incomplete PHY rate remains unknown.
+- Source includes the complete list of eligible identities and per-family limits.
+- Build53 was observed with fast traffic and no new USB errors/truncations.
+  Hardware validation of build54 and the cause of BSD's RX0 accounting remain open.
 
 # 0.14.6 / build53 — app 0.3.4 / build46
 
-- RTL8814AU: buffers/leituras RX 32 KiB compatíveis com o threshold DMA 20 KiB;
-  alocação, início, rearm e recuperação usam a mesma política por família.
-- Regressão real reproduz corte 16 KiB de agregado válido 20.200 bytes; 32 KiB
-  preserva todos os 13 quadros. Demais famílias mantêm a capacidade anterior.
-- TX AMPDU AU completo: limite do peer, BA por TID, QoS/ACK/fragmentos, densidade,
-  contagem em unidades primárias e checksum/seq; falha de I/O recusa BA.
-- Tracking termal AU preserva taxa aceita por C2H; TX não sobrescreve com taxa
-  inicial/fixa do descritor, inclusive gerenciamento/EAPOL/TX rejeitado.
-- Novas métricas escalares de comprimento RX; mantém coletor logs2.
-- App46 preservado. Validação física de BA, agregação no ar e velocidade da
-  build53 permanece pendente; não há alteração de EFI/driver carregado.
+- RTL8814AU: 32 KiB RX buffers/reads consistent with the 20 KiB DMA threshold;
+  allocation, startup, rearm and recovery use the same per-family policy.
+- An actual regression test reproduces 16 KiB truncation of a valid 20,200-byte aggregate; 32 KiB
+  preserves all 13 frames. Other families retain their previous capacity.
+- Complete AU TX AMPDU: peer limit, BA per TID, QoS/ACK/fragments, density,
+  count in primary units and checksum/seq; I/O failure rejects BA.
+- AU thermal tracking preserves the C2H-accepted rate; TX does not overwrite it with the
+  descriptor's initial/fixed rate, including management/EAPOL/rejected TX.
+- New scalar RX length metrics; retains collector logs2.
+- App46 preserved. Hardware validation of BA, on-air aggregation and build53
+  speed remains pending; no change to EFI/loaded driver.
 
-## 2026-10-31 — coletor logs2 (mantém kext52/app46)
+## 2026-10-31 — collector logs2 (retains kext52/app46)
 
-- Explicita que IORegistry contém últimos valores publicados, possivelmente
-  antigos; delta0 não comprova ausência de tráfego ou de erros novos.
-- Não força STATUS privilegiado nem altera driver, rede ou autenticação.
+- Makes explicit that the IORegistry contains the latest published values, possibly
+  stale; delta0 does not prove an absence of traffic or new errors.
+- Does not force privileged STATUS or change the driver, network or authentication.
 
-## 2026-10-31 — coletor logs1 (mantém kext52/app46)
+## 2026-10-31 — collector logs1 (retains kext52/app46)
 
-- WiFi-Diagnostics.command salva em Biblioteca/Logs/Tahoe-WiFi-USB, fora do Desktop.
-- Captura e compara os dois controladores por Registry ID, incluindo família,
-  VID:PID, interface e contadores USB/RX/TX; distingue reset e remoção.
-- Limita o tempo dos comandos, preserva saída parcial/status124 e continua o ZIP.
-- Mantém coleta somente leitura e reforça mascaramento de MAC em formato de dados.
-- Não altera o driver/app nem resolve por si só o erro USB 0xe00002ed.
+- WiFi-Diagnostics.command saves in Library/Logs/Tahoe-WiFi-USB, outside the Desktop.
+- Captures and compares both controllers by Registry ID, including family,
+  VID:PID, interface and USB/RX/TX counters; distinguishes reset from removal.
+- Bounds command time, preserves partial output/status124 and continues ZIP creation.
+- Retains read-only collection and strengthens masking of MAC addresses in data format.
+- Does not change the driver/app or itself resolve USB error 0xe00002ed.
 
 # 0.14.5 / build52 — app 0.3.4 / build46
 
-- Revisão dos 13 backends operacionais contra fontes primárias e testes específicos.
-- RTL8192EU: corrige descritor gen2 HT40/SGI e subcanal 20 em 40 MHz; mantém os campos RTS/retry intactos e os gates gen1.
-- RTL8812AU/RTL8821AU: corrige PHY após SHIFT; valida RSSI no codec e nos consumidores de firmware/coexistência.
-- RX24 genérico: usa a disposição PHY correta por família; preserva rtl8xxxu legado.
-- RTL8192FU: preserva sequência 80211 de software em gestão/EAPOL/não-QoS.
-- Coexistência AU/B-C: não perde a solicitação LNA desejada quando a consulta MP está ocupada; trabalho pendente permanece por contexto e limitado.
-- Preserva app46, scan real, sinal medido, ajuste 153 e telemetria da build51. Validação física de 5 GHz e outras placas/revisões continua necessária.
+- Review of the 13 operating backends against primary sources and specific tests.
+- RTL8192EU: fixes gen2 HT40/SGI descriptor and 20-in-40 MHz subchannel; keeps RTS/retry fields intact and the gen1 gates.
+- RTL8812AU/RTL8821AU: fixes PHY after SHIFT; validates RSSI in the codec and firmware/coexistence consumers.
+- Generic RX24: uses the correct PHY layout per family; preserves legacy rtl8xxxu.
+- RTL8192FU: preserves the software 80211 sequence in management/EAPOL/non-QoS.
+- AU/B-C coexistence: does not lose the desired LNA request when the MP query is busy; pending work remains bounded and per-context.
+- Preserves app46, real scanning, measured signal, adjustment 153 and build51 telemetry. Hardware validation of 5 GHz and other boards/revisions remains necessary.
 
 # 0.14.4 / build51 — app 0.3.4 / build46
 
-- Busca explícita do app passa a solicitar scan real também quando conectado, mantendo as consultas periódicas somente leitura.
-- Sinal: menu, tooltip e acessibilidade mostram dBm medido, filtrado e barras; estados antigos/ausentes permanecem distintos. A renderização dos três níveis foi verificada; −42/−44 dBm corresponde corretamente a sinal forte.
-- RTL8814AU: ajuste NBI/CSI do Linux para canal 153 HT20, com verificação de registradores e transições para outros canais.
-- Diagnóstico escalar separa visitas de scan, observações PHY e cache por banda, sem exportar identificadores de redes ou credenciais.
-- Build50 observada com WPA2 autorizado e sem erros de recuperação USB. O canal 5 GHz do roteador automático continua desconhecido; validação física das mudanças permanece necessária.
+- Explicit app scanning now requests a real scan even when connected, keeping periodic queries read-only.
+- Signal: menu, tooltip and accessibility show measured and filtered dBm and bars; stale/missing states remain distinct. Rendering of all three levels was verified; −42/−44 dBm correctly corresponds to a strong signal.
+- RTL8814AU: Linux NBI/CSI adjustment for channel 153 HT20, with register verification and transitions to other channels.
+- Scalar diagnostics separate scan visits, PHY observations and cache by band, without exporting network identifiers or credentials.
+- Build50 observed with WPA2 authorized and no USB recovery errors. The router's automatically selected 5 GHz channel remains unknown; hardware validation of the changes remains necessary.
 
 # 0.14.3 / build50 — app 0.3.3 / build45
 
-- Corrige falha prematura da recuperação RX quando a limpeza do endpoint retorna NotResponding transitório; novas tentativas são espaçadas e limitadas pelo orçamento e prazo total.
-- Encaminha a rejeição síncrona de RX elegível para recuperação, preservando propriedade e ordem dos buffers.
-- Drena também leituras parcialmente rearmadas antes de reiniciar uma tentativa; preserva clearStall(true) e a sincronização de toggles.
-- Adia timers de scan/calibração/coexistência e rejeita busca direta enquanto o endpoint está em recuperação, evitando I/O de controle concorrente entre tentativas.
-- Publica estágio e resultados específicos de recuperação; mantém o app45 compatível e seu source completo.
-- Build49 confirmada no hardware: uma recuperação concluída e outra falha. A estabilidade da build50 ainda requer validação física.
+- Fixes premature RX recovery failure when endpoint cleanup returns transient NotResponding; retries are spaced and bounded by the budget and total deadline.
+- Routes eligible synchronous RX rejection to recovery, preserving buffer ownership and order.
+- Also drains partially rearmed reads before restarting an attempt; preserves clearStall(true) and toggle synchronization.
+- Defers scan/calibration/coexistence timers and rejects direct scanning while the endpoint is in recovery, preventing concurrent control I/O between attempts.
+- Publishes specific recovery stage and results; retains app45 compatibility and its complete source.
+- Build49 confirmed on hardware: one recovery completed and another failed. Build50 stability still requires hardware validation.
 
 # 0.14.2 / build49 — app 0.3.3 / build45
 
-- Completa a fase passiva antes da seleção do AP nos sete backends de duas bandas.
-- Recupera transaction error RX USB sem bytes com halt clear, drenagem e orçamento finito; mantém tratamento fatal para demais falhas.
-- Mostra todas as bandas utilizáveis observadas em um SSID agrupado no app.
-- Preserva catálogo, gates de placa, WPA2, canais autorizados e limites de firmware.
-- A validação física da nova build permanece necessária.
+- Completes the passive phase before AP selection on the seven dual-band backends.
+- Recovers a USB RX transaction error with no bytes through halt clear, draining and a finite budget; retains fatal handling for other failures.
+- Shows all usable bands observed in a grouped SSID in the app.
+- Preserves catalog, board gates, WPA2, authorized channels and firmware limits.
+- Hardware validation of the new build remains necessary.
 
-## 2026-10-30 — 0.14.0 desenvolvimento (kext47, app42)
+## 2026-10-30 — 0.14.0 development (kext47, app42)
 
-- Integrados 13 backends operacionais separados: CU, 88EU, EU, DU, FU,
-  8710BU, 8723BU, 8812AU, 8814AU, 8821AU, 8821CU, 8822BU e 8822CU.
-  São 230 IDs verificados elegíveis; preservados 270 registros e 39
-  identidades não confirmadas ou conflitantes.
-- Portados firmware, ROM, MAC/DMA, PHY/RFK, negociação, TX/RX e ciclo de
-  vida próprios dos novos chipsets, a partir das fontes primárias fixadas.
-- AU com HT20/40 e VHT20/40/80; DU, 8814AU e B/C com HT20; FU e 8710BU
-  com HT20/40; 8723BU com HT20. Limites por placa permanecem explícitos.
-- 8814AU: potência e RFK nos canais superiores 149/153/157/161/165;
-  recepção física verificada no USB conectado, sem equivaler a WPA2/IP.
-- Coexistência AU e B/C integrada com timers/C2H e SMPS confirmado por ACK;
-  propriedade e prontidão do firmware verificadas nos estados, EDCA e
-  encerramento, com autorização rápida sem I/O também nas placas sem BT.
-- App anuncia separadamente os grupos inferiores/superiores de 5 GHz e
-  descreve os modos implementados, conforme autorização do driver.
-- Corrigidas assinaturas de firmware 8723BU e os pares SMIC/UMC 8710BU;
-  diagnóstico físico genérico antigo desabilitado antes de qualquer I/O.
-- Distribuição completa de source, firmwares inalterados, licenças,
-  geradores e testes. A homologação física de associação, tráfego e
-  coexistência continua pendente para famílias/revisões sem hardware validado.
+- Integrated 13 separate operating backends: CU, 88EU, EU, DU, FU,
+  8710BU, 8723BU, 8812AU, 8814AU, 8821AU, 8821CU, 8822BU and 8822CU.
+  There are 230 verified eligible IDs; 270 records and 39
+  unconfirmed or conflicting identities preserved.
+- Ported firmware, ROM, MAC/DMA, PHY/RFK, negotiation, TX/RX and lifecycle
+  specific to the new chipsets, from the pinned primary sources.
+- AU with HT20/40 and VHT20/40/80; DU, 8814AU and B/C with HT20; FU and 8710BU
+  with HT20/40; 8723BU with HT20. Per-board limits remain explicit.
+- 8814AU: power and RFK on upper channels 149/153/157/161/165;
+  hardware reception verified on the connected USB adapter, without equating it to WPA2/IP.
+- AU and B/C coexistence integrated with timers/C2H and ACK-confirmed SMPS;
+  firmware ownership and readiness checked in states, EDCA and
+  shutdown, with fast authorization without I/O also on boards without BT.
+- The app advertises lower/upper 5 GHz groups separately and
+  describes implemented modes, according to driver authorization.
+- Corrected 8723BU firmware signatures and 8710BU SMIC/UMC pairs;
+  old generic hardware diagnostics disabled before any I/O.
+- Complete source distribution, unmodified firmware, licenses,
+  generators and tests. Hardware validation of association, traffic and
+  coexistence remains pending for families/revisions without validated hardware.
 
-- Confirmado ID RTL8814B B814 em fonte primária, mantendo o HAL desabilitado.
+- Confirmed RTL8814B B814 ID in a primary source, keeping the HAL disabled.
 
-- Verificados aliases legados 056e:4010/AU e 20f4:648c/CU com fontes primárias fixadas.
+- Verified legacy aliases 056e:4010/AU and 20f4:648c/CU against pinned primary sources.
 
-- Tabelas IQK importadas tornadas privadas por módulo, corrigindo a colisão
-  de símbolos no link conjunto de 8710BU e 8723BU.
+- Made imported IQK tables private per module, fixing the symbol
+  collision when linking 8710BU and 8723BU together.
 
-## 2026-10-30 — validação nativa (kext build45, app build40)
+## 2026-10-30 — native validation (kext build45, app build40)
 
 
-## 0.14.0/build46 + app 0.3.0/build41 — em desenvolvimento
+## 0.14.0/build46 + app 0.3.0/build41 — in development
 
-- RTL8814AU RFE0/1:5GHz36/40/44/48 a20MHz, potência ROM/PG/limites,
-  RFK, térmica por banda, OFDM/SIFS/EDCA e HT20/MCS0–15 no net80211.
-- App:capacidade5GHz por adaptador, seleção recuperada e revalidação noJOIN.
-- Ports independentes AU/B/C/DU:ROM/boot/firmware/MAC/tabelas PHY/USB;
-  integração e calibrações restantes continuam em desenvolvimento.
-- B/C:port0/filtros/CCMP por software, EDCA, H2C com cursor comum e RA HT20;
-  este módulo não publica interface de rede nem autoriza a porta WPA2.
-- Corrigida a identidade CCNC0bda:2102 paraRTL8822BU, com interfaceff/ff/ff.
-- Assertivas dos testes de rádio permanecem ativas também em Release.
-- Sem certificação de WPA2/IP/tráfego para o pacote completo.
+- RTL8814AU RFE0/1: 5 GHz 36/40/44/48 at 20 MHz, ROM/PG/power limits,
+  RFK, per-band thermal handling, OFDM/SIFS/EDCA and HT20/MCS0–15 in net80211.
+- App: per-adapter 5 GHz capability, restored selection and revalidation on JOIN.
+- Independent AU/B/C/DU ports: ROM/boot/firmware/MAC/PHY tables/USB;
+  remaining integration and calibrations are still in development.
+- B/C:port0/filters/software CCMP, EDCA, H2C with a shared cursor and HT20 RA;
+  this module does not publish a network interface or authorize the WPA2 port.
+- Corrected CCNC 0bda:2102 identity to RTL8822BU, with interface ff/ff/ff.
+- Radio test assertions remain active in Release too.
+- No WPA2/IP/traffic certification for the complete package.
 
-- Usar a KPI pública thread_call_allocate_with_options na limpeza adiada.
-- Recuperar o token do adaptador selecionado após retorno do mesmo Registry ID.
-- Diagnóstico RTL8192EU nativo IOKit e aceitação de múltiplas interfaces compatíveis.
-- Regressões nativas e testes físicos documentados em docs/NATIVE-20261030.md.
+- Use the public thread_call_allocate_with_options KPI for deferred cleanup.
+- Recover the selected adapter's token after the same Registry ID returns.
+- Native IOKit RTL8192EU diagnostics and acceptance of multiple compatible interfaces.
+- Native regressions and hardware tests documented in docs/NATIVE-20261030.md.
 
-## 2026-10-24 — USB preflight e recuperação de seleção (kext build 44, app build 39)
+## 2026-10-24 — USB preflight and selection recovery (kext build 44, app build 39)
 
-- `src/FamilyBackend.c`: evitar apagar descritores USB e agregados RX quando
-  saída e entrada compartilham memória. Rejeitar antes da escrita.
-- `app/Protocol.hpp`: após invalidação por desconexão, rejeitar tokens
-  antigos e permitir reseleção do mesmo Registry ID.
-- Regressões reproduzidas na versão anterior e aprovadas após correção.
-- Assinatura ad-hoc, firmware, RF/TX, aparência e protocolos preservados.
-- 5 GHz operacional e Release macOS ainda não comprovados.
+- `src/FamilyBackend.c`: avoid erasing USB descriptors and RX aggregates when
+  output and input share memory. Reject before writing.
+- `app/Protocol.hpp`: after disconnection invalidation, reject
+  stale tokens and allow reselection of the same Registry ID.
+- Regressions reproduced on the previous version and passed after the fix.
+- Ad-hoc signing, firmware, RF/TX, appearance and protocols preserved.
+- Operating 5 GHz and macOS Release still unproven.
 
-## 2026-10-24 — auditoria de memória/aliasing (kext build 43, app build 38)
+## 2026-10-24 — memory/aliasing audit (kext build 43, app build 38)
 
-- Rejeitar sobreposição de memória entre saída e entradas somente nos fluxos
-  `rtw_family_5g_join_prepare`, `rtw_family_radio_prepare_profile` e
-  `rtw_r12au_scan_parse`, antes de limpar buffers do chamador.
-- Adicionar regressões que falham no source build 42 e passam no build 43;
-  não alterar protocolo, RF/PHY, firmware, hardware TX ou interface AppKit.
-- Testes host ASan/UBSan: 93 grupos portáveis aprovados em execuções concluídas.
-  Compilação macOS, assinatura ad-hoc nativa, GUI e 5 GHz ativo não verificados.
-- Continuar documentando revisão semântica parcial; não declarar Release.
+- Reject memory overlap between output and inputs only in the
+  `rtw_family_5g_join_prepare`, `rtw_family_radio_prepare_profile` and
+  `rtw_r12au_scan_parse` flows, before clearing caller buffers.
+- Add regressions that fail on source build 42 and pass on build 43;
+  do not change the protocol, RF/PHY, firmware, hardware TX or AppKit interface.
+- ASan/UBSan host tests: 93 portable groups passed in completed runs.
+  macOS compilation, native ad-hoc signing, GUI and active 5 GHz not verified.
+- Continue documenting partial semantic review; do not declare Release.
 
-## 2026-10-24 — RTL8814AU 5 GHz RX passivo (kext build 42)
+## 2026-10-24 — RTL8814AU passive 5 GHz RX (kext build 42)
 
-- Implementado chaveamento RF real em modo de recepção passiva de 20 MHz,
-  canais 36/40/44/48, com RFE 0/1, seleção de banda, AGC e os quatro caminhos RF.
-- Integrado aos canais passivos do scanner net80211; o caminho de retorno a
-  2,4 GHz exige recalibração antes de permitir transmissão normal.
-- 5 GHz permanece **sem autorização de TX, autenticação ou associação** neste
-  backend; não representa 5 GHz operacional nem suporte pleno HT/VHT.
-- Mantida a assinatura ad-hoc obrigatória; aplicativo permanece build 38.
+- Implemented real RF switching in 20 MHz passive receive mode,
+  channels 36/40/44/48, with RFE 0/1, band selection, AGC and all four RF paths.
+- Integrated into the net80211 scanner's passive channels; the return path to
+  2.4 GHz requires recalibration before allowing normal transmission.
+- 5 GHz remains **without TX, authentication or association authorization** in this
+  backend; this does not represent operating 5 GHz or full HT/VHT support.
+- Mandatory ad-hoc signing retained; application remains build 38.
 
-## 2026-10-24 — auditoria consolidada: app build 38; kext permanece build 41
+## 2026-10-24 — consolidated audit: app build 38; kext remains build 41
 
-- Corrigir os transportes socket e XPC do aplicativo para limpar a resposta
-  anterior quando uma requisição local inválida é rejeitada (inclusive
-  comprimentos maiores que `UINT32_MAX` quando o buffer é válido).
-- Acrescentar regressões das funções reais do socket e casos correspondentes
-  ao teste nativo, reproduzindo a falha anterior à correção.
-- Consolidar relatórios antigos no único documento
-  `docs/AUDITORIA-CONSOLIDADA.md`, atualizar o inventário verificável
-  `docs/AUDITORIA-COBERTURA.tsv` e guardar um diff em
-  `docs/diffs/CORRECOES.patch`.
-- Preservar kext, TX/RX de rádio, catálogo, firmwares, tema e política
-  obrigatória de assinatura ad-hoc. Este pacote contém **somente source**;
-  testes reais de macOS, `codesign`, benchmark e 5 GHz ativo pendentes.
+- Fix the application's socket and XPC transports to clear the previous
+  response when an invalid local request is rejected (including
+  lengths greater than `UINT32_MAX` when the buffer is valid).
+- Add regressions of the actual socket functions and corresponding cases
+  to the native test, reproducing the failure before the fix.
+- Consolidate old reports into the single document
+  `docs/CONSOLIDATED-AUDIT.md`, update the verifiable inventory
+  `docs/AUDIT-COVERAGE.tsv` and save a diff in
+  `docs/diffs/FIXES.patch`.
+- Preserve kext, radio TX/RX, catalog, firmware, theme and the mandatory
+  ad-hoc signing policy. This package contains **source only**;
+  actual macOS tests, `codesign`, benchmarks and active 5 GHz remain pending.
 
 ## 2026-10-23 — radio capability matrix: driver build 41, app build 37
 
@@ -325,7 +333,7 @@
 - Offline build/test: 88/88 portable CTest groups passed in three batches
   (35+30+23). macOS AppKit/IOKit compilation, actual ad-hoc signature,
   physical USB hot-unplug, Instruments and live UI tests remain pending.
-- Release source details: `docs/AUDITORIA-CONSOLIDADA.md`.
+- Release source details: `docs/CONSOLIDATED-AUDIT.md`.
 
 ## 2026-10-23 — app build 35 (0.2.13), driver stays at build 40 (0.13.19)
 
@@ -340,7 +348,7 @@
   signing policy byte-for-byte except for the app sources listed above.
 - Offline CI: 87/87 portable test groups passed (84 together; 3 long groups
   individually); no native AppKit/IOKit compilation, signing or UI tests
-  performed. Audit details: `docs/AUDITORIA-CONSOLIDADA.md`.
+  performed. Audit details: `docs/CONSOLIDATED-AUDIT.md`.
 
 ## 2026-10-23 — build 40 (driver 0.13.19), app build 34 (0.2.13)
 
@@ -381,7 +389,7 @@
   the CMake build. Native Xcode build, code signing, and physical unplug
   on macOS Tahoe have not been performed on this Linux host.
 
-See `docs/AUDITORIA-CONSOLIDADA.md` for scope, evidence and validation steps.
+See `docs/CONSOLIDATED-AUDIT.md` for scope, evidence and validation steps.
 
 ## Driver 0.13.19 — guarded legacy firmware upload stage (2026-10-23)
 

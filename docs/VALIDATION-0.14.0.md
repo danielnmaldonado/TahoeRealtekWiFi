@@ -1,90 +1,90 @@
-# Validação de desenvolvimento — 0.14.0/build47, app 0.3.0/build42
+# Development validation — 0.14.0/build47, app 0.3.0/build42
 
-Este relatório acompanha o source e não constitui homologação de todos os
-adaptadores ou revisões do catálogo. Estado atual: desenvolvimento.
+This report accompanies the source and does not certify all
+adapters or revisions in the catalog. Current status: development.
 
-## Escopo
+## Scope
 
-- 270 registros: 250 do pacote original e 20 extensões com origem preservada.
-- 231 identidades numéricas verificadas; 230 elegíveis aos 13 backends integrados.
-- RTL8814B B814 possui identificação primária, mas não possui HAL operacional.
-- 39 identidades não confirmadas/conflitantes permanecem desabilitadas.
-- Associação de estação WPA2-Personal/CCMP, com integridade, replay e porta
-  controlada no net80211 adaptado para macOS.
+- 270 records: 250 from the original package and 20 extensions with provenance retained.
+- 231 verified numeric identities; 230 eligible for the 13 integrated backends.
+- RTL8814B B814 has primary identification but no operational HAL.
+- 39 unconfirmed/conflicting identities remain disabled.
+- WPA2-Personal/CCMP station association, with integrity, replay and a controlled
+  port in net80211 adapted for macOS.
 
-Os limites por família, largura e banda constam no README e na matriz USB.
-Identidade numérica, interface existente e compilação não comprovam tráfego.
+Limits by family, width and band are in the README and USB matrix.
+Numeric identity, an existing interface and compilation do not prove traffic.
 
-## Evidência física disponível
+## Available hardware evidence
 
-No RTL8814AU 2357:0106 conectado, a rotina explícita de rádio/recepção verificou
-os canais 149/153/157/161/165: 40 MPDUs/beacons, zero erros de formato/CRC/ICV e
-encerramento limpo. Há registro anterior de recepção nos canais 36–48.
-Esses testes não são associação WPA2, DHCP ou medição de download/upload com
-a kext build47 carregada.
+On the connected RTL8814AU 2357:0106, the explicit radio/receive routine checked
+channels 149/153/157/161/165: 40 MPDUs/beacons, zero format/CRC/ICV errors and
+clean shutdown. There is an earlier record of reception on channels 36–48.
+These tests are not WPA2 association, DHCP or download/upload measurement with
+the build47 kext loaded.
 
-A consulta atual não encontrou kext TahoeRealtekWiFi nem serviço RTWUSBController
-carregados. A validação da nova kext exige a Clover no próximo boot
-e os adaptadores/revisões correspondentes. A compilação não reinicia o Mac
-nem modifica SIP/AMFI.
+The current query found neither a TahoeRealtekWiFi kext nor an RTWUSBController
+service loaded. Validation of the new kext requires Clover on the next boot
+and the corresponding adapters/revisions. Compilation does not restart the Mac
+or modify SIP/AMFI.
 
-## Verificação de software
+## Software verification
 
-O catálogo, o leitor C, a geração de personalidades, a matriz e a identificação
-no app passaram juntos em nove testes após confirmar B814 e os dois aliases legados. Os testes
-usam todas as 270 identidades e suas restrições de interface/configuração.
+The catalog, C reader, personality generation, matrix and app identification
+passed nine tests together after confirming B814 and the two legacy aliases. The tests
+use all 270 identities and their interface/configuration restrictions.
 
-Os componentes novos possuem testes de registradores, imagens reais de
-firmware, falhas de transporte antes/depois do efeito, métodos reais extraídos
-do controlador e negociação pelo net80211 importado. Contagens de asserções
-não representam número de placas homologadas.
+New components have tests of registers, actual firmware images,
+transport failures before/after their effect, actual methods extracted
+from the controller and negotiation through the imported net80211. Assertion
+counts do not represent the number of certified adapters.
 
-O app 0.3.0/build42 passou os 14 executáveis de teste nativos, incluindo menu
-AppKit, identificação, transporte e políticas de credenciais. O app e o helper
-foram compilados e suas assinaturas ad-hoc passaram a verificação estrita.
-Os testes de credenciais e login usam substitutos e não alteram os ajustes
-ou o Chaves do usuário.
+App 0.3.0/build42 passed all 14 native test executables, including the AppKit
+menu, identification, transport and credential policies. The app and helper
+were built and their ad-hoc signatures passed strict verification.
+Credential and login tests use substitutes and do not change the user's
+settings or Keychain.
 
-A kext 0.14.0/build47 foi compilada e ligada com as 109 unidades do projeto,
-230 personalidades e assinatura ad-hoc verificada. Não há referências externas
-às classes privadas Apple80211/IO80211/AppleBCMWLAN no binário. As tabelas IQK
-8710BU/8723BU têm vínculo privado por módulo, também nos geradores.
+Kext 0.14.0/build47 was compiled and linked with the project's 109 units,
+230 personalities and a verified ad-hoc signature. The binary contains no external
+references to private Apple80211/IO80211/AppleBCMWLAN classes. The 8710BU/8723BU IQK
+tables have private per-module linkage, including in the generators.
 
-A bateria final passou os 143 testes CTest em Release (50,20 s) e os mesmos
-143 com ASan/UBSan nos alvos de host (59,93 s). O kernel não recebe essa
-instrumentação. O fixture de bootstrap B/C observa a captura da autoridade
-apenas após a identificação completa, mantendo os caminhos reais de
-Boot/FW/OTP/features e 8.611 falhas de I/O.
+The final run passed all 143 CTest tests in Release (50,20 s) and the same
+143 with ASan/UBSan on host targets (59,93 s). The kernel does not receive this
+instrumentation. The B/C bootstrap fixture observes authority capture
+only after complete identification, preserving the actual
+Boot/FW/OTP/features paths and 8.611 I/O failures.
 
-A revisão independente de AU e B/C terminou sem falhas reproduzíveis pendentes
-no escopo de software. Estados MLME, encerramento e EDCA verificam propriedade
-e firmware antes de comandos; a autorização rápida de TX/taxa/BA usa somente
-memória, inclusive sem Bluetooth. Os testes incluem alterações de transporte,
-placa, ROM e pipes, firmware inválido, erros antes/depois do efeito e limpeza
-local de chaves/porta. A matriz AU contém 988 casos de propriedade, 252 de
-firmware e 1.600 falhas de inicialização; a matriz B/C contém 2.268 casos de
-estados/EDCA com e sem BT. Contagens não equivalem a placas homologadas.
+Independent AU and B/C review ended with no outstanding reproducible failures
+within the software scope. MLME states, shutdown and EDCA check ownership
+and firmware before commands; fast TX/rate/BA authorization uses only
+memory, including without Bluetooth. Tests include changes to transport,
+board, ROM and pipes, invalid firmware, errors before/after their effect and local
+key/port cleanup. The AU matrix contains 988 ownership cases, 252 firmware
+cases and 1.600 initialization failures; the B/C matrix contains 2.268
+state/EDCA cases with and without BT. Counts do not equate to certified adapters.
 
-A consulta de lista HID do watchdog 8822C foi recuperada da fonte primária;
-a regressão nas três famílias confirma H2C0x73 somente no 8822C. Os testes
-CCX verificam ACK real, tokens e expiração; conclusão USB não é tratada como
-confirmação pelo rádio.
+The 8822C watchdog HID list query was recovered from the primary source;
+regression across the three families confirms H2C0x73 only on 8822C. CCX tests
+check actual ACK, tokens and expiry; USB completion is not treated as
+radio acknowledgment.
 
-As fontes C importadas ainda emitem avisos de conversão. O build completo
-passou; os testes separados de Controller/unidades novas também verificaram
-quadros de pilha limitados a 2.048 bytes. Não se declara ausência de avisos
-em toda a árvore importada.
+Imported C sources still emit conversion warnings. The full build
+passed; separate tests of the Controller/new units also checked
+stack frames limited to 2.048 bytes. No claim is made that the entire
+imported tree is warning-free.
 
-O empacotamento confere CRC, hashes de todos os arquivos e permissões. A
-validação da entrega extrai o ZIP para outra pasta, compila testes, app,
-kext e instalador, verifica as assinaturas e compara o payload app/helper do
-instalador com o bundle compilado. O SDK de kernel continua uma dependência
-externa fixada; não é incorporado ao ZIP do source.
+Packaging checks CRC, hashes of every file and permissions. Delivery
+validation extracts the ZIP to another folder, builds tests, app,
+kext and installer, verifies signatures and compares the installer's app/helper
+payload with the built bundle. The kernel SDK remains a pinned external
+dependency; it is not included in the source ZIP.
 
-## Critérios ainda necessários para lançamento
+## Criteria still needed for release
 
-Conexão, reconexão, suspensão, remoção USB, DHCP, tráfego sustentado e coexistência
-Bluetooth precisam ser exercitados em hardware para cada família/revisão.
-Identidades conflitantes exigem evidência adicional; o RTL8814B exige HAL,
-firmware e PHY próprios. O catálogo completo não deve ser anunciado como
-conjunto de 270 adaptadores fisicamente homologados.
+Connection, reconnection, sleep, USB removal, DHCP, sustained traffic and Bluetooth
+coexistence need hardware testing for each family/revision.
+Conflicting identities require additional evidence; RTL8814B requires its own HAL,
+firmware and PHY. The complete catalog must not be advertised as
+270 physically certified adapters.

@@ -1,75 +1,75 @@
-# Validação de desenvolvimento — 0.14.1/build48, app 0.3.2/build44
+# Development validation — 0.14.1/build48, app 0.3.2/build44
 
-Projeto e adaptação para macOS: MaLd0n. Estado: desenvolvimento.
-Este relatório separa evidência de código da validação física de estação.
+Project and macOS adaptation: MaLd0n. Status: development.
+This report separates code evidence from hardware station validation.
 
-## Catálogo
+## Catalog
 
-Há 270 registros, preservando os 250 do pacote original e 20 extensões.
-263 possuem identidade primária verificada; 262 são elegíveis aos 13 backends
-de estação integrados. As 32 novas confirmações usam evidência preservada no
-registro de fontes, com restrições OEM e de interface.
+There are 270 records, preserving the original package's 250 plus 20 extensions.
+263 have verified primary identities; 262 are eligible for the 13 integrated
+station backends. The 32 new confirmations use evidence retained in the
+source register, with OEM and interface restrictions.
 
-Cinco IDs continuam sem correspondência primária suficiente: 038b:0100,
-058c:ff20, 0bda:8011, 0e0b:9071 e 1668:8105. Os IDs 13b1:0043 e 0bda:8192
-possuem fontes conflitantes. A identidade de uma unidade observada não altera
-silenciosamente o catálogo nem autoriza outra revisão.
+Five IDs still lack sufficient primary matches: 038b:0100,
+058c:ff20, 0bda:8011, 0e0b:9071 and 1668:8105. IDs 13b1:0043 and 0bda:8192
+have conflicting sources. The identity of an observed unit does not silently
+change the catalog or authorize another revision.
 
-Os perfis 04bb:0959, 04bb:095a e 0bda:2003 são exclusivos de 5 GHz segundo a
-instalação OEM. O controlador rejeita 2,4 GHz antes de I/O; o app interpreta
-as bandas explícitas publicadas pelo driver, preservando compatibilidade
-com o protocolo anterior.
+Profiles 04bb:0959, 04bb:095a and 0bda:2003 are 5 GHz only according to the
+OEM installation. The controller rejects 2.4 GHz before I/O; the app interprets
+the explicit bands published by the driver, preserving compatibility
+with the previous protocol.
 
 ## RTL8814BU
 
-O source inclui HALMAC/USB, OTP e codecs próprios, importados de uma revisão
-primária fixada. A compilação desse componente, a reprodução do gerador e a
-revisão independente passaram com falhas de transporte antes e depois do
-efeito, verificação de propriedade e limites reais de pilha do kernel.
-O vínculo de ciclo de vida entre PHY e HAL recebeu revisão estática separada
-e testes locais de lease; nenhuma revisão de modelo é homologação física.
+The source includes its own HALMAC/USB, OTP and codecs, imported from a pinned
+primary revision. The component build, generator reproduction and
+independent review passed with transport failures before and after their
+effect, ownership checks and actual kernel stack limits.
+The lifecycle link between PHY and HAL received separate static review
+and local lease tests; no model review is hardware certification.
 
-O PHY/RFK próprio está integrado como componente bloqueado para estação. O caminho
-de estação permanece desabilitado: ainda exige firmware NIC licenciado e
-qualificação do protocolo de estação, perfil USB de fábrica/regulatório e
-funções de tracking restantes, além do hardware correspondente. Consulte
-[os limites do componente](RTL8814BU-STATUS.md).
-Uma assinatura de firmware semelhante à de AU não é prova de compatibilidade.
+Its own PHY/RFK is integrated as a component blocked for station use. The station
+path remains disabled: it still requires licensed NIC firmware and
+station protocol qualification, factory/regulatory USB profile and
+remaining tracking functions, along with corresponding hardware. See
+[the component limits](RTL8814BU-STATUS.md).
+A firmware signature resembling AU is not proof of compatibility.
 
-## Verificação de software
+## Software verification
 
-A bateria integrada com o PHY e a descoberta de silício passou 147/147
-testes CTest em Release e os mesmos 147 com ASan/UBSan nos alvos de host
-(62,15 s no último passe instrumentado). Os testes de bandas incluem os métodos
-reais do controlador e rejeição de transmissão em banda bloqueada, sem USB I/O.
-O app 0.3.2/build44 passou os 15 executáveis nativos, incluindo a compilação
-AppKit. O fluxo de entrega extrai o ZIP em outra pasta, repete os testes e
-compila app, kext e instalador; confere assinaturas, hashes e o payload
-app/helper do instalador contra os produtos dessa mesma árvore extraída.
-Os geradores reproduziram 72 arquivos HALMAC e 16 artefatos PHY, com 159
-funções reais e nove arrays primários. O PHY passou compilação KernelSDK
-com limite de frame de pilha de 2.048 bytes.
+The integrated suite with PHY and silicon discovery passed 147/147
+CTest tests in Release and the same 147 with ASan/UBSan on host targets
+(62,15 s in the last instrumented pass). Band tests include actual controller
+methods and rejection of transmission on a blocked band without USB I/O.
+App 0.3.2/build44 passed all 15 native executables, including the AppKit
+build. The delivery flow extracts the ZIP to another folder, repeats the tests and
+builds app, kext and installer; it checks signatures, hashes and the installer's
+app/helper payload against products from that same extracted tree.
+The generators reproduced 72 HALMAC files and 16 PHY artifacts with 159
+actual functions and nine primary arrays. The PHY passed KernelSDK compilation
+with a 2.048-byte stack frame limit.
 
-Os testes usam modelos, fixtures de firmware e métodos reais extraídos. Eles
-não equivalem a um conjunto de placas fisicamente homologadas. Instrumentação
-ASan/UBSan pertence aos alvos de host, não ao kernel.
+Tests use models, firmware fixtures and actual extracted methods. They
+do not equate to a set of physically certified adapters. ASan/UBSan
+instrumentation belongs to host targets, not the kernel.
 
-## Sistema físico e lançamento
+## Physical system and release
 
-Foram observados dois adaptadores: RTL8814AU 2357:0106 e RTL8192EU 2357:0108.
-A auditoria inicial desta sessão não encontrou a kext carregada nem um serviço
-RTWUSBController. Os resultados históricos de recepção no AU não comprovam
-WPA2, DHCP ou throughput com a nova build. Tráfego da Ethernet integrada não
-é considerado tráfego dos adaptadores USB.
+Two adapters were observed: RTL8814AU 2357:0106 and RTL8192EU 2357:0108.
+The initial audit in this session found neither the kext loaded nor an
+RTWUSBController service. Historical AU reception results do not prove
+WPA2, DHCP or throughput with the new build. Traffic from integrated Ethernet is
+not counted as USB adapter traffic.
 
-A validação de lançamento requer carregamento real, WPA2, DHCP, reconexão,
-remoção USB, suspensão e tráfego sustentado nas famílias/revisões pertinentes.
-Compilar não altera SIP/AMFI nem reinicia o computador. Não se declara suporte
-completo ou homologação dos 270 registros enquanto faltarem essas evidências.
+Release validation requires actual loading, WPA2, DHCP, reconnection,
+USB removal, sleep and sustained traffic on the relevant families/revisions.
+Compilation does not change SIP/AMFI or restart the computer. Complete support
+or certification of the 270 records is not claimed while this evidence is missing.
 
-## Entrega
+## Delivery
 
-Os pacotes e fontes para compilação ficam na pasta `releases` deste projeto.
-O Desktop não é usado como destino. Cada pacote novo deve conter instruções
-de compilação, manifesto de arquivos e SHA-256; licenças obrigatórias e
-proveniência das dependências permanecem junto do source.
+Packages and build sources are in this project's `releases` folder.
+The Desktop is not used as a destination. Each new package must contain build
+instructions, a file manifest and SHA-256; mandatory licenses and dependency
+provenance remain with the source.

@@ -1,60 +1,60 @@
-# Validação — 0.14.2/build49 e app 0.3.3/build45
+# Validation — 0.14.2/build49 and app 0.3.3/build45
 
-Projeto e adaptação macOS: MaLd0n. Estado: desenvolvimento.
+Project and macOS adaptation: MaLd0n. Status: development.
 
-## Evidência física que motivou a correção
+## Hardware evidence that prompted the fix
 
-A build48 foi encontrada carregada. O RTL8192EU 2357:0108 apresentava porta
-WPA2 autorizada. O RTL8814AU 2357:0106, RFE1/cut1, inicializava e recebia quadros;
-após reconexão USB associou em 2,4 GHz segundo o usuário, mas voltou a cair.
-O log do host USB registrou em duas sessões o endpoint de entrada0x81
-retornando0xe00002ed (NotResponding / transaction error), com zero bytes.
-Esse evento era transformado imediatamente em erro fatal retido pelo driver.
-O log identifica o gatilho; não determina sua origem elétrica ou de firmware.
+Build48 was found loaded. The RTL8192EU 2357:0108 had an authorized
+WPA2 port. The RTL8814AU 2357:0106, RFE1/cut1, initialized and received frames;
+after USB reconnection it associated in 2.4 GHz according to the user, but dropped again.
+In two sessions, the USB host log recorded input endpoint 0x81
+returning 0xe00002ed (NotResponding / transaction error), with zero bytes.
+This event was immediately converted into a fatal error latched by the driver.
+The log identifies the trigger; it does not determine its electrical or firmware origin.
 
-## Recepção USB
+## USB reception
 
-A recuperação admite apenas NotResponding com zero bytes, em estação ativa.
-Limpa halt com clearStall(true), bloqueia novos RX enquanto drena as quatro
-gerações antigas e só então rearma os buffers. Callbacks de abort não consomem
-o orçamento. Três tentativas consecutivas e dois segundos limitam a operação;
-falha em halt clear, drenagem, refill ou orçamento retorna ao caminho fatal.
-RX útil zera a sequência. TX, demais erros, stop, sleep e unplug mantêm seus
-controles. O diagnóstico publica tentativas, conclusões, falhas e endpoint.
+Recovery accepts only NotResponding with zero bytes on an active station.
+It clears halt with clearStall(true), blocks new RX while draining the four
+old generations, and only then rearms buffers. Abort callbacks do not consume
+the budget. Three consecutive attempts and two seconds bound the operation;
+a failure in halt clear, drain, refill or budget returns to the fatal path.
+Useful RX resets the sequence. TX, other errors, stop, sleep and unplug retain their
+controls. Diagnostics publish attempts, completions, failures and endpoint.
 
-A política foi confrontada com o tratamento de erros do
-[driver Linux RTL8814AU](https://github.com/aircrack-ng/rtl8814au/blob/892641430c24308e7ae193d746b25b600ef227d8/os_dep/linux/usb_ops_linux.c#L735)
-e com o contrato de halt/abort de IOUSBHostPipe nos headers reais do SDK Apple.
-A implementação e os testes de host percorrem o registro das 13 famílias
-operacionais; isso não homologa fisicamente todas as placas.
+The policy was compared against error handling in the
+[Linux RTL8814AU driver](https://github.com/aircrack-ng/rtl8814au/blob/892641430c24308e7ae193d746b25b600ef227d8/os_dep/linux/usb_ops_linux.c#L735)
+and the IOUSBHostPipe halt/abort contract in the actual Apple SDK headers.
+The implementation and host tests traverse the register of 13 operational
+families; this does not physically certify every adapter.
 
-## Busca em duas bandas
+## Dual-band search
 
-O código podia escolher o SSID em 2,4 GHz ao terminar a rodada ativa sem
-visitar os canais passivos de 5 GHz. Agora a busca foreground com SCANALLBAND
-consome os canais passivos habilitados antes da escolha e preserva o cache.
-DU, 8812AU/8821AU, 8814AU e 8821CU/8822BU/8822CU anunciam essa capacidade.
-O teste executa funções reais de scan/seleção e os blocos reais de registro
-dos sete backends, em cinco máscaras/perfis de bandas.
+The code could select the SSID in 2.4 GHz at the end of the active round without
+visiting passive 5 GHz channels. Foreground search with SCANALLBAND now
+consumes enabled passive channels before selection and preserves the cache.
+DU, 8812AU/8821AU, 8814AU and 8821CU/8822BU/8822CU advertise this capability.
+The test executes actual scan/selection functions and the actual registration blocks
+of the seven backends across five band masks/profiles.
 
-Continuam autorizados somente os canais e placas implementados. DFS permanece
-fora do escopo; em 5 GHz os grupos são36/40/44/48 e149/153/157/161/165.
-O app mostra bandas utilizáveis observadas; o AP é escolhido automaticamente.
-Uma rede 5 GHz em canal fora desses grupos requer trabalho adicional de driver.
+Only implemented channels and adapters remain authorized. DFS remains
+out of scope; in 5 GHz the groups are 36/40/44/48 and 149/153/157/161/165.
+The app shows observed usable bands; the AP is chosen automatically.
+A 5 GHz network on a channel outside these groups requires additional driver work.
 
-## Verificação e entrega
+## Verification and delivery
 
-Os testes operacionais RX e scan usam métodos reais extraídos, com fronteiras
-USB/registradores modeladas e ASan/UBSan. Os resultados completos de integração,
-compilação nativa, source extraído e payload do instalador são registrados no
-VERIFICATION.json da entrega. Modelos não substituem RF, WPA2, DHCP e tráfego
-sustentado nos adaptadores/revisões físicos.
+Operational RX and scan tests use actual extracted methods, modeled
+USB/register boundaries and ASan/UBSan. Full results for integration,
+native build, extracted source and installer payload are recorded in the
+delivery's VERIFICATION.json. Models do not replace RF, WPA2, DHCP and sustained
+traffic on physical adapters/revisions.
 
-O inventário permanece em270 IDs:263 identidades primárias,262 elegíveis e
-uma descoberta separada restrita para13b1:0043. Cinco IDs sem prova e dois
-conflitantes não recebem habilitação estática. O RTL8814BU permanece sem estação
-habilitada; seus limites estão em RTL8814BU-STATUS.md.
+The inventory remains at 270 IDs: 263 primary identities, 262 eligible and
+separate restricted discovery for 13b1:0043. Five unproven and two conflicting
+IDs receive no static enablement. RTL8814BU remains without an enabled station;
+its limits are in RTL8814BU-STATUS.md.
 
-A build49 precisa ser carregada para validar as correções no Tahoe. O source,
-app e kext são entregues juntos em releases do projeto, com manifesto e SHA-256.
-Não há reinício automático ou alteração de SIP/AMFI durante a compilação.
+Build49 must be loaded to validate the fixes on Tahoe. Source,
+app and kext are delivered together in project releases, with manifest and SHA-256.
+Compilation does not automatically restart or change SIP/AMFI.

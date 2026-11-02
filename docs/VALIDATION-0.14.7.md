@@ -1,95 +1,95 @@
-# Validação — 0.14.7/build54 e app 0.3.4/build46
+# Validation — 0.14.7/build54 and app 0.3.4/build46
 
-Projeto e adaptação macOS: MaLd0n. Estado: desenvolvimento.
+Project and macOS adaptation: MaLd0n. Status: development.
 
-## Checkup físico da build53
+## Hardware check of build53
 
-Em 31/10/2026 foi encontrada carregada a build53 recompilada pelo usuário,
+On 31/10/2026, build53 rebuilt by the user was found loaded,
 UUID F700B442-AB96-3173-A65B-595D3F1B44CE. Tahoe 26.7.2/25G332, RTL8814AU
-2357:0106 na porta direta 14400000 a 480 Mb/s, Registry 4294968504/en3. WPA2/CCMP
-autorizado, IPv4/IPv6 e rota padrão na USB. Canal 6 / 2,4 GHz, sinal entre −46 e −42 dBm.
-App 0.3.4/build46 e helper ativo, íntegros por assinatura ad hoc; helper com uma
-execução e sem encerramento registrado. Nenhum crash/panic atual de app/helper
-foi encontrado nos diretórios DiagnosticReports consultados.
+2357:0106 on direct port 14400000 at 480 Mb/s, Registry 4294968504/en3. WPA2/CCMP
+authorized, IPv4/IPv6 and default route on USB. Channel 6 / 2.4 GHz, signal between −46 and −42 dBm.
+App 0.3.4/build46 and active helper, intact by ad hoc signature; helper with one
+execution and no recorded termination. No current app/helper crash/panic
+was found in the queried DiagnosticReports directories.
 
-Cinco downloads válidos de 4 MiB e uploads de 1 MiB / 4 MiB usaram curl IPv4 vinculado
-a en3, TLS verificado, sem proxy e HTTP 200. Amostras curtas: 48,3–73,9 Mb/s de
-download e 42,0–55,2 Mb/s de upload. Um pedido separado de 16 MiB recebeu HTTP 403
-do servidor e foi excluído da medida. Não são tetos de velocidade, nem o mesmo
-servidor/metodologia da captura do usuário, 84,9/32,7 Mb/s.
+Five valid 4 MiB downloads and 1 MiB / 4 MiB uploads used curl IPv4 bound
+to en3, verified TLS, no proxy and HTTP 200. Short samples: 48,3–73,9 Mb/s
+download and 42,0–55,2 Mb/s upload. A separate 16 MiB request received HTTP 403
+from the server and was excluded from measurement. These are not speed ceilings, nor the same
+server/methodology as the user's capture, 84,9/32,7 Mb/s.
 
-90/90 pings ao gateway responderam, sem perda. Durante as transferências, média
-7,838 ms e máximo 190,015 ms; em seguida, sem transferência gerada pelo agente,
-média 4,526 ms e máximo 12,267 ms. O pico sob carga permanece observado; não foi
-atribuído ao rádio ou modem sem evidência adicional.
+90/90 gateway pings responded without loss. During transfers, the average was
+7,838 ms and maximum 190,015 ms; afterward, without agent-generated transfer,
+the average was 4,526 ms and maximum 12,267 ms. The peak under load remains an observation; it was not
+attributed to the radio or modem without additional evidence.
 
-Snapshots gerais tiveram nove valores RX distintos durante 50 s e permaneceram
-autorizados no mesmo controlador. No intervalo total, RX publicou +38.773.035 bytes,
-+6.365 agregados e +30.912 pacotes Ethernet enfileirados. USB/recovery, erros de
-agregado/truncado/malformed e CCMP MIC/replay permaneceram 0. O maior read real
-foi 21498 bytes: acima dos 16 KiB antigos, sem corte do agregado. Esses valores são
-últimas publicações, não contadores automaticamente vivos nem captura atômica.
+General snapshots had nine distinct RX values over 50 s and remained
+authorized on the same controller. Over the total interval, RX published +38.773.035 bytes,
++6.365 aggregates and +30.912 queued Ethernet packets. USB/recovery,
+aggregate/truncated/malformed errors and CCMP MIC/replay remained 0. The largest actual read
+was 21498 bytes: above the old 16 KiB, without cutting the aggregate. These values are
+last publications, not automatically live counters or an atomic capture.
 
-TXQueueDrops 12132 e TXLinkDrops 5 não aumentaram. InputErrors 5→12, sem aumento
-nas causas exportadas pela build53. Contabilidade interna de inputPackets avançou
-pelos mesmos 30912 pacotes, enquanto netstat e getifaddrs retornaram BSD RX 0.
-Não há prova de que os sete erros sejam falha USB, CCMP ou uma causa BA específica.
+TXQueueDrops 12132 and TXLinkDrops 5 did not increase. InputErrors 5→12, without increase
+in the causes exported by build53. Internal inputPackets accounting advanced
+by the same 30912 packets, while netstat and getifaddrs returned BSD RX 0.
+There is no proof that the seven errors are USB failure, CCMP or a specific BA cause.
 
-Nos logs do boot houve um aborto inicial de quatro requests RX e erros iniciais
-de frameworks Apple; não houve repetição correspondente no recorte consultado.
-O diagnóstico logd de escrita em disco não foi atribuído ao driver. Não se afirma
-que todos os logs estejam sem erros. Registros de scan/cache incluem 5 GHz;
-a associação física atual permaneceu 2,4 GHz. Não houve scan forçado, troca de AP,
-alteração de roteador, reinstalação, reinício ou alteração de EFI pelo agente.
+Boot logs contained an initial abort of four RX requests and initial Apple
+framework errors; there was no corresponding repetition in the queried excerpt.
+The logd disk-write diagnostic was not attributed to the driver. No claim is made
+that all logs are error-free. Scan/cache records include 5 GHz;
+the current physical association remained 2.4 GHz. The agent did not force a scan, change AP,
+change the router, reinstall, restart or change EFI.
 
-## Correções da build54
+## Build54 fixes
 
-Fila interna cheia agora retorna stall ao IOGatedOutputQueue e preserva o mbuf
-para retry. O wrapper não libera o pacote nem soma erro nessa pressão temporária.
-Após conclusão/escoamento, a fila superior recebe serviço assíncrono somente
-quando autorização e capacidade permitem. Fila ausente continua falha real.
-Teardown, reset, concorrência e isolamento por adaptador preservam ownership.
-A fila superior é finita; sobrecarga sustentada ainda pode esgotá-la.
+A full internal queue now returns stall to IOGatedOutputQueue and preserves the mbuf
+for retry. The wrapper does not free the packet or add an error for this temporary pressure.
+After completion/drain, the upper queue receives asynchronous service only
+when authorization and capacity allow. A missing queue remains a genuine failure.
+Teardown, reset, concurrency and adapter isolation preserve ownership.
+The upper queue is finite; sustained overload can still exhaust it.
 
-O retorno de inputPacket/flushInputQueue não é mais ignorado. Falta de interface
-nativa ou diferença na quantidade de submissões retorna erro, sem tocar novamente
-em mbufs transferidos. Oito contadores por interface observam a fronteira; KPI
-ifnet_stat e índice nativo permitem comparar a etapa BSD. Isso corrige sucesso
-falso da entrega, mas não comprova a causa nem o reparo do RX 0 observado na build53.
-Nenhum contador nativo foi incrementado manualmente ou zerado para mascarar falha.
+The inputPacket/flushInputQueue return is no longer ignored. Missing native
+interface or a different submission count returns an error without touching
+transferred mbufs again. Eight per-interface counters observe the boundary; KPI
+ifnet_stat and native index allow comparison with the BSD stage. This fixes false
+delivery success but does not prove the cause or repair of RX 0 observed in build53.
+No native counter was manually incremented or reset to conceal failure.
 
-STATUS publica HT/BA para os 13 backends, separado da política AMRR. Geração ímpar
-indica publicação em andamento e a próxima par conclui o snapshot geral; tempo
-monotônico pertence àquele controlador. Timers podem atualizar subconjuntos entre
-consultas e uma leitura do IORegistry não é atômica. O coletor mantém essa ressalva,
-suprime comparações de publicação em andamento/regredida e respeita validade/índice
-das estatísticas nativas. Versões antigas continuam legíveis, com frescor desconhecido.
+STATUS publishes HT/BA for all 13 backends, separately from AMRR policy. An odd generation
+indicates publication in progress and the next even one completes the general snapshot; monotonic
+time belongs to that controller. Timers may update subsets between
+queries and an IORegistry read is not atomic. The collector retains this caveat,
+suppresses comparisons of publication in progress/regressed publication and respects validity/index
+of native statistics. Older versions remain readable with unknown freshness.
 
-São publicados eventos BA/reorder existentes, sem inventar contador de fragmentação
-ou decomposição um-a-um dos erros. no_buf inclui buffer ausente e slot duplicado.
-Metadado Ethernet fixo 54 Mb/s foi substituído por desconhecido 0: não existe snapshot
-completo e recente de taxa TX, largura, GI e associação em todos os backends. MCS RX,
-capacidade negociada e taxa térmica C2H permanecem separados. Não foi alterada RF,
-criptografia, firmware, ABI, capacidade RX 32 KiB AU ou TXAMPDU da build53.
+Existing BA/reorder events are published without inventing a fragmentation counter
+or one-to-one decomposition of errors. no_buf includes a missing buffer and duplicate slot.
+Fixed Ethernet metadata of 54 Mb/s was replaced with unknown 0: a complete recent
+snapshot of TX rate, width, GI and association does not exist across all backends. RX MCS,
+negotiated capacity and C2H thermal rate remain separate. RF,
+cryptography, firmware, ABI, AU RX 32 KiB capacity and build53 TXAMPDU were not changed.
 
-## Verificação e entrega
+## Verification and delivery
 
-Testes novos reproduziram os defeitos na fonte53 antes da implementação. Testes
-dos métodos reais verificam 77 casos TX/wake, 24 de completion e 36 de entrega RX; Controller
-e _mbuf compilaram no SDK nativo com limite de stack de 2048 bytes. A publicação real
-cobre todas as 13 famílias, estados de associação, KPI inválida e leitura sem mudança
-de política RF. O coletor tem 15 testes comportamentais offline com Bash/Perl/ditto.
+New tests reproduced the defects in source53 before implementation. Tests of
+actual methods check 77 TX/wake, 24 completion and 36 RX delivery cases; Controller
+and _mbuf compiled against the native SDK with a 2048-byte stack limit. Actual publication
+covers all 13 families, association states, invalid KPI and reading without RF
+policy change. The collector has 15 offline behavioral tests with Bash/Perl/ditto.
 
-Passaram 155/155 testes Release e 155/155 testes com ASan/UBSan no host.
-A revisão independente, compilação do ZIP extraído, produtos,
-assinaturas e hashes são registrados em VERIFICATION.json/NATIVE-VERIFICATION.json
-na pasta da entrega. O source contém app46, helper, kext, testes e scripts completos.
-A build54 ainda precisa ser carregada para medir seu comportamento físico.
+155/155 Release tests and 155/155 tests with ASan/UBSan on the host passed.
+Independent review, build of the extracted ZIP, products,
+signatures and hashes are recorded in VERIFICATION.json/NATIVE-VERIFICATION.json
+in the delivery folder. Source contains the complete app46, helper, kext, tests and scripts.
+Build54 still needs loading to measure its physical behavior.
 
-## Suporte
+## Support
 
-270 identidades inventariadas, 263 confirmadas em tabela primária, 262 elegíveis a 13
-backends e descoberta restrita 13b1:0043. Lista completa em USB-WIFI-SUPORTE.txt e
-USB-WIFI-ADAPTERS.csv. RTL8814BU continua sem estação habilitada por firmware,
-protocolo/perfil e tracking pendentes. DFS/WPA3/AX não foram habilitados.
-Validação física de todas as famílias/revisões continua necessária.
+270 inventoried identities, 263 confirmed in a primary table, 262 eligible for 13
+backends and restricted discovery 13b1:0043. Complete list in USB-WIFI-SUPPORT.txt and
+USB-WIFI-ADAPTERS.csv. RTL8814BU still has no enabled station because firmware,
+protocol/profile and tracking are pending. DFS/WPA3/AX were not enabled.
+Hardware validation of every family/revision remains necessary.

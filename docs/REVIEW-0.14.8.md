@@ -1,21 +1,21 @@
-# Revisão da build55/app47
+# Review of build55/app47
 
-Projeto e adaptação macOS: MaLd0n.
+Project and macOS adaptation: MaLd0n.
 
-Duas revisões independentes encerraram os defeitos encontrados no código de
-DFS, potência e app. A revisão final conferiu27 inputs congelados e reproduziu
-os casos contra os métodos de produção com ASan/UBSan. Relatórios completos
-e hashes acompanham a entrega em REVIEWS/ e VERIFICATION.json.
+Two independent reviews closed the defects found in DFS,
+power and app code. The final review checked 27 frozen inputs and reproduced
+the cases against production methods with ASan/UBSan. Full reports
+and hashes accompany the delivery in REVIEWS/ and VERIFICATION.json.
 
-Foram corrigidos e revalidados: whitelists nativas8814 que recusavam DFS; plano
-AU rejeitado que alterava teto vigente; SAR B/C negativo truncado; compensação
-térmica que anulava o limite; CSA/potência de AP vinculado com SSID oculto;
-faixas regionais parciais escondidas no app; reconexão de perfil oculto2,4GHz.
+Fixed and revalidated: native 8814 whitelists that rejected DFS; a rejected
+AU plan changing the active cap; truncated negative B/C SAR; thermal
+compensation canceling the limit; CSA/power of an associated AP with a hidden SSID;
+partial regional ranges hidden in the app; reconnection of a hidden 2.4GHz profile.
 
-A revisão de potência usou os repros originais e81 casos B/C/10 AU adicionais.
-A revisão final usou108 casos de reconexão nativa e os clocks separados de
-autorização visível/potência. Nenhum achado P0–P3 permaneceu nos escopos revistos.
+The power review used the original reproductions and 81 additional B/C/10 AU cases.
+The final review used 108 native reconnection cases and separate clocks for
+visible authorization/power. No P0–P3 finding remained within the reviewed scopes.
 
-Essa revisão não é validação de rádio, EIRP, tempo de evacuação físico, antena,
-WPA2/DHCP/tráfego ou todas as placas/revisões. Não foi carregada a build55 pelo
-agente. Esses limites permanecem em VALIDATION-0.14.8.md e DFS-STATION.md.
+This review is not validation of radio, EIRP, physical evacuation time, antenna,
+WPA2/DHCP/traffic or all adapters/revisions. The agent did not load build55.
+These limits remain in VALIDATION-0.14.8.md and DFS-STATION.md.

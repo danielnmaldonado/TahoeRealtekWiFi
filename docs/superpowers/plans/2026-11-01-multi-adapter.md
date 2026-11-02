@@ -2,64 +2,64 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans; current user explicitly requests direct execution.
 
-**Goal:** Atualizar as redes do USB selecionado e expandir correções verificadas sem misturar famílias ou controladores.
-**Architecture:** Estado de refresh por ID/epoch no app, transporte RX comum e recuperação de bootstrap com operações próprias de cada família.
-**Tech Stack:** Objective-C++/AppKit/XPC, C/C++/IOKit/net80211, CMake, clang, testes ASan/UBSan.
+**Goal:** Refresh networks for the selected USB adapter and extend verified fixes without mixing families or controllers.
+**Architecture:** Refresh state per ID/epoch in the app, common RX transport and bootstrap recovery with each family's own operations.
+**Tech Stack:** Objective-C++/AppKit/XPC, C/C++/IOKit/net80211, CMake, clang, ASan/UBSan tests.
 **Spec:** docs/superpowers/specs/2026-11-01-multi-adapter-design.md
 
 ## Global Constraints
 
-- Source na pasta Documents existente; releases anteriores imutáveis; logs autorizados no Desktop.
-- Sem credenciais, nova associação, reboot ou EFI pelo agente nesta rodada.
-- Protocolo público e autenticação app/helper preservados; nenhuma habilitação de chipset sem HAL.
-- Testes de diagnóstico com home isolado; nenhum reset/clean do repositório sujo.
+- Source in the existing Documents folder; previous releases immutable; authorized logs on Desktop.
+- No credentials, new association, reboot or EFI operations by the agent in this round.
+- Public protocol and app/helper authentication preserved; no chipset enabled without HAL.
+- Diagnostic tests with isolated home; no reset/clean of the dirty repository.
 
 ## Review Focus
 
-- Troca A→B→A durante SCAN: callback antigo não altera B nem dá origem fresca ao cache.
-- Adaptador conectado: refresh automático não rompe associação/tráfego.
-- USB rejeita o RX inicial: sem anúncio falso de sucesso nem retry infinito.
-- Callback tardio/erro misto: nenhuma liberação/reinicialização antes de drenar nem perda do primeiro erro.
-- Identidade/ROM alterada, stop falho ou USB fatal: recuperação bloqueada, sem limpar o erro.
+- A→B→A switching during SCAN: an old callback must not alter B or give the cache fresh provenance.
+- Connected adapter: automatic refresh must not break association/traffic.
+- USB rejects initial RX: no false success announcement or infinite retry.
+- Late callback/mixed error: no release/reinitialization before draining or loss of the first error.
+- Changed identity/ROM, failed stop or fatal USB: recovery blocked, without clearing the error.
 
-## Task 1: Verificação física somente leitura
+## Task 1: Read-only physical verification
 
-- [x] Descobrir IDs atuais e capturar LIST/STATUS/MAP de ambos com app instalado.
-- [x] Conferir build carregada, USB, WPA2/IP/rota e deltas sem misturar adaptadores.
-- [x] Salvar relatório local com limites; não converter metadados em prova de rádio/tráfego.
+- [x] Discover current IDs and capture LIST/STATUS/MAP for both using the installed app.
+- [x] Check loaded build, USB, WPA2/IP/route and deltas without mixing adapters.
+- [x] Save a local report with limits; do not turn metadata into radio/traffic evidence.
 
-## Task 2: Refresh do app
+## Task 2: App refresh
 
-Files: app/Main.mm, políticas pequenas de estado se necessárias, app/tests/*.
-- [x] Provar que troca para USB ocioso atualmente só lê cache.
-- [x] Testar SCAN automático por necessidade e conclusão, sem associação automática nova.
-- [x] Implementar estado por ID, tempo de conclusão, invalidação e retry/timeout limitados.
-- [x] Testar troca rápida, hotplug, wake, cache vazio, busca em andamento e link ativo.
+Files: app/Main.mm, small state policies if necessary, app/tests/*.
+- [x] Prove that switching to an idle USB adapter currently only reads cache.
+- [x] Test automatic SCAN by need and completion, without a new automatic association.
+- [x] Implement per-ID state, completion time, invalidation and bounded retry/timeout.
+- [x] Test rapid switching, hotplug, wake, empty cache, ongoing scan and active link.
 
-## Task 3: RX inicial comum
+## Task 3: Common initial RX
 
 Files: kext/RTWUSBController.cpp/.hpp, tests/rtwn_rx_capacity_tests.cpp.
-- [x] Executar RED para rejeição em cada família de estação.
-- [x] Ampliar os guards existentes ao registro de backends de estação.
-- [x] Testar capacidade própria, quatro rejeições, abort diferido/erro fatal, orçamento e cancelamento.
-- [x] Executar capacidade, runtime RX e ordenação com sanitizadores.
+- [x] Run RED for rejection in every station family.
+- [x] Extend existing guards to the station-backend registry.
+- [x] Test family-specific capacity, four rejections, deferred abort/fatal error, budget and cancellation.
+- [x] Run capacity, RX runtime and ordering with sanitizers.
 
-## Task 4: Bootstrap/stop das famílias
+## Task 4: Family bootstrap/stop
 
-Files: RTWFamilyRecovery.inc/Members, backends tipados, APIs stop_checked e testes reais.
-- [x] Reproduzir latch e stop antes do drain; reter provas RED.
-- [x] Implementar stop_checked preservando o erro original e verificando limpeza separadamente.
-- [x] Guardar identidade/ROM/provider e retry explícito limitado em SCAN/JOIN.
-- [x] Finalizar somente teardown após drain; impedir bypass por watchdog/initTask.
-- [x] No legado, exigir poweroff primário antes de retry persistente; testar separadamente.
+Files: RTWFamilyRecovery.inc/Members, typed backends, stop_checked APIs and real tests.
+- [x] Reproduce latch and stop before drain; retain RED evidence.
+- [x] Implement stop_checked preserving the original error and checking cleanup separately.
+- [x] Guard identity/ROM/provider and bounded explicit retry in SCAN/JOIN.
+- [x] Finish teardown only after drain; prevent bypass through watchdog/initTask.
+- [x] In the legacy path, require primary poweroff before persistent retry; test separately.
 
-## Task 5: Integração e entrega
+## Task 5: Integration and delivery
 
-- [x] Revisão independente dos deltas; corrigir achados e repetir checks afetados.
-- [x] Bump driver57/app49, documentação e tabela de cobertura factual.
-- [ ] CTest Release/sanitizadores, testes AppKit, SDK e compilação de app/kext do ZIP final.
-- [ ] Conferir assinaturas, payload do instalador, source manifest e hashes do pack.
-- [ ] Instalar o app autorizado; manter kext/EFI para compilação/carregamento pelo usuário.
+- [x] Independent review of deltas; fix findings and rerun affected checks.
+- [x] Bump driver57/app49, documentation and factual coverage table.
+- [ ] CTest Release/sanitizers, AppKit tests, SDK and app/kext compilation from the final ZIP.
+- [ ] Check signatures, installer payload, source manifest and pack hashes.
+- [ ] Install the authorized app; leave kext/EFI compilation/loading to the user.
 
-A fotografia deste plano precede a geração do ZIP. Os resultados finais da
-compilação/testes/instalador são registrados no VERIFICATION.json da entrega.
+This plan snapshot precedes ZIP generation. Final build/test/installer results
+are recorded in the delivery's VERIFICATION.json.

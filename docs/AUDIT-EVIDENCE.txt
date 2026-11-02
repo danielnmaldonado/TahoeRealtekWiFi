@@ -1,11 +1,11 @@
-# AUDITORIA - REGISTROS REAIS DE EXECUCAO, 2026-10-24
-SO Linux. Nenhum teste nativo em macOS foi realizado. Este arquivo centraliza evidencias, nao substitui o source.
-Build portavel: CMake Debug, AddressSanitizer/UndefinedBehaviorSanitizer.
-As paths /mnt/data abaixo pertencem ao ambiente de auditoria e nao serao validos em outro computador.
+# AUDIT - ACTUAL EXECUTION RECORDS, 2026-10-24
+Linux OS. No native macOS test was performed. This file centralizes evidence; it does not replace source.
+Portable build: CMake Debug, AddressSanitizer/UndefinedBehaviorSanitizer.
+The /mnt/data paths below belong to the audit environment and will not be valid on another computer.
 
 
 ================================================================================
-REPRODUCAO ANTES DA CORRECAO: assertion esperada
+REPRODUCTION BEFORE FIX: expected assertion
 LOG_ORIGINAL: repro_before_fix.log
 SHA256_LOG_ORIGINAL: 95d7f78e02af4ed1c17aac8b88814bf73a935552796e09a5b491fbe16051285d
 --------------------------------------------------------------------------------
@@ -24,7 +24,7 @@ subprocess.CalledProcessError: Command '['/tmp/rtw-socket-exchange-qd5s_d9c/sock
 
 
 ================================================================================
-TESTES PORTAVEIS RAPIDOS - 90/90
+FAST PORTABLE TESTS - 90/90
 LOG_ORIGINAL: tests_fast_final.log
 SHA256_LOG_ORIGINAL: 0b08346639830c58cc52748f697cf694d819bae3cfc3d9c54df9897ffe00fb30
 --------------------------------------------------------------------------------
@@ -216,7 +216,7 @@ Total Test time (real) =  27.29 sec
 
 
 ================================================================================
-PACOTE DO APLICATIVO - TESTE LONGO 1/1
+APP PACKAGE - LONG TEST 1/1
 LOG_ORIGINAL: test_app_pkg_final.log
 SHA256_LOG_ORIGINAL: 8262bbafd56522e3d5a8e53fc647d777bb53ee3129491ee319f20a9f441d8119
 --------------------------------------------------------------------------------
@@ -230,7 +230,7 @@ Total Test time (real) =  17.74 sec
 
 
 ================================================================================
-MATRIZ USB - TESTE LONGO 1/1
+USB MATRIX - LONG TEST 1/1
 LOG_ORIGINAL: test_usb_matrix_final.log
 SHA256_LOG_ORIGINAL: f4fac3586ba190749b14392a0c2f538acff41fe1630d4c0ce5071a233fb6fc07
 --------------------------------------------------------------------------------
@@ -244,7 +244,7 @@ Total Test time (real) =  17.09 sec
 
 
 ================================================================================
-ANALISE ESTATICA CLANG - 50 UNIDADES
+CLANG STATIC ANALYSIS - 50 UNITS
 LOG_ORIGINAL: static_analysis.log
 SHA256_LOG_ORIGINAL: f525c019f89fa5c64403ac3246e0dfd5e61d395138a037c74a5b8e782a751420
 --------------------------------------------------------------------------------
@@ -301,33 +301,33 @@ src/LinkState.cpp	status=0
 
 
 ================================================================================
-TESTE REAL DO TRANSPORTE APOS CORRECAO
-Comando: python scripts/test-app-socket-exchange.py
-Saida: socket exchange: 10 real-function scenarios passed
-Teste nativo em app/tests/transport-tests.cpp acrescentado, mas nao executado aqui.
+ACTUAL TRANSPORT TEST AFTER FIX
+Command: python scripts/test-app-socket-exchange.py
+Output: socket exchange: 10 real-function scenarios passed
+Native test added in app/tests/transport-tests.cpp, but not executed here.
 
 
 ========================================================================
-RODADA COMPLEMENTAR 24/10/2026 -- BUILD 41 / APP 38
+ADDITIONAL ROUND 24/10/2026 -- BUILD 41 / APP 38
 
 Base: TahoeRealtekWiFi-v0.13.19-KEXT41-APP38-AUDITORIA-CONSOLIDADA-ADHOC-FULL-SOURCE.zip
 SHA256 base: 9be2b81fc3da5a2b0ce35ffc2c9debd569fedf0257773f76a66b999cdac5136f
 
-Revisao e alteracoes: 3 funcoes de recepcao corrigidas, 3 fontes de regressao modificadas.
+Review and changes: 3 receive functions fixed, 3 regression sources modified.
 
-ASan/UBSan instrumentam apenas alvos portaveis, nao AppKit/IOKit macOS.
+ASan/UBSan instrument only portable targets, not macOS AppKit/IOKit.
 
-Resumo CTest final: 36/36 + 1/1 + 32/32 + 10/10 + 1/1 + 12/12 = 92/92, cada faixa independente.
+Final CTest summary: 36/36 + 1/1 + 32/32 + 10/10 + 1/1 + 12/12 = 92/92, each range independent.
 
-Uma execucao conjunta foi interrompida por limite de tempo e nao foi contabilizada.
+A combined run was interrupted by the time limit and was not counted.
 
-Outra tentativa do teste de empacotamento ficou sem resultado por limite de tempo; a repeticao isolada concluiu com sucesso.
+Another packaging test attempt produced no result within the time limit; the isolated repeat completed successfully.
 
-Clang --analyze em 3 unidades: 1 warning de null-deref condicionado a retorno hipotetico de outra unidade para profile=NULL, nao reproduzido, documentado e mantido sem mudanca injustificada.
+Clang --analyze on 3 units: 1 null-deref warning conditional on a hypothetical return from another unit for profile=NULL, not reproduced, documented and retained without unjustified change.
 
 
 -----------------------------------------------------------------
-F-02 FALHA ORIGINAL family 5G
+F-02 ORIGINAL FAILURE family 5G
 LOG=repro_before.txt
 SHA256_LOG=0ff2d7704d09c8832d7f69a13a0bcbb26c0a546ec876a2d6615cfdcbf1b187b8
 
@@ -335,7 +335,7 @@ SHA256_LOG=0ff2d7704d09c8832d7f69a13a0bcbb26c0a546ec876a2d6615cfdcbf1b187b8
 
 
 -----------------------------------------------------------------
-F-02 DEPOIS DE CORRIGIR
+F-02 AFTER FIX
 LOG=repro_fixed_family.txt
 SHA256_LOG=76676fe26b82ffbd987985555ee3d91f2a7f54c477cf425d47010d14ce07a13e
 
@@ -343,7 +343,7 @@ six-family offline 5GHz scan: 936 checks passed (NO RF/TX)
 
 
 -----------------------------------------------------------------
-F-03 FALHA ORIGINAL RTL8812AU
+F-03 ORIGINAL FAILURE RTL8812AU
 LOG=repro_second_before.txt
 SHA256_LOG=85e217a4e3c660c85671a18756ebb19f0395ee0a73b9d6a4a2b967a78e4289f2
 
@@ -351,7 +351,7 @@ FAILED /mnt/data/audit_round2_20261024/TahoeRealtekWiFi-v0.13.19/tests/rtl8812au
 
 
 -----------------------------------------------------------------
-F-03 DEPOIS DE CORRIGIR
+F-03 AFTER FIX
 LOG=repro_fixed_passive.txt
 SHA256_LOG=4c006bb03d2ca0a619146d81a134410990b6283285ecd8db3e01677e1f56938d
 
@@ -359,7 +359,7 @@ rtw-r12au-passive-tests: 39971 checks; no physical radio tested
 
 
 -----------------------------------------------------------------
-F-04 FALHA ORIGINAL preflight USB
+F-04 ORIGINAL FAILURE USB preflight
 LOG=repro_third_before.log
 SHA256_LOG=97154de57230fc1264bc2c909aa8f0e4e09b409a1f104d79707ed08dde508e42
 
@@ -367,7 +367,7 @@ FAIL /mnt/data/audit_round2_20261024/TahoeRealtekWiFi-v0.13.19/tests/rx_prefligh
 
 
 -----------------------------------------------------------------
-F-04 DEPOIS DE CORRIGIR
+F-04 AFTER FIX
 LOG=repro_third_fixed.log
 SHA256_LOG=9b3cc7425eefe56a903b01d7e50e4fd201a497891bb27e5c16cb4953ed997611
 
@@ -375,7 +375,7 @@ rx preflight: 99 checks passed
 
 
 -----------------------------------------------------------------
-BUILD COMPLETO ASAN/UBSAN
+FULL ASAN/UBSAN BUILD
 LOG=build_round2_complete.log
 SHA256_LOG=477be03f8481d3cff77636c0db9604c7ca3cf2fdf37b92d7fb77bd8049115dd1
 
@@ -435,7 +435,7 @@ datapath-tests
 
 
 -----------------------------------------------------------------
-ANALISADOR CLANG 3 FONTES
+CLANG ANALYZER 3 SOURCES
 LOG=clang_three_units.log
 SHA256_LOG=32d4c43674af3b8824ea131b990738c6f180297630c82104eec7db4f5b6b90a0
 
@@ -499,7 +499,7 @@ Total Test time (real) =   4.84 sec
 
 
 -----------------------------------------------------------------
-CTEST 37 teste pacote repeticao
+CTEST 37 package test repeat
 LOG=ctest_final_pkg_retry.log
 SHA256_LOG=80ae6d71d6fbcc0787b5e0354e3ada30a5d97c690983d71f245235db4489821d
 
@@ -598,7 +598,7 @@ Total Test time (real) =  10.44 sec
 
 
 -----------------------------------------------------------------
-CTEST 80 matriz usb
+CTEST 80 USB matrix
 LOG=ctest_final_80_80.log
 SHA256_LOG=d4609ac323d04787a205b19f423a9c67111db1111839a75beea0fb3cf68be390
 
@@ -669,7 +669,7 @@ Total Test time (real) =   0.05 sec
 
 
 -----------------------------------------------------------------
-CTEST primeira execucao interrupcao timeout
+CTEST first run interrupted by timeout
 LOG=ctest_fast.log
 SHA256_LOG=224df3d6002f4c3343fe9d0b677f03576e68d6fb021922259e84489f1fb3f7d6
 
@@ -718,7 +718,7 @@ SHA256_LOG=224df3d6002f4c3343fe9d0b677f03576e68d6fb021922259e84489f1fb3f7d6
 
 
 -----------------------------------------------------------------
-CTEST execucao pacote com timeout e repeticao
+CTEST package run with timeout and repeat
 LOG=ctest_final_37_37.log
 SHA256_LOG=2a3dcd3fb2f993a52c057dd233724df09f8e557e11cbaf061a05492520fbbcdc
 
@@ -753,7 +753,7 @@ ctest_matrix.log: aa12e7b9f94f2dfd28d0240fa52aa561daebde5446d1fb359b534b694c2b2e
 ctest_pkg.log: 201c85610fa12b4367bda8c38aa5c74094c72593571521578cc52fe635113dbf
 
 Files edited in code/test/build: CMakeLists.txt, include/rtw/DiagnosticPublishPolicy.hpp, tests/diagnostic_publish_policy_tests.cpp.
-Updated in-place unique files: docs/AUDITORIA-CONSOLIDADA.md, docs/AUDITORIA-EVIDENCIAS.txt, docs/AUDITORIA-COBERTURA.tsv, docs/diffs/CORRECOES.patch, SOURCE-MANIFEST.sha256.
+Updated in-place unique files: docs/CONSOLIDATED-AUDIT.md, docs/AUDIT-EVIDENCE.txt, docs/AUDIT-COVERAGE.tsv, docs/diffs/FIXES.patch, SOURCE-MANIFEST.sha256.
 =========== END HOTFIX ===========
 
 CUMULATIVE PATCH VALIDATION: patch --dry-run --batch -p1 on 5 GHz Stage2 base -> PASS
@@ -796,8 +796,8 @@ No 5 GHz physical adapter test, no macOS final ad-hoc binary signing.
 
 === STAGE5 / 2026-10-24 / KEXT BUILD43 / APP38 ===
 Base SHA256: 62f8037364eb66163db9f0fabdd8cd6b447d2544cf561cb7b6347c6e239635b8
-Baseline: source build42 íntegro; testes novos copiados sem correções no código de produção.
-Reprodução original dos três defeitos (falhas ESPERADAS):
+Baseline: intact build42 source; new tests copied without production code fixes.
+Original reproduction of the three defects (EXPECTED failures):
 Internal ctest changing into directory: /mnt/data/rtw_audit_stage5/repro_build
 Test project /mnt/data/rtw_audit_stage5/repro_build
     Start  1: rtw-family-5ghz-station-tests
@@ -823,7 +823,7 @@ The following tests FAILED:
 	 20 - rtw-r12au-station-tests (Failed)
 Errors while running CTest
 
-ASan/UBSan Debug build: PASS (CMake + host sources), 93 CTest no total.
+ASan/UBSan Debug build: PASS (CMake + host sources), 93 CTest in total.
 100% tests passed, 0 tests failed out of 91
 Total Test time (real) =  29.70 sec
 100% tests passed, 0 tests failed out of 1
@@ -833,7 +833,7 @@ Total Test time (real) =  17.77 sec
 Focused 5 after version bump: 5/5 PASS (3 source regressions, signing policy, kext personalities).
 Clang strict syntax for src/Family5GHzStation.c, src/FamilyRadioPolicy.c, src/RTL8812AUStation.c: PASS.
 Clang static analyzer (three files): 1 preexisting conditional warning in FamilyRadioPolicy.c; null profile caps check fails closed; not classified as proven defect.
-Patch: docs/diffs/CORRECOES.patch against build42 input; `patch --dry-run -p1`: 10 files PASS.
+Patch: docs/diffs/FIXES.patch against build42 input; `patch --dry-run -p1`: 10 files PASS.
 After `patch -p1`, all 10 source files match fixed source byte-by-byte: PASS.
 Source delta: three production .c, three regression .cpp, kext Info.plist, Xcode .pbxproj, README, CHANGELOG.
 Unchanged: firmware, vendor code, app source, signing scripts and all unrelated modules.
@@ -842,47 +842,47 @@ Mac Xcode compilation, physical USB/5GHz/DFS, real ad-hoc codesign, Instruments:
 
 
 ==============================================================================
-RODADA PRIORIDADES 2026-10-24 — base build 43, entrega build 44 / app 39
+PRIORITY ROUND 2026-10-24 — base build 43, delivery build 44 / app 39
 BASE_ZIP_SHA256: f0dfe8177e945c60e53a40b6a72a891de15d1e088250d471719bfeee98d694b4
-SOURCE_ALTERADO: CHANGELOG.md, README.md, TahoeRealtekWiFi.xcodeproj/project.pbxproj, app/Info.plist, app/Protocol.hpp, app/tests/model-tests.cpp, kext/Info.plist, src/FamilyBackend.c, tests/family_backend_tests.cpp
+MODIFIED_SOURCE: CHANGELOG.md, README.md, TahoeRealtekWiFi.xcodeproj/project.pbxproj, app/Info.plist, app/Protocol.hpp, app/tests/model-tests.cpp, kext/Info.plist, src/FamilyBackend.c, tests/family_backend_tests.cpp
 
-R1: Reproducao PRE-correcao, FamilyBackend USB/RX aliasing.
-  Origem: tests/family_backend_tests.cpp, testando codigo REAL src/FamilyBackend.c
-  Antes: /mnt/data/rtw_priority_20261024/repro-pre.log
-  CTest retornou 8 (assert status==RTW_BACKEND_PREFLIGHT_INVALID_ARGUMENT).
-  Depois: unitario e suite ASan/UBSan passaram.
-  Raiz: memset(out,0) antes de validar sobreposicao de saida e config/RX.
-  Solucao: ranges_overlap com uintptr_t e comparacao por distancias antes de escrever.
+R1: PRE-fix reproduction, FamilyBackend USB/RX aliasing.
+  Source: tests/family_backend_tests.cpp, testing ACTUAL src/FamilyBackend.c code
+  Before: /mnt/data/rtw_priority_20261024/repro-pre.log
+  CTest returned 8 (assert status==RTW_BACKEND_PREFLIGHT_INVALID_ARGUMENT).
+  After: unit test and ASan/UBSan suite passed.
+  Root: memset(out,0) before validating overlap of output and config/RX.
+  Solution: ranges_overlap with uintptr_t and distance comparison before writing.
 
-R2: Reproducao PRE-correcao, DeviceSelection stale token e reselecao.
-  Origem: app/tests/model-tests.cpp, usando app/Protocol.hpp REAL.
-  Antes: /mnt/data/rtw_priority_20261024/model-repro.log
-  CTest retornou 8: assert(!selection.matches(1234,selection.generation)).
-  Depois: rtw-menu-model-tests passou com ASan/UBSan.
-  Raiz: invalidate incrementava generation, mas matches aceitava novo token;
-        select(same RegistryID) ainda era no-op.
-  Solucao: invalidated bool; matches rejeita invalidated e select permite restaurar id.
+R2: PRE-fix reproduction, DeviceSelection stale token and reselection.
+  Source: app/tests/model-tests.cpp, using ACTUAL app/Protocol.hpp.
+  Before: /mnt/data/rtw_priority_20261024/model-repro.log
+  CTest returned 8: assert(!selection.matches(1234,selection.generation)).
+  After: rtw-menu-model-tests passed with ASan/UBSan.
+  Root: invalidate incremented generation, but matches accepted a new token;
+        select(same RegistryID) was still a no-op.
+  Solution: invalidated bool; matches rejects invalidated and select allows restoring id.
 
-R3: Regressao BUILD44/APP39, CMake ASan/UBSan.
+R3: BUILD44/APP39 regression, CMake ASan/UBSan.
   Build: /mnt/data/rtw_priority_20261024/final-asan-build.log — exit 0.
-  CTest rapido: /mnt/data/rtw_priority_20261024/final-ctest-fast.log
-  RESULTADO: 91/91 PASSARAM, exit 0.
-  CTest USB matriz: primeira tentativa interrompida por timeout; nao contabilizada.
-  Repeticao: /mnt/data/rtw_priority_20261024/final-ctest-matrix-retry.log
-  RESULTADO: 1/1 PASSOU, 16.97 segundos, exit 0.
-  CTest empacotamento: /mnt/data/rtw_priority_20261024/final-ctest-pkg.log
-  RESULTADO: 1/1 PASSOU, 17.74 segundos, exit 0.
-  TOTAL: 93/93 PASSARAM em tres execucoes concluidas.
+  Fast CTest: /mnt/data/rtw_priority_20261024/final-ctest-fast.log
+  RESULT: 91/91 PASSED, exit 0.
+  USB matrix CTest: first attempt interrupted by timeout; not counted.
+  Repeat: /mnt/data/rtw_priority_20261024/final-ctest-matrix-retry.log
+  RESULT: 1/1 PASSED, 16.97 seconds, exit 0.
+  Packaging CTest: /mnt/data/rtw_priority_20261024/final-ctest-pkg.log
+  RESULT: 1/1 PASSED, 17.74 seconds, exit 0.
+  TOTAL: 93/93 PASSED in three completed runs.
 
-R4: Clang estrito no src/FamilyBackend.c (-std=c11 -Wall -Wextra
-  -Wconversion -Werror -fsyntax-only), bash -n scripts, plistlib macOS plists: PASSOU.
-  scripts/generate-kext-project.py executado 2x, mesmo hash .pbxproj.
-  Politica de ad-hoc obrigatoria: inalterada, testes portaveis passaram.
-  macOS Xcode/codesign/USB fisico/Instruments/UI: NAO EXECUTADOS.
-  5GHz station operacional sete familias: NAO IMPLEMENTADO / NAO VALIDADO.
-  Nenhum valor de consumo CPU/RAM, duracao de hotspot ou velocidade de PHY
-  foi inventado. Nao ha ambiente macOS e placas fisicas neste teste.
+R4: Strict Clang on src/FamilyBackend.c (-std=c11 -Wall -Wextra
+  -Wconversion -Werror -fsyntax-only), bash -n scripts, plistlib macOS plists: PASSED.
+  scripts/generate-kext-project.py executed 2x, same .pbxproj hash.
+  Mandatory ad-hoc policy: unchanged, portable tests passed.
+  macOS Xcode/codesign/physical USB/Instruments/UI: NOT PERFORMED.
+  Operational 5GHz station for seven families: NOT IMPLEMENTED / NOT VALIDATED.
+  No CPU/RAM consumption, hotspot duration or PHY speed value
+  was invented. There is no macOS environment or physical adapter in this test.
 
-R5: patch unificado aplicado em fonte build43 LIMPO; 9/9 arquivos
-  ficaram byte-a-byte IDENTICOS a arvore resultante. Manifesto/ZIP gerados
-  e verificados separadamente. Sem arquivos de producao excluidos.
+R5: unified patch applied to CLEAN build43 source; 9/9 files
+  became byte-for-byte IDENTICAL to the resulting tree. Manifest/ZIP generated
+  and checked separately. No production files excluded.

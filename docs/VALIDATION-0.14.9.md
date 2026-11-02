@@ -1,51 +1,51 @@
-# Validação — 0.14.9/build56 e app0.3.6/build48
+# Validation — 0.14.9/build56 and app0.3.6/build48
 
-Projeto e adaptação macOS: MaLd0n. Desenvolvimento.
+Project and macOS adaptation: MaLd0n. Development.
 
-## Evidência real
+## Actual evidence
 
-O ZIP de 01/11/2026 mostra a build55 e app47: RTL8814AU 2357:0106/en3 com
-publicação fresca, mas scan/RX/perfil em zero; RTL8192EU 2357:0108/en1 conectado.
-O erro USB acompanhado de desconexão pertence ao EU. Os 20 arquivos IPS são
-abortos históricos de testes em userspace, sem prova de panic desta kext.
+The ZIP from 01/11/2026 shows build55 and app47: RTL8814AU 2357:0106/en3 with
+fresh publication, but scan/RX/profile at zero; RTL8192EU 2357:0108/en1 connected.
+The USB error accompanied by disconnection belongs to EU. The 20 IPS files are
+historical userspace test aborts, without proof of a panic in this kext.
 
-App48 foi instalado e seu executável comparado por SHA256 ao produto compilado.
-A CLI executou LIST/STATUS/MAP com sucesso no ID 4294968492 e SCAN retornou
-0xe00002d8 em 0,765 ms. STATUS mostrava USBerror em zero e nenhum rádio/busca iniciado.
-As consultas são metadados; não demonstram saúde física do transporte USB.
-A build55 não exportava o core errno nem a fase de bootstrap, então o erro inicial
-específico permanece desconhecido. Nenhuma causa de RFK/firmware foi inventada.
+App48 was installed and its executable compared by SHA256 to the built product.
+The CLI successfully executed LIST/STATUS/MAP on ID 4294968492 and SCAN returned
+0xe00002d8 in 0,765 ms. STATUS showed USBerror at zero and no radio/search started.
+Queries are metadata; they do not demonstrate physical USB transport health.
+Build55 exported neither core errno nor bootstrap phase, so the specific initial
+error remains unknown. No RFK/firmware cause was invented.
 
-## Correções e verificação
+## Fixes and verification
 
-Testes dos métodos reais reproduziram e corrigiram: latch permanente após
-falha elegível; poweroff antes de drain; bypass por startup/watchdog; perda
-de erro misto; falta de finalizador após callback; e proveniência RX perdida
-entre EBUSY e conclusão tardia. O erro de limpeza não apaga o original.
+Tests of actual methods reproduced and fixed: a permanent latch after
+eligible failure; poweroff before drain; bypass through startup/watchdog; loss
+of mixed error; missing finalizer after callback; and RX provenance lost
+between EBUSY and late completion. Cleanup error does not erase the original.
 
-A família IONetworkController chamava o hook padrão Unsupported e encerrava PM
-antes do registro tardio do driver. A nova implementação registra os estados
-pelo policy maker, pede estado 1 e encerra PM fora do gate antes de liberar
-recursos. A ausência de PM no snapshot combina com esse defeito, mas não prova
-que ele causou a falha original da AU.
+The IONetworkController family called the default Unsupported hook and stopped PM
+before late driver registration. The new implementation registers states
+through the policy maker, requests state 1 and stops PM outside the gate before releasing
+resources. Missing PM in the snapshot is consistent with this defect, but does not prove
+it caused the original AU failure.
 
-A CLI do app foi validada por parser estrito, fronteiras XPC reais/mocadas e log
-privado limitado. FIFO e flock ocupado não bloqueiam comandos. CodeIdentity e
-autenticação do helper foram preservados. Nenhum arquivo de senha foi criado.
+The app CLI was validated through strict parser, actual/mocked XPC boundaries and a bounded
+private log. FIFO and busy flock do not block commands. CodeIdentity and
+helper authentication were preserved. No password file was created.
 
-Os fixtures de pedido inválido estavam gravando erros simulados no log do usuário.
-Agora CTest e app/test.command isolam o home do processo antes de iniciar esses
-binários. A verificação encontrou os registros no home de teste e nenhum PID
-desses testes no log normal. STATUS real do app instalado continuou válido.
+Invalid-request fixtures were writing simulated errors into the user's log.
+CTest and app/test.command now isolate the process home before starting these
+binaries. Verification found records in the test home and no PID from
+these tests in the normal log. Actual STATUS from the installed app remained valid.
 
-As contagens finais Release/sanitizadores/ZIP, compilação nativa, assinaturas,
-payload do instalador e hashes constam em VERIFICATION.json junto da entrega.
-As revisões independentes e sua delimitação estão em REVIEWS/.
+Final Release/sanitizer/ZIP counts, native build, signatures,
+installer payload and hashes are in VERIFICATION.json alongside the delivery.
+Independent reviews and their scope are in REVIEWS/.
 
-## Limites
+## Limits
 
-Não foi carregada a kext56 pelo agente. Não há validação física de recuperação,
-sleep/wake, WPA2/DHCP/tráfego ou estabilidade de todas as placas/revisões desta
-build. Nenhuma alteração de EFI, reboot, roteador ou proteções do macOS foi feita.
-RTL8814AU permanece HT20, com até dois fluxos; VHT/AC não foi habilitado. Canal 144 e estação
-RTL8814BU continuam fechados. Source completo de app/helper/kext é fornecido.
+The agent did not load kext56. There is no hardware validation of recovery,
+sleep/wake, WPA2/DHCP/traffic or stability of every adapter/revision in this
+build. No EFI, reboot, router or macOS protection changes were made.
+RTL8814AU remains HT20 with up to two streams; VHT/AC was not enabled. Channel 144 and
+RTL8814BU station operation remain closed. Complete app/helper/kext source is supplied.
