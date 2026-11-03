@@ -28,7 +28,7 @@ def main():
     parser.add_argument("--source", type=Path, default=project / "vendor/rtwn/rtwn.cpp")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
-    body = function(args.source.read_text(), "rtwn_fw_cmd")
+    body = function(args.source.read_text(), "rtwn_fw_cmd") + function(args.source.read_text(), "rtwn_calib")
     generated = args.out / "actual_fw_command.cpp"
     generated.write_text('#include "rtwn_fw_command_host.hpp"\n' + body)
     command = [*compiler(), "-std=c++17", "-g", "-O1",

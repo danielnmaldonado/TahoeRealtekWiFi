@@ -119,12 +119,38 @@ int rtw_92e_make_tx_descriptor_ex(size_t n,const rtw_92e_tx_options* o,uint8_t* 
     out[28]=(uint8_t)sum;out[29]=(uint8_t)(sum>>8);return 1;
 }
 
+rtw_rx_admission_reason rtw_92e_rx_frame_reason(const uint8_t* b,size_t n,int allow_bar,
+    const uint8_t* local,const uint8_t* peer) {
+    if(!b || n<2U || n>4096U)return RTW_RX_REJECT_LENGTH;
+    if(b[0]&3U)return RTW_RX_REJECT_VERSION;
+    if((b[0]&0x0cU)!=4U)return n>=24U?RTW_RX_ADMIT:RTW_RX_REJECT_HEADER;
+    if((b[0]&0xfcU)!=0x84U)return RTW_RX_REJECT_CONTROL;
+    if(n<20U)return RTW_RX_REJECT_HEADER;
+    if(allow_bar!=1)return RTW_RX_REJECT_BAR_AUTH;
+    if(b[1]&0x43U)return RTW_RX_REJECT_BAR_FLAGS;
+    if(!local || !peer)return RTW_RX_REJECT_BAR_CONTEXT;
+    if(memcmp(b+4,local,6))return RTW_RX_REJECT_BAR_RECEIVER;
+    if(memcmp(b+10,peer,6))return RTW_RX_REJECT_BAR_TRANSMITTER;
+    return RTW_RX_ADMIT;
+}
 int rtw_92e_rx_frame_allowed(const uint8_t* b,size_t n,int allow_bar,
     const uint8_t* local,const uint8_t* peer) {
-    if(!b || n<2U || n>4096U || (b[0]&3U))return 0;
-    if((b[0]&0x0cU)!=4U)return n>=24U;
-    return (b[0]&0xfcU)==0x84U && n>=20U && allow_bar==1 &&
-        !(b[1]&0x43U) && local && peer && !memcmp(b+4,local,6) && !memcmp(b+10,peer,6);
+    return rtw_92e_rx_frame_reason(b,n,allow_bar,local,peer)==RTW_RX_ADMIT;
+}
+
+int rtw_92e_rx_ba_consumable(const uint8_t* b,size_t n,int authorized_ht,
+    const uint8_t* local,const uint8_t* peer) {
+    uint16_t control;
+    if(!b || (n!=28U && n!=148U) || authorized_ht!=1 || !local || !peer)
+        return 0;
+    if(b[0]!=0x94U || b[1]!=0U)return 0;
+    /* Pinned net80211 ieee80211.h:719-725: ACK policy bit0, Multi-TID
+     * bit1, compressed bit2 and TID bits12..15. Ordinary single-TID BA
+     * excludes Multi-TID/reserved variants and fragmented starting SC. */
+    control=(uint16_t)((uint16_t)b[16]|((uint16_t)b[17]<<8));
+    if((control&0x0ffaU) || (b[18]&15U))return 0;
+    if(n!=((control&4U)?28U:148U))return 0;
+    return !memcmp(b+4,local,6) && !memcmp(b+10,peer,6);
 }
 
 int rtw_92e_tx_protection(unsigned mode,uint8_t* d) {

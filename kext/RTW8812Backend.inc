@@ -516,7 +516,10 @@ int RTWUSBController::tick8812()
         core_.core_error=e;return e;
     }
     if(!e){e=rtw_r12au_phy_tick(auPHY_);if(e==EAGAIN)e=0;}
-    if(!e&&auRSSIValid_){uint8_t command[8]{};if(!rtw_r12au_make_rssi_command(auRSSI_,command))return EINVAL;e=rtw_r12au_h2c(&auCore_,command);}
+    if(!e&&auRSSIValid_){uint8_t command[8]{};if(!rtw_r12au_make_rssi_command(auRSSI_,command))return EINVAL;
+        e=rtw_r12au_h2c_rssi_monitor(&auCore_,command);
+        if(e==EBUSY&&!auCore_.io_error)e=0; // Retry advisory telemetry on the next ordinary tick.
+    }
     return e;
 }
 rtw_packet_error RTWUSBController::decode8812USBFrame(rtw_rx_iterator*it,rtw_8192eu_rx_frame*out,uint8_t*reportType) const

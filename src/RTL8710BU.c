@@ -201,11 +201,18 @@ int rtw_r10bu_tx_endpoint(const rtw_r10bu*c,u8 queue,unsigned*out){
  if(!c||!out||queue>=32)return EINVAL;u8 q=queue;if(q<8)q=q==1||q==2?TXDESC_QUEUE_BK:q==4||q==5?TXDESC_QUEUE_VI:q>=6?TXDESC_QUEUE_VO:TXDESC_QUEUE_BE;
  u8 ep=c->pipe_out[q];for(unsigned i=0;i<c->usb.bulk_out_count;++i)if(c->usb.bulk_out[i]==ep){*out=i;return 0;}return EINVAL;
 }
-int rtw_r10bu_h2c(rtw_r10bu*c,const u8 command[8]){
+static int h2c(rtw_r10bu*c,const u8 command[8],int advisory){
  if(!command)return EINVAL;int e=ready(c);if(e)return e;u32 status=0;unsigned box=c->h2c_box;
- for(unsigned i=0;i<31;++i){e=rtw_r10bu_read(c,REG_HMTFR,1,&status);if(e)return e;if(!(status&BIT(box)))break;if(i==30)return ETIMEDOUT;delay(c,100);}
+ for(unsigned i=0;i<31;++i){e=rtw_r10bu_read(c,REG_HMTFR,1,&status);if(e)return e;if(!(status&BIT(box)))break;if(i==30)return advisory?EBUSY:ETIMEDOUT;delay(c,100);}
  u32 ext=(u32)command[4]|((u32)command[5]<<8)|((u32)command[6]<<16)|((u32)command[7]<<24),main=(u32)command[0]|((u32)command[1]<<8)|((u32)command[2]<<16)|((u32)command[3]<<24);
  e=rtw_r10bu_write(c,0x1f0+4*box,4,ext);if(!e)e=rtw_r10bu_write(c,0x1d0+4*box,4,main);if(!e)c->h2c_box=(u8)((box+1)&3);return e;
+}
+int rtw_r10bu_h2c(rtw_r10bu*c,const u8 command[8]){return h2c(c,command,0);}
+int rtw_r10bu_report_rssi(rtw_r10bu*c,u8 percent){
+ if(percent>100)return EINVAL;
+ const u8 command[8]={0x42,0,0,percent,0,0,0,0};
+ /* Contention alone is advisory; failed USB transactions remain sticky. */
+ return h2c(c,command,1);
 }
 int rtw_r10bu_rate_build(u16 legacy,const u8 mcs[2],int ht,unsigned width,int local_sgi,int peer_sgi,rtw_r10bu_rate*out){
  if(out)memset(out,0,sizeof(*out));if(!out||!legacy||(legacy&~0xfffU)||(ht!=0&&ht!=1)||(width!=20&&width!=40)||(!ht&&width!=20)||(local_sgi!=0&&local_sgi!=1)||(peer_sgi!=0&&peer_sgi!=1)||!mcs)return 0;

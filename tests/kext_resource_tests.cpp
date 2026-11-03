@@ -38,15 +38,24 @@ static void detachedControllerLeavesSiblingEventsOnly() {
 }
 
 static void transferBuffersAreBoundedAndReusedForEveryFamily() {
-    const rtw_wifi_family families[]={RTW_WIFI_RTL8192CU,RTW_WIFI_RTL8188EU,RTW_WIFI_RTL8192EU,
-        RTW_WIFI_RTL8814AU,RTW_WIFI_RTL8812AU,RTW_WIFI_RTL8821AU,RTW_WIFI_RTL8192DU,
-        RTW_WIFI_RTL8192FU,RTW_WIFI_RTL8710BU,RTW_WIFI_RTL8723BU,
-        RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU};
-    for(auto family:families) {
-        RTWUSBController c;c.family_=family;resourceAllocationCalls=0;
+    // Independent inventory:4 RX +12 TX buffers of4352 bytes. RX16KiB
+    // totals117760 bytes; RX32KiB totals183296. Do not use the production
+    // capacity helper to derive expectations: that would hide a wrong family.
+    const struct {rtw_wifi_family family;size_t rxBytes,totalBytes;} families[]={
+        {RTW_WIFI_RTL8192CU,16384,117760},{RTW_WIFI_RTL8188EU,16384,117760},
+        {RTW_WIFI_RTL8192EU,32768,183296},{RTW_WIFI_RTL8814AU,32768,183296},
+        {RTW_WIFI_RTL8812AU,32768,183296},{RTW_WIFI_RTL8821AU,32768,183296},
+        {RTW_WIFI_RTL8192DU,16384,117760},{RTW_WIFI_RTL8192FU,16384,117760},
+        {RTW_WIFI_RTL8710BU,16384,117760},{RTW_WIFI_RTL8723BU,16384,117760},
+        {RTW_WIFI_RTL8821CU,32768,183296},{RTW_WIFI_RTL8822BU,32768,183296},
+        {RTW_WIFI_RTL8822CU,32768,183296}};
+    for(const auto&expected:families) {
+        RTWUSBController c;c.family_=expected.family;resourceAllocationCalls=0;
         CHECK(c.allocateTransfers()==0);
         CHECK(resourceLiveBuffers==16);
-        CHECK(resourceBufferBytes==(family==RTW_WIFI_RTL8814AU?183296U:117760U));
+        CHECK(resourceBufferBytes==expected.totalBytes);
+        for(unsigned i=0;i<16;++i)
+            CHECK(c.transfers_[i].memory->getCapacity()==(i<4?expected.rxBytes:4352U));
         for(unsigned i=0;i<100;++i)CHECK(c.allocateTransfers()==0);
         CHECK(resourceAllocationCalls==16);
         CHECK(rtw_transfer_begin(&c.ledger_,0));c.transfers_[0].prepared=true;

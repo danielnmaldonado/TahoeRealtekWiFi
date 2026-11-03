@@ -167,7 +167,10 @@ int RTWUSBController::ampdu8710BUTXStart(ieee80211com*ic,ieee80211_node*n,uint8_
 }
 int RTWUSBController::tick8710BU()
 {
-    if(core_.sc_ic.ic_state!=IEEE80211_S_RUN)return 0;if(!uses8710BUFirmwareRate())return ENXIO;int e=rtw_r10bu_tick(bu_);if(e==EAGAIN)e=0;if(!e&&buRSSIValid_){uint8_t command[8]={0x42,0,0,buRSSI_};e=rtw_r10bu_h2c(bu_,command);}return e;
+    if(core_.sc_ic.ic_state!=IEEE80211_S_RUN)return 0;if(!uses8710BUFirmwareRate())return ENXIO;int e=rtw_r10bu_tick(bu_);if(e==EAGAIN)e=0;if(!e&&buRSSIValid_){e=rtw_r10bu_report_rssi(bu_,buRSSI_);
+        if(e==EBUSY){rtw_r10bu_status status{};
+            if(!rtw_r10bu_status_read(bu_,&status)&&!status.error&&!ioError(this))e=0;}}
+    return e;
 }
 int RTWUSBController::sample8710BURSSI(const rtw_rx_packet&p)
 {

@@ -148,6 +148,13 @@ int rtw88_station_h2c(rtw88_station_context*c,const uint8_t command[8])
  int e=ready(c);if(e)return e;
  e=rtw88_fw_h2c(c->mac->device,command);return e&&e!=EINVAL?fail(c,e):e;
 }
+int rtw88_station_h2c_rssi_monitor(rtw88_station_context*c,const uint8_t command[8])
+{
+ int e=ready(c);if(e)return e;
+ e=rtw88_fw_h2c_rssi_monitor(c->mac->device,command);
+ if(e==EBUSY&&!c->mac->device->last_error)return e;
+ return e&&e!=EINVAL?fail(c,e):e;
+}
 int rtw88_station_prepare_ht20(rtw_wifi_family f,uint8_t ch,unsigned streams,uint16_t legacy,
  const uint8_t mcs[2],int ht,int local_sgi,int peer_sgi,rtw88_station_rate*out)
 {

@@ -168,7 +168,8 @@ rtw_packet_error rtw_8814au_rx_next(rtw_rx_iterator *it,rtw_8814au_rx_frame *out
     } else if(n<=4U)return RTW_PACKETS_MALFORMED;
     if(info>remain-24U || shift>remain-24U-info || n>remain-24U-info-shift)return RTW_PACKETS_TRUNCATED;
     used=24U+info+shift+n;padded=(used+7U)&~(size_t)7U;
-    if(padded>remain && used!=remain)return RTW_PACKETS_TRUNCATED;
+    /* Descriptor n is the complete wire length, including required FCS.
+     * Only final alignment bytes may be absent after the n-byte bound above. */
     memset(&f,0,sizeof(f));
     f.packet.phy_info=base+24U+shift;f.packet.phy_info_length=info;
     f.packet.mpdu=f.packet.phy_info+info;f.packet.mpdu_length=n;

@@ -3,16 +3,55 @@
 #include "rtw/RTL8814AUDataPath.h"
 static unsigned checks=0;
 #define CHECK(x) do{++checks;if(!(x)){std::fprintf(stderr,"RX capacity line %d: %s\n",__LINE__,#x);std::exit(1);}}while(0)
-rtw_packet_error RTWUSBController::decodeUSBFrame(rtw_rx_iterator*i,rtw_8192eu_rx_frame*,uint8_t*)const{
-    rtw_8814au_rx_frame f{};return rtw_8814au_rx_next(i,&f);
+#include "rtw/RTL8192CDataPath.h"
+#include "rtw/RTL8192DUDataPath.h"
+#include "rtw/RTL8192FUDataPath.h"
+#include "rtw/RTL8710BUDataPath.h"
+#include "rtw/RTL8723BUDataPath.h"
+#include "rtw/RTL8812AUDataPath.h"
+#include "rtw/RTW88RX.h"
+// The native typed codecs use the same named status ordering as USBPackets.
+static rtw_packet_error typedStatus(unsigned status){
+    switch(status){case 0:return RTW_PACKETS_OK;case 1:return RTW_PACKETS_DONE;
+    case 2:return RTW_PACKETS_BAD_ARGUMENT;case 3:return RTW_PACKETS_TRUNCATED;
+    case 4:return RTW_PACKETS_MALFORMED;case 5:return RTW_PACKETS_TOO_MANY;
+    default:return RTW_PACKETS_BAD_ARGUMENT;}
 }
+rtw_packet_error RTWUSBController::decodeUSBFrame(rtw_rx_iterator*i,rtw_8192eu_rx_frame*out,uint8_t*)const{
+    switch(family_){
+    case RTW_WIFI_RTL8192EU:return rtw_8192eu_rx_next(i,out);
+    case RTW_WIFI_RTL8723BU:return rtw_8723bu_rx_next(i,out);
+    case RTW_WIFI_RTL8192CU:case RTW_WIFI_RTL8188EU:{rtw_92c_rx_frame f{};return rtw_92c_rx_next(i,family_==RTW_WIFI_RTL8188EU,&f);}
+    case RTW_WIFI_RTL8192DU:{
+        if(i->cursor==i->length)return RTW_PACKETS_DONE;
+        if(i->cursor||i->frames)return RTW_PACKETS_MALFORMED;
+        rtw_92du_rx_frame f{};const auto e=rtw_92du_parse_rx(i->buffer,i->length,&f);
+        if(e==RTW_PACKETS_OK){i->cursor=i->length;++i->frames;}return e;
+    }
+    case RTW_WIFI_RTL8192FU:{rtw_r92fu_rx_iterator t{i->buffer,i->length,i->cursor,static_cast<unsigned>(i->frames)};rtw_r92fu_rx_frame f{};
+        auto e=rtw_r92fu_rx_next(&t,2,&f);i->cursor=t.cursor;i->frames=t.frames;return typedStatus(e);}
+    case RTW_WIFI_RTL8710BU:{rtw_r10bu_rx_iterator t{i->buffer,i->length,i->cursor,static_cast<unsigned>(i->frames)};rtw_r10bu_rx_frame f{};
+        auto e=rtw_r10bu_rx_next(&t,1,&f);i->cursor=t.cursor;i->frames=t.frames;return typedStatus(e);}
+    case RTW_WIFI_RTL8812AU:case RTW_WIFI_RTL8821AU:{rtw_r12au_rx_iterator t{i->buffer,i->length,i->cursor,static_cast<unsigned>(i->frames)};rtw_r12au_rx_frame f{};
+        auto e=rtw_r12au_rx_next(&t,family_==RTW_WIFI_RTL8821AU?1:2,&f);i->cursor=t.cursor;i->frames=t.frames;return typedStatus(e);}
+    case RTW_WIFI_RTL8821CU:case RTW_WIFI_RTL8822BU:case RTW_WIFI_RTL8822CU:{
+        const rtw88_rx_phy_config config{family_,static_cast<uint8_t>(family_==RTW_WIFI_RTL8821CU?1:2),0,0,0,0};
+        rtw_8814au_rx_frame f{};return rtw88_rx_next(&config,i,&f);}
+    default:{rtw_8814au_rx_frame f{};return rtw_8814au_rx_next(i,&f);}
+    }
+}
+static bool largeReadFamily(rtw_wifi_family f){
+    return f==RTW_WIFI_RTL8192EU||f==RTW_WIFI_RTL8814AU||f==RTW_WIFI_RTL8812AU||f==RTW_WIFI_RTL8821AU||
+        f==RTW_WIFI_RTL8821CU||f==RTW_WIFI_RTL8822BU||f==RTW_WIFI_RTL8822CU;
+}
+
 static void emptyBuffers(RTWUSBController&c){for(auto&t:c.transfers_)t.memory=nullptr;}
 static void pump(RTWUSBController&c){unsigned n=0;while(c.event.pending&&n++<16){c.event.pending=false;RTWUSBController::completionAction(&c,&c.event,1);}CHECK(!c.event.pending);}
 static void cleanup(RTWUSBController&c){c.abortTransfers();c.freeTransfers();CHECK(c.references==1);CHECK(rtw_transfer_drained(&c.ledger_));CHECK(IOBufferMemoryDescriptor::liveAllocations==0);}
 static void familyAllocationAndInitialReads(){
     for(unsigned f=RTW_WIFI_UNKNOWN;f<=RTW_WIFI_RTL8822CU;++f){
         RTWUSBController c;c.family_=static_cast<rtw_wifi_family>(f);emptyBuffers(c);
-        const size_t expected=f==RTW_WIFI_RTL8814AU?32768U:16384U;
+        const size_t expected=largeReadFamily(static_cast<rtw_wifi_family>(f))?32768U:16384U;
         CHECK(c.allocateTransfers()==0);
         for(unsigned i=0;i<RTW_TRANSFER_SLOTS;++i)CHECK(c.transfers_[i].memory->getCapacity()==(i<c.RXSlots?expected:4352U));
         CHECK(RTWUSBController::busInitialize(&c)==0);
@@ -379,9 +418,11 @@ static void ordinaryStopPreservesFirstFaultAndDoesNotAdoptStaleCallbacks(){
     }
 }
 static void rearmAndRecoveryKeepFamilyCapacity(){
-    for(auto f:{RTW_WIFI_RTL8814AU,RTW_WIFI_RTL8192EU,RTW_WIFI_RTL8812AU}){
+    for(unsigned value=RTW_WIFI_UNKNOWN;value<=RTW_WIFI_RTL8822CU;++value){
+        const auto f=static_cast<rtw_wifi_family>(value);const auto*backend=rtw_backend_for_family(f);
+        if(!backend||!(backend->capabilities&RTW_BACKEND_CAP_KEXT_STATION))continue;
         RTWUSBController c;c.family_=f;emptyBuffers(c);CHECK(c.allocateTransfers()==0);CHECK(RTWUSBController::busInitialize(&c)==0);
-        const uint32_t expected=f==RTW_WIFI_RTL8814AU?32768U:16384U;
+        const uint32_t expected=largeReadFamily(static_cast<rtw_wifi_family>(f))?32768U:16384U;
         c.rx.finish(0,kIOReturnSuccess,0);pump(c);CHECK(c.rx.requests.back().length==expected);
         c.rx.finish(1,kIOReturnNotResponding,0);pump(c);
         CHECK(c.rxRecovery_.completed==1&&c.rxRecovery_.attempts==1&&c.rxRecovery_.consecutive==1);
@@ -391,6 +432,106 @@ static void rearmAndRecoveryKeepFamilyCapacity(){
     }
 }
 static void put32(uint8_t*p,uint32_t v){for(unsigned i=0;i<4;++i)p[i]=static_cast<uint8_t>(v>>(i*8));}
+static void fullEUReadPreservesOpaqueAggregateAbove16KiB(){
+    // Opaque length-delimited units only: no 802.11 frame contents or I/O.
+    // 14*1728=24192 precedes one complete 4120-byte unit: 28312 total.
+    std::vector<uint8_t>b(28312,0x5a);
+    for(unsigned i=0;i<15;++i){
+        auto*p=b.data()+i*1728;std::memset(p,0,24);put32(p,i==14?4096U:1700U);
+    }
+    RTWUSBController c;c.family_=RTW_WIFI_RTL8192EU;emptyBuffers(c);
+    CHECK(c.allocateTransfers()==0);CHECK(RTWUSBController::busInitialize(&c)==0);
+    CHECK(c.rx.requests[0].length>=b.size());
+    std::memcpy(c.rx.requests[0].memory->getBytesNoCopy(),b.data(),b.size());
+    c.rx.finish(0,kIOReturnSuccess,static_cast<uint32_t>(b.size()));pump(c);
+    CHECK(c.rxDiag_.aggregateErrors==0&&c.rxDiag_.lastReadBytes==28312);
+    CHECK(c.rxDiag_.partialAggregates==0&&c.rx.requests.back().length>=b.size());
+    rtw_rx_iterator it{};rtw_rx_iterator_init(&it,b.data(),b.size());rtw_8192eu_rx_frame f{};
+    rtw_packet_error e;while((e=rtw_8192eu_rx_next(&it,&f))==RTW_PACKETS_OK){}
+    CHECK(e==RTW_PACKETS_DONE&&it.frames==15&&it.cursor==b.size());
+    c.rx.finish(1,kIOReturnNotResponding,0);pump(c);
+    CHECK(c.rxRecovery_.completed==1&&c.usbError_==0);
+    const unsigned recovered=static_cast<unsigned>(c.rx.requests.size())-c.RXSlots;
+    CHECK(c.rx.requests[recovered].length>=b.size());
+    std::memcpy(c.rx.requests[recovered].memory->getBytesNoCopy(),b.data(),b.size());
+    c.rx.finish(recovered,kIOReturnSuccess,static_cast<uint32_t>(b.size()));pump(c);
+    CHECK(c.rxDiag_.aggregates==2&&c.rxDiag_.bytes==56624&&c.rxDiag_.aggregateErrors==0);
+    cleanup(c);
+}
+static void allStationPayloadBoundariesUseTheirActualCodec(){
+    unsigned covered=0;
+    for(unsigned value=RTW_WIFI_UNKNOWN;value<=RTW_WIFI_RTL8822CU;++value){
+        const auto family=static_cast<rtw_wifi_family>(value);const auto*backend=rtw_backend_for_family(family);
+        if(!backend||!(backend->capabilities&RTW_BACKEND_CAP_KEXT_STATION))continue;
+        ++covered;
+        // Seven aggregated backends must retain a complete 28,312-byte read.
+        // Remaining backends use one opaque complete 4,120-byte unit.
+        const unsigned count=largeReadFamily(family)?15U:1U;
+        std::vector<uint8_t>b(count==15?28312:4120,0x5a);
+        for(unsigned i=0;i<count;++i){auto*p=b.data()+i*1728;std::memset(p,0,24);put32(p,i+1==count?4096U:1700U);}
+        RTWUSBController c;c.family_=family;emptyBuffers(c);CHECK(c.allocateTransfers()==0);
+        CHECK(RTWUSBController::busInitialize(&c)==0);CHECK(c.rx.requests[0].length>=b.size());
+        std::memcpy(c.rx.requests[0].memory->getBytesNoCopy(),b.data(),b.size());
+        c.rx.finish(0,kIOReturnSuccess,static_cast<uint32_t>(b.size()));pump(c);
+        CHECK(c.rxDiag_.aggregateErrors==0&&c.rxDiag_.aggregates==1&&c.rxDiag_.bytes==b.size());
+        c.rx.finish(1,kIOReturnNotResponding,0);pump(c);CHECK(c.rxRecovery_.completed==1);
+        const unsigned slot=static_cast<unsigned>(c.rx.requests.size())-c.RXSlots;
+        CHECK(c.rx.requests[slot].length>=b.size());
+        std::memcpy(c.rx.requests[slot].memory->getBytesNoCopy(),b.data(),b.size());
+        c.rx.finish(slot,kIOReturnSuccess,static_cast<uint32_t>(b.size()));pump(c);
+        CHECK(c.rxDiag_.aggregateErrors==0&&c.rxDiag_.aggregates==2&&c.rxDiag_.bytes==2*b.size());
+        std::printf("RX_CAPACITY_MATRIX,%u,%zu,%u,%u,%u,%llu\n",value,
+            c.transfers_[0].memory->getCapacity(),c.rx.requests[0].length,
+            c.rx.requests.back().length,c.rx.requests[slot].length,
+            static_cast<unsigned long long>(c.rxDiag_.maxReadBytes));
+        cleanup(c);
+    }
+    CHECK(covered==13);
+}
+static rtw_packet_error decodeForPreflight(rtw_rx_iterator*it,void*context){
+    rtw_8192eu_rx_frame frame{};uint8_t report=0;
+    return static_cast<RTWUSBController*>(context)->decodeUSBFrame(it,&frame,&report);
+}
+static void allStationFinalWirePayloadBounds(){
+    unsigned covered=0;
+    for(unsigned value=RTW_WIFI_UNKNOWN;value<=RTW_WIFI_RTL8822CU;++value){
+        const auto family=static_cast<rtw_wifi_family>(value);const auto*backend=rtw_backend_for_family(family);
+        if(!backend||!(backend->capabilities&RTW_BACKEND_CAP_KEXT_STATION))continue;
+        ++covered;RTWUSBController c;c.family_=family;
+        const size_t alignment=family==RTW_WIFI_RTL8192CU||family==RTW_WIFI_RTL8188EU?128:8;
+        for(size_t payload=24;payload<32;++payload){
+            const size_t used=24+payload,padded=(used+alignment-1)&~(alignment-1);
+            std::vector<uint8_t>b(padded,0x5a);std::memset(b.data(),0,24);put32(b.data(),static_cast<uint32_t>(payload));
+            for(size_t length=used;length<=padded;++length){
+                rtw_rx_preflight_result result{};
+                // DU uses one unaggregated unit and permits zero suffix only.
+                if(family==RTW_WIFI_RTL8192DU)std::memset(b.data()+used,0,padded-used);
+                CHECK(rtw_rx_preflight_transfer(b.data(),length,decodeForPreflight,&c,&result)==RTW_PACKETS_DONE);
+                CHECK(result.valid_frames==1&&result.valid_bytes==length);
+            }
+            // Test the descriptor's full wire length, including all FCS bytes
+            // on families that later strip them. Missing1..4 bytes still fail.
+            for(size_t missing=1;missing<=4;++missing){rtw_rx_preflight_result result{};
+                CHECK(rtw_rx_preflight_transfer(b.data(),used-missing,decodeForPreflight,&c,&result)!=RTW_PACKETS_DONE);
+                CHECK(result.valid_frames==0&&result.valid_bytes==0);
+            }
+            b.resize(padded+1);b[padded]=0x5a;rtw_rx_preflight_result result{};
+            CHECK(rtw_rx_preflight_transfer(b.data(),b.size(),decodeForPreflight,&c,&result)!=RTW_PACKETS_DONE);
+        }
+    }
+    CHECK(covered==13);
+}
+static void aggregatedAUShortUnitsBeyond64(){
+    // A healthy bounded opaque USB aggregate is not capped at64 MPDUs by
+    // pinned rtw88/usb.c; decode every complete unit within the actual read.
+    std::vector<uint8_t>b(65*56,0x5a);
+    for(unsigned i=0;i<65;++i){auto*p=b.data()+i*56;std::memset(p,0,24);put32(p,32);}
+    for(auto family:{RTW_WIFI_RTL8812AU,RTW_WIFI_RTL8821AU}){
+        RTWUSBController c;c.family_=family;rtw_rx_preflight_result prefix{};
+        CHECK(rtw_rx_preflight_transfer(b.data(),b.size(),decodeForPreflight,&c,&prefix)==RTW_PACKETS_DONE);
+        CHECK(prefix.valid_frames==65&&prefix.valid_bytes==3640);
+    }
+}
 static std::vector<uint8_t> fixture(){
     // 12*1600+1000=20200 bytes, below the vendor's20KiB DMA threshold.
     std::vector<uint8_t>b(20200);
@@ -416,4 +557,4 @@ static void fullAUReadPreservesFramesAndLegacySplitReproducesPair(){
     CHECK(split.rxDiag_.lastReadBytes==1600&&split.rxDiag_.maxReadBytes==16384&&split.rxDiag_.lastAggregateErrorReadBytes==3816);
     cleanup(c);
 }
-int main(){lateStopCallbackAfterPreflightIsValidatedBeforeReclaim();ordinaryStopPreservesFirstFaultAndDoesNotAdoptStaleCallbacks();ordinaryDeferredStopRetainsFatalCompletionsForEveryStation();allStationFamiliesRetainDeferredInitialFaultsAndBoundRetries();allStationFamiliesRecoverInitialRXWithTheirOwnCapacity();familyAllocationAndInitialReads();allocationAndInitialReadFailuresRollBack();initialAUTransactionErrorRollsBackBeforeExplicitRetry();persistentInitialAUTransactionErrorsHaveABoundedClearBudget();initialAUClearFailurePreservesItsActualFault();initialAUOldReadsMustDrainBeforeClearOrReuse();deferredInitialAUDrainPreservesFatalCompletions();deferredInitialAUDrainKeepsTheFirstFaultAcrossCallbackHoles();deferredInitialAUDrainValidatesLateLengthsAndStatusesDuringCancellation();deferredInitialAUDrainDoesNotAttributeStaleCallbacksToFreshReads();initialAUCompletionErrorCannotCertifyTheRXSet();fullInitialAUEpochReplenishesOnlyItsClearBudget();initialAUClearCannotCompleteStartupAcrossCancellation();initialFailureDoesNotDisturbAnotherAdapter();rearmAndRecoveryKeepFamilyCapacity();fullAUReadPreservesFramesAndLegacySplitReproducesPair();std::printf("Controller RX capacity: %u checks passed\n",checks);}
+int main(){aggregatedAUShortUnitsBeyond64();allStationFinalWirePayloadBounds();allStationPayloadBoundariesUseTheirActualCodec();fullEUReadPreservesOpaqueAggregateAbove16KiB();lateStopCallbackAfterPreflightIsValidatedBeforeReclaim();ordinaryStopPreservesFirstFaultAndDoesNotAdoptStaleCallbacks();ordinaryDeferredStopRetainsFatalCompletionsForEveryStation();allStationFamiliesRetainDeferredInitialFaultsAndBoundRetries();allStationFamiliesRecoverInitialRXWithTheirOwnCapacity();familyAllocationAndInitialReads();allocationAndInitialReadFailuresRollBack();initialAUTransactionErrorRollsBackBeforeExplicitRetry();persistentInitialAUTransactionErrorsHaveABoundedClearBudget();initialAUClearFailurePreservesItsActualFault();initialAUOldReadsMustDrainBeforeClearOrReuse();deferredInitialAUDrainPreservesFatalCompletions();deferredInitialAUDrainKeepsTheFirstFaultAcrossCallbackHoles();deferredInitialAUDrainValidatesLateLengthsAndStatusesDuringCancellation();deferredInitialAUDrainDoesNotAttributeStaleCallbacksToFreshReads();initialAUCompletionErrorCannotCertifyTheRXSet();fullInitialAUEpochReplenishesOnlyItsClearBudget();initialAUClearCannotCompleteStartupAcrossCancellation();initialFailureDoesNotDisturbAnotherAdapter();rearmAndRecoveryKeepFamilyCapacity();fullAUReadPreservesFramesAndLegacySplitReproducesPair();std::printf("Controller RX capacity: %u checks passed\n",checks);}

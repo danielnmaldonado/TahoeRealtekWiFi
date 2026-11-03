@@ -4,8 +4,8 @@ from host_cpp import compiler,sanitizer_flags
 from pathlib import Path
 from family_control_host import augment_control
 import argparse,re,subprocess,tempfile
-r=Path(__file__).resolve().parents[1];p=argparse.ArgumentParser();p.add_argument('--control',action='store_true');p.add_argument('--out',type=Path);a=p.parse_args()
-s=(r/'kext/RTW8812Backend.inc').read_text()
+r=Path(__file__).resolve().parents[1];p=argparse.ArgumentParser();p.add_argument('--control',action='store_true');p.add_argument('--out',type=Path);p.add_argument('--backend-source',type=Path);a=p.parse_args()
+s=(a.backend_source or r/'kext/RTW8812Backend.inc').read_text()
 def method(marker):
  start=s.index(marker);brace=s.index('{',start);depth=1;end=brace+1
  while depth:

@@ -191,17 +191,32 @@ inline std::string stationBandDescription(uint32_t flags,const RTWControlChannel
 inline std::string stationChannelDescription(uint32_t flags,const RTWControlChannelMap* map) {
     return map?mappedStationDescription(*map,true):stationChannelDescription(flags);
 }
+namespace detail {
+// One immutable map belongs to one model operation. Its validation must not
+// repeat for every BSS comparison, and must not survive a later map change.
+struct NetworkSupport {
+    uint32_t flags;
+    const RTWControlChannelMap* map;
+    bool valid;
+    NetworkSupport(uint32_t stationFlags,const RTWControlChannelMap* channels)
+        :flags(stationFlags),map(channels),valid(!channels||rtw_control_channel_map_valid(channels)) {}
+    bool operator()(const RTWControlScanRecord& r) const {
+        return valid && (r.securityFlags&7)==7 && !(r.securityFlags&RTW_CONTROL_SECURITY_UNSUPPORTED)
+            && (map?rtw_control_channel_map_contains(map,r.channel):rtw_control_channel_supported(r.channel,flags));
+    }
+};
+}
 inline bool supported(const RTWControlScanRecord& r,uint32_t stationFlags=0,const RTWControlChannelMap* map=nullptr) {
-    return (r.securityFlags&7)==7 && !(r.securityFlags&RTW_CONTROL_SECURITY_UNSUPPORTED)
-        && (map?(rtw_control_channel_map_valid(map)&&rtw_control_channel_map_contains(map,r.channel)):
-            rtw_control_channel_supported(r.channel,stationFlags));
+    if((r.securityFlags&7)!=7||(r.securityFlags&RTW_CONTROL_SECURITY_UNSUPPORTED))return false;
+    return detail::NetworkSupport(stationFlags,map)(r);
 }
 inline bool observedSSIDSupported(const RTWControlScanResults& scan,const uint8_t* ssid,size_t length,
     uint32_t flags,const RTWControlChannelMap* map=nullptr) {
     if(!ssid||!length||length>32||scan.version!=RTW_CONTROL_VERSION||scan.count>RTW_CONTROL_MAX_NETWORKS||scan.truncated>1)return false;
+    const detail::NetworkSupport support(flags,map);
     for(unsigned i=0;i<scan.count;++i) {
         const auto& record=scan.records[i];
-        if(record.ssidLength==length&&!std::memcmp(record.ssid,ssid,length)&&supported(record,flags,map))return true;
+        if(record.ssidLength==length&&!std::memcmp(record.ssid,ssid,length)&&support(record))return true;
     }
     return false;
 }
@@ -212,16 +227,17 @@ inline bool observedSSIDSupported(const RTWControlScanResults& scan,const uint8_
 inline bool savedProfileReconnectAllowed(const RTWControlScanResults& scan,const uint8_t* ssid,size_t length,
     uint32_t flags,const RTWControlChannelMap* map) {
     if(!ssid||!length||length>32||scan.version!=RTW_CONTROL_VERSION||scan.count>RTW_CONTROL_MAX_NETWORKS||scan.truncated>1)return false;
+    const detail::NetworkSupport support(flags,map);
     bool visibleMatch=false;
     for(unsigned i=0;i<scan.count;++i) {
         const auto& record=scan.records[i];
         if(record.ssidLength!=length||std::memcmp(record.ssid,ssid,length))continue;
         visibleMatch=true;
-        if(supported(record,flags,map))return true;
+        if(support(record))return true;
     }
     if(visibleMatch)return false;
     if(map) {
-        if(!rtw_control_channel_map_valid(map))return false;
+        if(!support.valid)return false;
         for(unsigned channel=1;channel<=11;++channel)
             if(rtw_control_channel_map_contains(map,channel))return true;
         return false;
@@ -232,10 +248,11 @@ inline bool savedProfileReconnectAllowed(const RTWControlScanResults& scan,const
 // Grouping an SSID must not hide another usable band behind its strongest BSS.
 inline unsigned observedNetworkBands(const RTWControlScanResults& scan,const RTWControlScanRecord& group,uint32_t flags,const RTWControlChannelMap* map=nullptr) {
     if(scan.version!=1||scan.count>64||scan.truncated>1||!group.ssidLength||group.ssidLength>32)return 0;
+    const detail::NetworkSupport support(flags,map);
     unsigned bands=0;
     for(unsigned i=0;i<scan.count;++i){const auto&r=scan.records[i];
         if(r.ssidLength!=group.ssidLength||r.securityFlags!=group.securityFlags||
-           std::memcmp(r.ssid,group.ssid,group.ssidLength)||!supported(r,flags,map))continue;
+           std::memcmp(r.ssid,group.ssid,group.ssidLength)||!support(r))continue;
         bands|=r.channel<=14?1U:2U;
     }
     return bands;
@@ -246,6 +263,7 @@ inline const char* observedNetworkBandsText(unsigned bands) {
 inline std::vector<RTWControlScanRecord> networks(const RTWControlScanResults& scan,uint32_t stationFlags=0,const RTWControlChannelMap* map=nullptr) {
     std::vector<RTWControlScanRecord> out;
     if (scan.version!=1 || scan.count>64 || scan.truncated>1) return out;
+    const detail::NetworkSupport support(stationFlags,map);
     out.reserve(scan.count);
     for (unsigned i=0;i<scan.count;++i) {
         auto r=scan.records[i];
@@ -258,9 +276,11 @@ inline std::vector<RTWControlScanRecord> networks(const RTWControlScanResults& s
         if (it==out.end()) out.push_back(r);
         // Prefer the strongest BSS the selected live driver can use. A strong
         // unsupported band must never hide a usable BSS with the same SSID.
-        else if ((supported(r,stationFlags,map) && !supported(*it,stationFlags,map)) ||
-                 (supported(r,stationFlags,map)==supported(*it,stationFlags,map) &&
-                  r.rssi && (!it->rssi || r.rssi>it->rssi))) *it=r;
+        else {
+            const bool candidateSupported=support(r),existingSupported=support(*it);
+            if ((candidateSupported&&!existingSupported) ||
+                (candidateSupported==existingSupported&&r.rssi&&(!it->rssi||r.rssi>it->rssi))) *it=r;
+        }
     }
     std::sort(out.begin(),out.end(),[](const auto& a,const auto& b){
         if (a.rssi!=b.rssi) return (a.rssi?a.rssi:-999)>(b.rssi?b.rssi:-999);

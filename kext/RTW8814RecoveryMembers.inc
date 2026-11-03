@@ -10,6 +10,11 @@
         uint32_t stage=AUIdle, result=0, failureStage=AUIdle, failureResult=0;
         uint32_t firstFailureStage=AUIdle, firstFailureResult=0;
         uint32_t cleanupResult=0, identityResult=0, consecutiveRecoveries=0;
+        uint64_t periodicCalls=0, periodicPHYFailures=0;
+        uint64_t periodicRSSIAttempts=0, periodicRSSIBusy=0, periodicRSSIFailures=0;
+        /* Phase: 0=not run, 1=PHY/thermal, 2=advisory firmware RSSI. */
+        uint32_t periodicPhase=0, periodicResult=0;
+        uint32_t periodicLastFailurePhase=0, periodicLastFailureResult=0;
     } acRecoveryDiag_{};
     rtw_8814au_board acOriginalBoard_{};
     rtw_usb_endpoints acOriginalEndpoints_{};

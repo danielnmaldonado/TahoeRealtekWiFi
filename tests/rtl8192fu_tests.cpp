@@ -18,7 +18,7 @@ static void inputs(){
 }
 static void success(){
  for(unsigned endpoints:{1U,2U,3U}){
- FUFixture good(endpoints);good.identify();assert(!good.boot());auto s=good.status();assert(s.firmware&&s.mac&&s.phy&&s.calibrated&&!s.tx_enabled&&s.tx_iqk_mask==3&&s.rx_iqk_mask==3);assert(s.primary==1&&(good.m.rf[0][0x18]&255)==1&&(good.m.rf[1][0x18]&255)==1&&good.m.reg[0x522]==255);
+ FUFixture good(endpoints);good.identify();good.m.reg[0x10c]|=4;good.m.set(0x280,0x8000ff0fU);assert(!good.boot());assert(!(good.m.reg[0x10c]&4)&&!(good.m.read(0x280)&0x8000ff0fU));auto s=good.status();assert(s.firmware&&s.mac&&s.phy&&s.calibrated&&!s.tx_enabled&&s.tx_iqk_mask==3&&s.rx_iqk_mask==3);assert(s.primary==1&&(good.m.rf[0][0x18]&255)==1&&(good.m.rf[1][0x18]&255)==1&&good.m.reg[0x522]==255);
  assert(!memcmp(good.m.reg.data()+0x610,fu_rom().data()+0x107,6));
  assert(good.m.firmware_max_chunk==254);
  assert(good.m.firmware.size()==sizeof(RTW8192FUFirmware)-32&&!memcmp(good.m.firmware.data(),RTW8192FUFirmware+32,good.m.firmware.size()));
@@ -54,4 +54,23 @@ static void rates(){
 static void failed_cleanup_stays_failed(){FUFixture f;f.identify();assert(!f.boot());f.m.fail=f.m.calls+1;assert(rtw_r92fu_stop_checked(f.c)==EIO);f.m.fail=0;assert(rtw_r92fu_stop_checked(f.c)==EIO);}
 static void shutdown_polls_are_checked(){for(unsigned mode=0;mode<3;++mode){FUFixture f;f.identify();assert(!f.boot());if(mode==0)f.m.power_ready=false;if(mode==1)f.m.fifo_idle=false;if(mode==2)f.m.set(0x5f8,1);assert(rtw_r92fu_stop_checked(f.c)==ETIMEDOUT);assert(!f.status().powered&&!f.status().firmware);}}
 static void complete_rom_is_identity(){auto first=fu_rom(),changed=first;changed[0xf8]=0x31;rtw_r92fu_board a{},b{};assert(!rtw_r92fu_decode_rom(first.data(),first.size(),&a));assert(!rtw_r92fu_decode_rom(changed.data(),changed.size(),&b));assert(memcmp(&a,&b,sizeof(a))!=0);}
-int main(){complete_rom_is_identity();shutdown_polls_are_checked();checked_cleanup_separates_original();failed_cleanup_stays_failed();inputs();success();rfe_and_trim();rates();failures();puts("Dedicated FU actual OTP/0x4000-FW/MAC/PHY/measured RFK/HT20-40/runtime and strict wire passed");}
+static void optional_rssi_mailbox_boundaries(){
+ for(unsigned box=0;box<4;++box){FUFixture f;f.identify();assert(!f.boot());
+  const uint8_t command[8]={0x42,0,0,50,0,0,0,0};
+  for(unsigned step=0;step<box;++step)assert(!rtw_r92fu_report_rssi(f.c,50));
+  f.m.reg[0x1cc]=uint8_t(1U<<box);const auto writes=f.m.writes;
+  for(unsigned retry=0;retry<8;++retry){const auto calls=f.m.calls;assert(rtw_r92fu_report_rssi(f.c,50)==EBUSY);assert(!f.status().error&&f.m.writes==writes&&f.m.calls-calls==32);}
+  assert(rtw_r92fu_h2c(f.c,command)==ETIMEDOUT&&!f.status().error&&f.m.writes==writes);
+  f.m.reg[0x1cc]=0;assert(!rtw_r92fu_report_rssi(f.c,50));
+  assert(f.m.writes==writes+2&&f.m.read(0x1d0+4*box)==0x32000042U&&f.m.read(0x1f0+4*box)==0);
+ }
+ // Ready read, mailbox read, extension write and triggering write each retain
+ // the typed transport's sticky I/O failure, including repeated calls.
+ for(unsigned cut=1;cut<=4;++cut){FUFixture f;f.identify();assert(!f.boot());f.m.fail=f.m.calls+cut;
+  assert(rtw_r92fu_report_rssi(f.c,50)==EIO&&f.status().error==EIO);const auto calls=f.m.calls;
+  assert(rtw_r92fu_report_rssi(f.c,50)==EIO&&f.m.calls==calls);
+ }
+ {FUFixture f;f.identify();assert(!f.boot());const auto calls=f.m.calls;assert(rtw_r92fu_report_rssi(f.c,101)==EINVAL&&f.m.calls==calls&&!f.status().error);}
+ puts("rtl8192fu optional RSSI: all boxes, bounded clean-busy retry, mandatory timeout and every hard-I/O boundary passed");
+}
+int main(){optional_rssi_mailbox_boundaries();complete_rom_is_identity();shutdown_polls_are_checked();checked_cleanup_separates_original();failed_cleanup_stays_failed();inputs();success();rfe_and_trim();rates();failures();puts("Dedicated FU actual OTP/0x4000-FW/MAC/PHY/measured RFK/HT20-40/runtime and strict wire passed");}

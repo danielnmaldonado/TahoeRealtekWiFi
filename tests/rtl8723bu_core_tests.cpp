@@ -10,8 +10,8 @@
 static unsigned checks;
 #define CHECK(x) do{++checks;if(!(x)){std::fprintf(stderr,"FAIL%u: %s\n",__LINE__,#x);std::exit(1);}}while(0)
 struct fake_8723 {
- unsigned calls=0,fail_at=0;std::array<uint8_t,65536> memory{};std::array<uint32_t,256> rf{};std::array<uint8_t,512> otp{};struct write_event{uint16_t address;unsigned width;uint32_t value;};std::vector<write_event> writes;std::vector<std::array<uint8_t,8>> h2c;uint64_t delayed=0;unsigned rf_address=0,fw_bytes=0;bool simulate=false,power_ready=true,fifo_idle=true,mac_off_ready=true,fw_ready=true,iqk_success=true,mailbox_busy=false;
- static int read(void*p,uint16_t a,unsigned w,uint32_t*v){auto&f=*(fake_8723*)p;++f.calls;if(f.calls==f.fail_at)return EIO;*v=0;for(unsigned i=0;i<w;i++)*v|=uint32_t(f.memory[a+i])<<(8*i);
+ unsigned calls=0,fail_at=0;int fail_code=EIO;std::array<uint8_t,65536> memory{};std::array<uint32_t,256> rf{};std::array<uint8_t,512> otp{};struct write_event{uint16_t address;unsigned width;uint32_t value;};std::vector<write_event> writes;std::vector<std::array<uint8_t,8>> h2c;uint64_t delayed=0;unsigned rf_address=0,fw_bytes=0;bool simulate=false,power_ready=true,fifo_idle=true,mac_off_ready=true,fw_ready=true,iqk_success=true,mailbox_busy=false;
+ static int read(void*p,uint16_t a,unsigned w,uint32_t*v){auto&f=*(fake_8723*)p;++f.calls;if(f.calls==f.fail_at)return f.fail_code;*v=0;for(unsigned i=0;i<w;i++)*v|=uint32_t(f.memory[a+i])<<(8*i);
   if(f.simulate){
    if(a==4&&w==4&&f.power_ready)*v=(*v|(1U<<17))&~0x300U;
    if(a==5&&w==1){*v&=~1U;if(f.mac_off_ready)*v&=~2U;}
@@ -25,8 +25,8 @@ struct fake_8723 {
    if(a==0xeac)*v=f.iqk_success?0:(1U<<28)|(1U<<27);
    if(a==0x30&&w==4){unsigned offset=(*v>>8)&1023;*v=(*v&~255U)|(1U<<31)|(offset<512?f.otp[offset]:255U);}
   }return 0;}
- static int write(void*p,uint16_t a,unsigned w,uint32_t v){auto&f=*(fake_8723*)p;++f.calls;if(f.calls==f.fail_at)return EIO;f.writes.push_back({a,w,v});uint32_t old=0;for(unsigned i=0;i<w;i++)old|=uint32_t(f.memory[a+i])<<(8*i);for(unsigned i=0;i<w;i++)f.memory[a+i]=uint8_t(v>>(8*i));if(a==0x840&&w==4)f.rf[(v>>20)&255]=v&0xfffffU;if(a==0x824&&w==4&&(v&0x80000000U)&&!(old&0x80000000U))f.rf_address=(v>>23)&255;if(a>=0x1d0&&a<=0x1dc&&w==4&&!(a&3U)){std::array<uint8_t,8> cmd{};for(unsigned i=0;i<4;i++){cmd[i]=uint8_t(v>>(8*i));cmd[i+4]=f.memory[0x1f0+a-0x1d0+i];}f.h2c.push_back(cmd);}return 0;}
- static int region(void*p,uint16_t,const uint8_t*,size_t n){auto&f=*(fake_8723*)p;++f.calls;if(f.calls==f.fail_at)return EIO;f.fw_bytes+=unsigned(n);return 0;}
+ static int write(void*p,uint16_t a,unsigned w,uint32_t v){auto&f=*(fake_8723*)p;++f.calls;if(f.calls==f.fail_at)return f.fail_code;f.writes.push_back({a,w,v});uint32_t old=0;for(unsigned i=0;i<w;i++)old|=uint32_t(f.memory[a+i])<<(8*i);for(unsigned i=0;i<w;i++)f.memory[a+i]=uint8_t(v>>(8*i));if(a==0x840&&w==4)f.rf[(v>>20)&255]=v&0xfffffU;if(a==0x824&&w==4&&(v&0x80000000U)&&!(old&0x80000000U))f.rf_address=(v>>23)&255;if(a>=0x1d0&&a<=0x1dc&&w==4&&!(a&3U)){std::array<uint8_t,8> cmd{};for(unsigned i=0;i<4;i++){cmd[i]=uint8_t(v>>(8*i));cmd[i+4]=f.memory[0x1f0+a-0x1d0+i];}f.h2c.push_back(cmd);}return 0;}
+ static int region(void*p,uint16_t,const uint8_t*,size_t n){auto&f=*(fake_8723*)p;++f.calls;if(f.calls==f.fail_at)return f.fail_code;f.fw_bytes+=unsigned(n);return 0;}
  static void delay(void*p,uint32_t u){((fake_8723*)p)->delayed+=u;}
  rtw_8723bu_bus bus(){return{this,read,write,region,delay};}
 };
@@ -43,7 +43,9 @@ static void boot_hardware_boundary(){
  CHECK(rtw_8723bu_init(&c,0xbda,0xb720,&bus,&usb,storage.data(),storage.size()*8)==0);
  fake_8723::write(&f,0xf0,4,2U<<12);fake_8723::write(&f,0x68,4,4U|(1U<<18));CHECK(rtw_8723bu_identify(&c)==0);
  std::array<uint8_t,512> rom;valid_board_image(rom);CHECK(rtw_8723bu_parse_board(&c,rom.data(),rom.size())==0);
+ fake_8723::write(&f,0x10c,1,4);fake_8723::write(&f,0x280,4,0x8000ff0fU);
  CHECK(rtw_8723bu_boot(&c,RTW8723BUFirmware,sizeof(RTW8723BUFirmware))==0);
+ CHECK(!(f.memory[0x10c]&4)&&!(f.memory[0x283]&0x80)&&!(f.memory[0x280]&15)&&!f.memory[0x281]);
  CHECK(c.powered&&c.firmware_running&&c.mac_initialized&&c.phy_loaded&&!c.calibrated&&c.channel==0);
  CHECK(c.firmware_version==35&&f.fw_bytes==sizeof(RTW8723BUFirmware)-32&&f.memory[0x522]==255);
  // Primary one-antenna ownership/PTA/TDMA initialization really reaches HW/FW.
@@ -142,7 +144,20 @@ static void actual_boot_and_otp_failures(){
 }
 static void checked_cleanup(){core_fixture good;CHECK(good.boot()==0);good.c.last_error=ETIMEDOUT;CHECK(rtw_8723bu_stop_checked(&good.c)==0&&good.c.last_error==ETIMEDOUT&&!good.c.powered);core_fixture bad;CHECK(bad.boot()==0);bad.f.fail_at=bad.f.calls+1;CHECK(rtw_8723bu_stop_checked(&bad.c)==EIO);bad.f.fail_at=0;CHECK(rtw_8723bu_stop_checked(&bad.c)==EIO);}
 static void shutdown_polls_are_checked(){for(unsigned mode=0;mode<3;++mode){core_fixture x;CHECK(x.boot()==0);if(mode==0)x.f.mac_off_ready=false;if(mode==1)x.f.fifo_idle=false;if(mode==2)fake_8723::write(&x.f,0x5f8,4,0x100);CHECK(rtw_8723bu_stop_checked(&x.c)==ETIMEDOUT);CHECK(!x.c.powered&&!x.c.firmware_running);}}
-int main(){four_physical_pipes_use_three_logical_queues();shutdown_polls_are_checked();checked_cleanup();
+static void optional_rssi_mailbox_boundaries(){
+ for(unsigned box=0;box<4;++box){core_fixture x;CHECK(x.boot()==0);x.c.mailbox=uint8_t(box);x.f.mailbox_busy=true;const auto writes=x.f.writes.size();
+  for(unsigned retry=0;retry<8;++retry){const auto calls=x.f.calls;CHECK(rtw_8723bu_report_rssi(&x.c,50)==EBUSY);CHECK(x.c.mailbox==box&&!x.c.last_error&&x.f.writes.size()==writes&&x.f.calls-calls==100);}
+  x.f.mailbox_busy=false;CHECK(rtw_8723bu_report_rssi(&x.c,50)==0&&x.c.mailbox==((box+1)&3));CHECK(x.f.writes.size()==writes+1&&x.f.h2c.back()[0]==0x42&&x.f.h2c.back()[1]==2&&x.f.h2c.back()[3]==50);
+ }
+ {core_fixture x;CHECK(x.boot()==0);x.f.mailbox_busy=true;const uint8_t command[]={0x42,2,0,50};const auto writes=x.f.writes.size();CHECK(rtw_8723bu_h2c(&x.c,command,4)==ETIMEDOUT&&x.c.last_error==ETIMEDOUT&&x.f.writes.size()==writes);}
+ for(int code:{EIO,EBUSY,ETIMEDOUT})for(unsigned cut=1;cut<=2;++cut){core_fixture x;CHECK(x.boot()==0);x.f.fail_code=code;x.f.fail_at=x.f.calls+cut;const auto box=x.c.mailbox;
+  CHECK(rtw_8723bu_report_rssi(&x.c,50)==code&&x.c.last_error==code&&x.c.mailbox==box);const auto calls=x.f.calls;CHECK(rtw_8723bu_report_rssi(&x.c,50)==code&&x.f.calls==calls);
+ }
+ for(int code:{EIO,EBUSY,ETIMEDOUT}){core_fixture x;CHECK(x.boot()==0);x.c.last_error=code;const auto calls=x.f.calls;CHECK(rtw_8723bu_report_rssi(&x.c,50)==code&&x.f.calls==calls);}
+ {core_fixture x;CHECK(x.boot()==0);const auto calls=x.f.calls;CHECK(rtw_8723bu_report_rssi(&x.c,101)==EINVAL&&x.f.calls==calls&&!x.c.last_error);}
+ puts("8723BU optional RSSI: all boxes, bounded busy retry, mandatory timeout, exact transport errno and sticky failure precedence passed");
+}
+int main(){optional_rssi_mailbox_boundaries();four_physical_pipes_use_three_logical_queues();shutdown_polls_are_checked();checked_cleanup();
  actual_boot_and_otp_failures();
  read_factory_from_otp();
  boot_hardware_boundary();

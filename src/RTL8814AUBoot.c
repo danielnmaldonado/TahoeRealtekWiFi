@@ -283,14 +283,33 @@ fail:
     if(c->bus.read&&!c->bus.read(c->bus.cookie,REG_SYS_FUNC_EN+1,1,&v))rtw14_restore(c,REG_SYS_FUNC_EN+1,1,v|BIT_FEN_CPUEN);
     return rtw14_fail(c,e);
 }
-int rtw_8814au_h2c_mailbox(struct rtw_8814au *c,const uint8_t command[8])
+static int h2c_mailbox(struct rtw_8814au *c,const uint8_t command[8],int advisory)
 {
     if(!c||!command)return EINVAL;if(c->io_error)return c->io_error;
     if(!c->fw_running||c->h2c_box>=4)return ENXIO;
-    if(rtw_8814au_poll(c,REG_HMETFR,1,BIT(c->h2c_box),0,100,31))return c->io_error;
+    /* Match Linux's bounded 100 us / 3 ms mailbox wait. A firmware-owned box
+     * is distinct from a failed USB register transaction. Mandatory setup
+     * retains its latched timeout; optional RSSI can wait for the next tick. */
+    unsigned attempt;
+    for(attempt=0;attempt<31;attempt++){
+        uint32_t value;int error=rtw_8814au_read(c,REG_HMETFR,1,&value);
+        if(error)return error;
+        if(!(value&BIT(c->h2c_box)))break;
+        if(attempt+1<31)rtw_8814au_delay(c,100);
+    }
+    if(attempt==31)return advisory?EBUSY:rtw14_fail(c,ETIMEDOUT);
     W32(c,REG_HMEBOX0_EX+c->h2c_box*4,rtw14_le32(command+4));
     W32(c,REG_HMEBOX0+c->h2c_box*4,rtw14_le32(command));
     if(!c->io_error)c->h2c_box=(c->h2c_box+1)&3;return c->io_error;
+}
+int rtw_8814au_h2c_mailbox(struct rtw_8814au *c,const uint8_t command[8])
+{ return h2c_mailbox(c,command,0); }
+int rtw_8814au_h2c_rssi_monitor(struct rtw_8814au *c,const uint8_t command[8])
+{
+    /* Never turn a mandatory media/rate/setup command into best effort. */
+    if(!command||command[0]!=0x42||command[1]||command[2]||command[3]>100||
+       command[4]||command[5]||command[6]||command[7])return EINVAL;
+    return h2c_mailbox(c,command,1);
 }
 int rtw_8814au_h2c_packet(struct rtw_8814au *c,const uint8_t packet[32])
 {

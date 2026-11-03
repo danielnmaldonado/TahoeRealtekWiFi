@@ -1,9 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #pragma once
+#include "RTWControl.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 namespace rtwui {
+// Automatic work must yield to the driver's own scan, association and WPA
+// handshake. RADIO may still be clear on an idle, attached adapter until SCAN.
+// Recheck this after Keychain I/O: recovery can finish while it is in flight.
+inline bool automaticConnectionIdle(bool hasStatus,bool statusDelayed,
+                                    const RTWControlStatus& status) {
+    return hasStatus&&!statusDelayed&&!status.usbError&&
+        (status.flags&RTW_CONTROL_DEVICE)&&
+        !(status.flags&(RTW_CONTROL_AUTHORIZED|RTW_CONTROL_SCANNING))&&status.state<2;
+}
 // Monotonic, bounded backoff. A rollback (test clock, reboot) resets the wait.
 struct RetryGate {
     unsigned failures=0;

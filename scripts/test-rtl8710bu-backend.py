@@ -15,3 +15,7 @@ with tempfile.TemporaryDirectory(prefix='r10bu-backend-') as temp:
  for name in ['RTL8710BU','RTL8710BUDataPath','Efuse','USBControl','USBRegisterIO','USBPackets']:
   o=d/(name+'.o');objects.append(str(o));subprocess.run([*compiler('c'),'-std=c11',*flags,'-c',str(r/'src'/(name+'.c')),'-o',str(o)],check=True)
  out=(a.out or d/'test').resolve();out.parent.mkdir(parents=True,exist_ok=True);subprocess.run([*compiler(),'-std=c++17',*flags,str(source),*objects,'-o',str(out)],check=True);subprocess.run([str(out)],check=True)
+
+ # Reuse the same actual portable objects for typed-core mailbox and fault
+ # boundaries; this previously standalone test must run with the backend.
+ core=d/'core-tests';subprocess.run([*compiler(),'-std=c++17',*flags,str(r/'tests/rtl8710bu_tests.cpp'),*objects,'-o',str(core)],check=True);subprocess.run([str(core)],check=True)

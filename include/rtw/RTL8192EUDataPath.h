@@ -48,7 +48,34 @@ int rtw_92e_make_tx_descriptor_ex(size_t, const rtw_92e_tx_options *,
 /* Header gate before normal24-byte frame casts. Short BARs need a live HT
  * association and exact receiver/transmitter addresses; other control rejected. */
 #define RTW_92E_RX_BAR_FILTER 1
+#define RTW_92E_RX_ADMISSION_DIAGNOSTICS 1
+/* Reasons describe the existing admission policy. They do not change whether
+ * a frame is accepted, and are not a claim of RF corruption. No packet data. */
+typedef enum {
+    RTW_RX_ADMIT = 0,
+    RTW_RX_REJECT_LENGTH,
+    RTW_RX_REJECT_VERSION,
+    RTW_RX_REJECT_HEADER,
+    RTW_RX_REJECT_CONTROL,
+    RTW_RX_REJECT_BAR_AUTH,
+    RTW_RX_REJECT_BAR_CONTEXT,
+    RTW_RX_REJECT_BAR_FLAGS,
+    RTW_RX_REJECT_BAR_RECEIVER,
+    RTW_RX_REJECT_BAR_TRANSMITTER,
+    RTW_RX_REJECT_RATE,
+    RTW_RX_REJECT_REASON_COUNT
+} rtw_rx_admission_reason;
+rtw_rx_admission_reason rtw_92e_rx_frame_reason(const uint8_t *, size_t,
+    int allow_bar, const uint8_t local[6], const uint8_t peer[6]);
 int rtw_92e_rx_frame_allowed(const uint8_t *, size_t, int allow_bar,
+    const uint8_t local[6], const uint8_t peer[6]);
+/* Pure consume-only match for an ordinary single-TID Block Ack. The caller
+ * supplies a complete normalized MPDU without FCS, after its existing wire,
+ * CRC/ICV and security checks, with a live authorized HT context. This does
+ * not accept a frame through the old admission policy or interpret bitmap
+ * bytes as TX ACKs. Only the conservative FC1==0 form is recognized. */
+#define RTW_92E_RX_BA_CONSUME 1
+int rtw_92e_rx_ba_consumable(const uint8_t *, size_t, int authorized_ht,
     const uint8_t local[6], const uint8_t peer[6]);
 /* Protection mode: 0=none, 1=RTS/CTS, 2=CTS-to-self. DW3 fields on92E. */
 int rtw_92e_tx_protection(unsigned mode, uint8_t descriptor[RTW_92E_TX_DESCRIPTOR_BYTES]);

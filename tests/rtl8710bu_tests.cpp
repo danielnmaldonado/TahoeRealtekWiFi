@@ -5,7 +5,7 @@
 #include <cstdio>
 static void runtime_and_inputs(){
  for(uint8_t vendor:{uint8_t(0),uint8_t(2)})for(uint8_t package:{uint8_t(0xee),uint8_t(0xfe)})for(unsigned endpoints:{1U,2U,3U}){
-  BUFixture f(vendor,endpoints);f.m.packed(bu_rom(),package);f.identify();assert(!f.boot());
+  BUFixture f(vendor,endpoints);f.m.packed(bu_rom(),package);f.identify();f.m.reg[0x10c]|=4;f.m.set(0x280,0x8000ff0fU);assert(!f.boot());assert(!(f.m.reg[0x10c]&4)&&!(f.m.read(0x280)&0x8000ff0fU));
   rtw_r10bu_board b{};assert(!rtw_r10bu_board_info(f.c,&b)&&b.vendor==vendor&&b.package==package&&b.rom_revision==1);
   assert(f.m.read(0xa0c)==(package==0xee?0x2e20100fU:0x2a20100fU));
   const auto*image=vendor==0?RTW8710BUSMICFirmware:RTW8710BUUMCFirmware;
@@ -62,7 +62,26 @@ static void failed_cleanup_stays_failed(){BUFixture f;f.identify();assert(!f.boo
 static void shutdown_polls_are_checked(){for(unsigned mode=0;mode<3;++mode){BUFixture f;f.identify();assert(!f.boot());if(mode==0)f.m.power_ready=false;if(mode==1)f.m.fifo_idle=false;if(mode==2)f.m.set(0x5f8,1);assert(rtw_r10bu_stop_checked(f.c)==ETIMEDOUT);assert(!f.status().powered&&!f.status().firmware);}}
 static void shutdown_preserves_first_io_failure(){BUFixture f;f.identify();assert(!f.boot());f.m.fail=f.m.calls+1;f.m.indirect_ready=false;assert(rtw_r10bu_stop_checked(f.c)==EIO);}
 static void complete_rom_is_identity(){auto first=bu_rom(),changed=first;changed[0xf8]=0x31;rtw_r10bu_board a{},b{};assert(!rtw_r10bu_decode_rom(first.data(),first.size(),&a));assert(!rtw_r10bu_decode_rom(changed.data(),changed.size(),&b));assert(memcmp(&a,&b,sizeof(a))!=0);}
-int main(){complete_rom_is_identity();shutdown_preserves_first_io_failure();shutdown_polls_are_checked();checked_cleanup_separates_original();failed_cleanup_stays_failed();std::array<uint8_t,512>rom{};rom[0]=0x95;rom[1]=0x81;rom[0x11a]=2;
+static void optional_rssi_mailbox_boundaries(){
+ for(unsigned box=0;box<4;++box){BUFixture f;f.identify();assert(!f.boot());
+  const uint8_t command[8]={0x42,0,0,50,0,0,0,0};
+  for(unsigned step=0;step<box;++step)assert(!rtw_r10bu_report_rssi(f.c,50));
+  f.m.reg[0x1cc]=uint8_t(1U<<box);const auto writes=f.m.writes;
+  for(unsigned retry=0;retry<8;++retry){const auto calls=f.m.calls;assert(rtw_r10bu_report_rssi(f.c,50)==EBUSY);assert(!f.status().error&&f.m.writes==writes&&f.m.calls-calls==32);}
+  assert(rtw_r10bu_h2c(f.c,command)==ETIMEDOUT&&!f.status().error&&f.m.writes==writes);
+  f.m.reg[0x1cc]=0;assert(!rtw_r10bu_report_rssi(f.c,50));
+  assert(f.m.writes==writes+2&&f.m.read(0x1d0+4*box)==0x32000042U&&f.m.read(0x1f0+4*box)==0);
+ }
+ // Ready read, mailbox read, extension write and triggering write each retain
+ // the typed transport's sticky I/O failure, including repeated calls.
+ for(unsigned cut=1;cut<=4;++cut){BUFixture f;f.identify();assert(!f.boot());f.m.fail=f.m.calls+cut;
+  assert(rtw_r10bu_report_rssi(f.c,50)==EIO&&f.status().error==EIO);const auto calls=f.m.calls;
+  assert(rtw_r10bu_report_rssi(f.c,50)==EIO&&f.m.calls==calls);
+ }
+ {BUFixture f;f.identify();assert(!f.boot());const auto calls=f.m.calls;assert(rtw_r10bu_report_rssi(f.c,101)==EINVAL&&f.m.calls==calls&&!f.status().error);}
+ puts("rtl8710bu optional RSSI: all boxes, bounded clean-busy retry, mandatory timeout and every hard-I/O boundary passed");
+}
+int main(){optional_rssi_mailbox_boundaries();complete_rom_is_identity();shutdown_preserves_first_io_failure();shutdown_polls_are_checked();checked_cleanup_separates_original();failed_cleanup_stays_failed();std::array<uint8_t,512>rom{};rom[0]=0x95;rom[1]=0x81;rom[0x11a]=2;
  {
   rtw_r10bu_tx_options o{};o.payload_bytes=64;o.rf_chains=1;o.bandwidth_mhz=20;o.sequence=0x123;
   uint8_t descriptor[40]{};assert(rtw_r10bu_tx_descriptor(&o,descriptor));

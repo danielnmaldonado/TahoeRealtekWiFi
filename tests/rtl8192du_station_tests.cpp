@@ -9,7 +9,9 @@ static rtw_92du_result bootstrap(Fixture& f,rtw_92du_mac& mac) {
     if(result==RTW_92DU_OK)result=rtw_92du_mac_prepare(&mac);
     if(result==RTW_92DU_OK){
         f.boot.firmware_ready=1;f.boot.firmware_version=38;f.bus.regs[0x80]=2;f.bus.regs[3]|=4;
+        f.bus.regs[0x10c]|=15; // stale aggregation plus unrelated low control bits
         result=rtw_92du_mac_start(&mac);
+        if(result==RTW_92DU_OK)assert((f.bus.regs[0x10c]&15)==11);
     }return result;
 }
 static void start(Fixture& f,rtw_92du_mac& mac) {
@@ -20,7 +22,18 @@ static void start(Fixture& f,rtw_92du_mac& mac) {
     assert(!control_admitted(f.bus,8)&&!control_admitted(f.bus,10));
 }
 static void checked_cleanup(){Fixture f;rtw_92du_mac c{};start(f,c);f.boot.last_error=RTW_92DU_POLL_TIMEOUT;assert(rtw_92du_mac_stop_checked(&c)==RTW_92DU_OK&&f.boot.last_error==RTW_92DU_POLL_TIMEOUT&&!f.boot.power_ready);Fixture bad;rtw_92du_mac failed{};start(bad,failed);bad.bus.fail_at=bad.bus.io+1;assert(rtw_92du_mac_stop_checked(&failed)==RTW_92DU_IO_ERROR);bad.bus.fail_at=0;assert(rtw_92du_mac_stop_checked(&failed)==RTW_92DU_IO_ERROR);}
-int main() {checked_cleanup();
+static void advisory_rssi(){for(unsigned box=0;box<4;++box){
+ Fixture f;rtw_92du_mac c{};start(f,c);c.joined=c.rate_ready=1;c.next_h2c=uint8_t(box);
+ f.bus.h2c_busy=15;const auto writes=f.bus.writes.size();
+ assert(rtw_92du_mac_report_rssi(&c,58)==RTW_92DU_MCU_BUSY);
+ assert(f.boot.last_error==RTW_92DU_OK&&c.joined&&c.rate_ready&&c.next_h2c==box&&f.bus.writes.size()==writes);
+ f.bus.h2c_busy=0;assert(rtw_92du_mac_report_rssi(&c,58)==RTW_92DU_OK&&c.next_h2c==(box+1)%4);
+ for(bool short_io:{false,true})for(unsigned position=1;position<=5;++position){
+  Fixture bad;rtw_92du_mac m{};start(bad,m);m.joined=m.rate_ready=1;
+  if(short_io)bad.bus.short_at=bad.bus.io+position;else bad.bus.fail_at=bad.bus.io+position;
+  assert(rtw_92du_mac_report_rssi(&m,58)==RTW_92DU_IO_ERROR&&bad.boot.last_error==RTW_92DU_IO_ERROR&&!m.joined&&!m.rate_ready&&!m.next_h2c);}
+ }std::puts("DU optional RSSI: all boxes preserve busy station/retry; failed/short mailbox reads and writes stay fatal");}
+int main() {advisory_rssi();checked_cleanup();
     for(uint8_t index:{uint8_t(0),uint8_t(1)}) {
         for(auto status:std::array<std::array<uint8_t,2>,6>{{{{2,1}},{{6,1}},{{0,1}},{{3,1}},{{2,0}},{{0xff,0xff}}}}) {
             Fixture live(index!=0,index);rtw_92du_mac c{};rtw_92du_usb_map mapped{};

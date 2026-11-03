@@ -59,6 +59,12 @@ static void publicationIsFreshAndPerDevice() {
 
 static void existingReasonsAreExportedWithoutAttribution() {
     RTWUSBController c;
+    c.rxErrors_=14;
+    c.rxDiag_.invalidFrameDrops=7;
+    c.rxDiag_.rejectedReasons[RTW_RX_REJECT_BAR_RECEIVER]=7;
+    c.rxDiag_.rejectLastReason=RTW_RX_REJECT_BAR_RECEIVER;
+    c.rxDiag_.rejectLastType=1;c.rxDiag_.rejectLastSubtype=8;
+    c.rxDiag_.rejectLastLength=20;c.rxDiag_.rejectLastTransmitterMatch=1;
     c.stats_->inputErrors=5;c.publishDiagnostics();c.stats_->inputErrors=12;
     c.core_.sc_ic.ic_stats.is_ht_rx_ba_no_buf=2;
     c.core_.sc_ic.ic_stats.is_ht_rx_frame_above_ba_winend=3;
@@ -71,6 +77,20 @@ static void existingReasonsAreExportedWithoutAttribution() {
     c.core_.sc_ic.ic_stats.is_ht_tx_ba_timeout=10;
     c.publishDiagnostics();
     CHECK(c.properties["RTWDiagNet80211InputErrors"]==12);
+    CHECK(c.properties["RTWDiagRXErrors"]==14);
+    CHECK(c.properties.count("RTWDiagRXBlockAckFiltered"));
+    CHECK(c.properties["RTWDiagRXBlockAckFiltered"]==0);
+    CHECK(c.properties.count("RTWDiagRXRejectControlSubtype9"));
+    CHECK(c.properties["RTWDiagRXRejectLastBAControl"]==65535);
+    CHECK(c.properties["RTWDiagRXRejectLastBAFragment"]==255);
+    CHECK(c.properties["RTWDiagRXInvalidFrameDrops"]==7);
+    CHECK(c.properties["RTWDiagRXRejectBARReceiver"]==7);
+    CHECK(c.properties["RTWDiagRXRejectLastReason"]==RTW_RX_REJECT_BAR_RECEIVER);
+    CHECK(c.properties["RTWDiagRXRejectLastType"]==1&&c.properties["RTWDiagRXRejectLastSubtype"]==8);
+    CHECK(c.properties["RTWDiagRXRejectLastLength"]==20);
+    CHECK(c.properties["RTWDiagRXRejectLastReceiverMatchesLocal"]==0);
+    CHECK(c.properties["RTWDiagRXRejectLastTransmitterMatchesAP"]==1);
+    CHECK(c.rxErrors_==14&&c.stats_->inputErrors==12&&c.rxDiag_.invalidFrameDrops==7);
     CHECK(c.properties["RTWDiagNet80211RXBANoBuffer"]==2);
     CHECK(c.properties["RTWDiagNet80211RXBAAboveWindow"]==3);
     CHECK(c.properties["RTWDiagNet80211RXBAWindowSlides"]==4);
@@ -82,6 +102,25 @@ static void existingReasonsAreExportedWithoutAttribution() {
     CHECK(c.properties["RTWDiagNet80211TXBATimeouts"]==10);
     CHECK(c.properties["RTWDiagNet80211NoBuffer"]==0);
     CHECK(c.properties.count("RTWDiagNet80211DefragFailures")==0);
+}
+
+static void filteredBlockAckAndControlRejectionsRemainDistinct() {
+    RTWUSBController c;
+    c.rxErrors_=2;c.stats_->inputErrors=2;
+    c.rxDiag_.blockAckFiltered=89;c.rxDiag_.invalidFrameDrops=2;
+    c.rxDiag_.rejectedReasons[RTW_RX_REJECT_CONTROL]=2;
+    c.rxDiag_.rejectedControlSubtypes[9]=2;
+    c.rxDiag_.rejectLastBAControl=6;c.rxDiag_.rejectLastBAFragment=1;
+    c.publishDiagnostics();
+    CHECK(c.properties["RTWDiagRXRejectSchema"]==2);
+    CHECK(c.properties["RTWDiagRXBlockAckFiltered"]==89);
+    CHECK(c.properties["RTWDiagRXErrors"]==2);
+    CHECK(c.properties["RTWDiagRXRejectControl"]==2);
+    CHECK(c.properties["RTWDiagRXRejectControlSubtype9"]==2);
+    CHECK(c.properties["RTWDiagRXRejectControlSubtype8"]==0);
+    CHECK(c.properties["RTWDiagRXRejectLastBAControl"]==6);
+    CHECK(c.properties["RTWDiagRXRejectLastBAFragment"]==1);
+    CHECK(c.rxErrors_==2&&c.stats_->inputErrors==2&&c.rxDiag_.blockAckFiltered==89);
 }
 
 static void unknownPhySpeedAndSelectedMedium() {
@@ -195,6 +234,7 @@ int main() {
     operatingFailureIsNotHiddenByAttachSuccess();
     publicationDoesNotRunRatePolicy();everyFamilyPublishesFromStatus();
     publicationIsFreshAndPerDevice();existingReasonsAreExportedWithoutAttribution();
+    filteredBlockAckAndControlRejectionsRemainDistinct();
     unknownPhySpeedAndSelectedMedium();nativeCountersAreObservedAndInvalidSnapshotsCleared();
     ethernetSubmissionBoundaryIsObservable();
     nativeBoundarySnapshotsRemainSeparateAndReadOnly();

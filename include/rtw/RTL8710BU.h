@@ -55,6 +55,8 @@ int rtw_r10bu_write(rtw_r10bu*,uint16_t,uint8_t,uint32_t);
 int rtw_r10bu_update(rtw_r10bu*,uint16_t,uint8_t,uint32_t,uint32_t);
 int rtw_r10bu_tx_endpoint(const rtw_r10bu*,uint8_t,unsigned*);
 int rtw_r10bu_h2c(rtw_r10bu*,const uint8_t[8]);
+/* Unlatched EBUSY means firmware still owns the box; hard I/O stays sticky. */
+int rtw_r10bu_report_rssi(rtw_r10bu*,uint8_t percent);
 int rtw_r10bu_rate_build(uint16_t,const uint8_t[2],int ht,unsigned width,int local_sgi,int peer_sgi,rtw_r10bu_rate*);
 int rtw_r10bu_rate_command(const rtw_r10bu_rate*,int reset,uint8_t[8]);
 int rtw_r10bu_station(rtw_r10bu*,int associated,const uint8_t bssid[6],uint16_t aid,uint16_t interval,uint16_t basic_rates,int short_slot,int ht);

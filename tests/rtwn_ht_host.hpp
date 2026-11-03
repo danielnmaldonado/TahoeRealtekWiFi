@@ -23,6 +23,7 @@
 #define RTWN_CHIP_88F 0x200U
 #define RTWN_CHIP_92E 0x40U
 #define RTWN_CHIP_PCI 0x40000000U
+#define RTWN_CHIP_USB 0x80000000U
 #define RTWN_FLAG_FORCE_RAID_11B 4U
 #define RTWN_FLAG_EXT_HDR 8U
 #define RTWN_POWER_COUNT 28
@@ -76,7 +77,7 @@ struct ieee80211_channel {unsigned ic_freq=2412,ic_flags=IEEE80211_CHAN_2GHZ;};
 #define IEEE80211_CHAN_ANYC ((ieee80211_channel *)-1)
 struct ieee80211_rateset { uint8_t rs_nrates=0, rs_rates[16]{}; };
 struct ieee80211_node { ieee80211_rateset ni_rates; uint8_t ni_txrate=0, ni_rxmcs[10]{},ni_bssid[6]{2,0,0,0,0,1}; uint32_t ni_flags=0; uint16_t ni_intval=100,ni_htcaps=0; uint8_t ni_htop0=0,ni_chw=IEEE80211_CHAN_WIDTH_20; ieee80211_channel *ni_chan=nullptr; };
-struct ieee80211com { ieee80211_node *ic_bss=nullptr; void *ic_softc=nullptr; int ic_curmode=IEEE80211_MODE_11G,ic_opmode=IEEE80211_M_STA; enum ieee80211_state ic_state=IEEE80211_S_ASSOC; uint16_t ic_htcaps=IEEE80211_HTCAP_CBW20_40|IEEE80211_HTCAP_SGI20|IEEE80211_HTCAP_SGI40; uint32_t ic_userflags=0,ic_caps=0,ic_flags=0;uint8_t ic_ampdu_params=0,ic_sup_mcs[10]{},ic_tx_mcs_set=0; ieee80211_channel ic_channels[12]{}; ieee80211_channel *ic_ibss_chan=nullptr; };
+struct ieee80211com { ieee80211_node *ic_bss=nullptr; void *ic_softc=nullptr; int ic_curmode=IEEE80211_MODE_11G,ic_opmode=IEEE80211_M_STA; enum ieee80211_state ic_state=IEEE80211_S_ASSOC; uint16_t ic_htcaps=IEEE80211_HTCAP_CBW20_40|IEEE80211_HTCAP_SGI20|IEEE80211_HTCAP_SGI40; uint32_t ic_userflags=0,ic_caps=0,ic_flags=0;uint8_t ic_ampdu_params=0,ic_sup_mcs[10]{},ic_tx_mcs_set=0,ic_myaddr[6]{2,1,2,3,4,5}; ieee80211_channel ic_channels[12]{}; ieee80211_channel *ic_ibss_chan=nullptr; };
 static inline int host_newstate(ieee80211com *ic,enum ieee80211_state state,int) {ic->ic_state=state;return 0;}
 struct fw_command { uint8_t id; std::vector<uint8_t> payload; };
 struct rtwn_softc {
@@ -121,6 +122,8 @@ int rtwn_r92e_ampdu_params(rtwn_softc *,uint8_t,uint8_t);
 int rtwn_r92e_media_status(rtwn_softc *,int);
 int rtwn_read_chipid(rtwn_softc *);
 int rtwn_newstate(ieee80211com *,enum ieee80211_state,int);
+void rtwn_rxfilter_init(rtwn_softc *);
+void actual_station_defaults(rtwn_softc *);
 static inline int splnet() {return 0;}
 static inline void splx(int) {}
 static inline void rtwn_set_led(rtwn_softc *s,int,int value) {s->ledlink=value;}

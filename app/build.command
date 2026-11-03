@@ -32,7 +32,10 @@ BUNDLE="$DESTINATION/Tahoe Wi-Fi USB.app"
 
 build_app() (
   cd "$APP_DIR"
-  printf 'Tahoe Wi-Fi USB v0.3.11 - macOS build (Intel x86_64)\n'
+  local app_bundle_version app_bundle_build
+  app_bundle_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_DIR/Info.plist")
+  app_bundle_build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_DIR/Info.plist")
+  printf 'Tahoe Wi-Fi USB v%s (build %s) - macOS build (Intel x86_64)\n' "$app_bundle_version" "$app_bundle_build"
   printf 'Source: %s\nDestination: %s\nLog: %s\n' "$ROOT" "$BUNDLE" "$LOG"
   printf 'Started: %s\n' "$(date '+%Y-%m-%d %H:%M:%S %z')"
 
@@ -65,7 +68,7 @@ build_app() (
     -o "$staged_bundle/Contents/Helpers/TahoeWiFiHelper"
 
   printf '\n[2/5] Building the menu-bar application...\n'
-  xcrun clang++ "${flags[@]}" -fobjc-arc Main.mm LoginItem.mm CredentialStore.mm DriverConnection.mm ControlDiagnostics.mm DiagnosticCLI.mm AdapterDiagnostics.mm USBWiFiProfiles.cpp Transport.cpp \
+  xcrun clang++ "${flags[@]}" -fobjc-arc Main.mm LoginItem.mm CredentialStore.mm DriverConnection.mm ControlDiagnostics.mm DiagnosticCLI.mm AdapterDiagnostics.mm DriverDiagnostics.mm USBWiFiProfiles.cpp Transport.cpp \
     -framework AppKit -framework ServiceManagement -framework Security -framework CoreServices -framework IOKit -framework CoreFoundation \
     -o "$staged_bundle/Contents/MacOS/TahoeUSBWiFi"
 

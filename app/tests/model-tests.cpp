@@ -1,11 +1,81 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include "RTWControl.h"
+// Count the real validator at the model boundary. Revalidating an immutable
+// map per BSS made a 64-record scan repeat the same full-map work hundreds of
+// times. The wrapper preserves validation behavior and adds no production seam.
+static unsigned mapValidations=0;
+static int countedMapValid(const RTWControlChannelMap* map) {
+    ++mapValidations;return rtw_control_channel_map_valid(map);
+}
+#define rtw_control_channel_map_valid countedMapValid
 #include "Model.hpp"
+#undef rtw_control_channel_map_valid
 #include "Protocol.hpp"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
 
+static void map_validation_is_bounded_per_model_operation() {
+    RTWControlChannelMap map{};map.version=1;map.channels[11/8]|=1U<<(11%8);
+    RTWControlScanResults scan{};scan.version=1;scan.count=64;
+    for(unsigned i=0;i<scan.count;++i) {
+        auto& row=scan.records[i];row.ssidLength=3;std::memcpy(row.ssid,"Lab",3);
+        row.channel=6;row.securityFlags=7;row.rssi=-30-static_cast<int>(i);
+    }
+    mapValidations=0;
+    const auto grouped=rtwui::networks(scan,UINT32_MAX,&map);
+    assert(grouped.size()==1&&grouped[0].rssi==-30);
+    assert(mapValidations<=1&&"network grouping must validate its immutable map at most once");
+    const auto ssid=reinterpret_cast<const uint8_t*>("Lab");
+    mapValidations=0;
+    assert(!rtwui::observedSSIDSupported(scan,ssid,3,UINT32_MAX,&map));
+    assert(mapValidations<=1&&"SSID lookup must validate its immutable map at most once");
+    mapValidations=0;
+    assert(!rtwui::savedProfileReconnectAllowed(scan,ssid,3,UINT32_MAX,&map));
+    assert(mapValidations<=1&&"reconnect lookup must validate its immutable map at most once");
+    mapValidations=0;
+    assert(!rtwui::observedNetworkBands(scan,scan.records[0],UINT32_MAX,&map));
+    assert(mapValidations<=1&&"band lookup must validate its immutable map at most once");
+    // No validation cache may outlive one operation or hide later corruption.
+    map.channels[6/8]|=1U<<(6%8);
+    assert(rtwui::supported(scan.records[0],0,&map));
+    assert(rtwui::observedSSIDSupported(scan,ssid,3,0,&map));
+    assert(rtwui::savedProfileReconnectAllowed(scan,ssid,3,0,&map));
+    assert(rtwui::observedNetworkBands(scan,scan.records[0],0,&map)==1);
+    for(unsigned reserved=0;reserved<3;++reserved) {
+        map.reserved[reserved]=UINT32_MAX;
+        assert(!rtwui::supported(scan.records[0],UINT32_MAX,&map));
+        assert(!rtwui::observedSSIDSupported(scan,ssid,3,UINT32_MAX,&map));
+        assert(!rtwui::savedProfileReconnectAllowed(scan,ssid,3,UINT32_MAX,&map));
+        assert(!rtwui::observedNetworkBands(scan,scan.records[0],UINT32_MAX,&map));
+        map.reserved[reserved]=0;
+    }
+    map.channels[144/8]|=1U<<(144%8);
+    assert(!rtwui::supported(scan.records[0],UINT32_MAX,&map));
+    map.channels[144/8]=0;
+    map.version=UINT32_MAX;assert(!rtwui::supported(scan.records[0],UINT32_MAX,&map));
+    map.version=1;
+    scan.records[0].securityFlags=UINT32_MAX;
+    mapValidations=0;
+    assert(!rtwui::supported(scan.records[0],UINT32_MAX,&map));
+    assert(!mapValidations&&"unsupported security must reject before channel-map work");
+    // An exact map is authoritative for every station-flag combination; no
+    // flag bit may admit channel 144 or make a malformed map usable.
+    scan.records[0].securityFlags=7;scan.records[0].channel=132;
+    map.channels[132/8]|=1U<<(132%8);
+    const uint32_t stationFlags[]={0,RTW_CONTROL_BANDS_EXPLICIT,
+        RTW_CONTROL_BAND_2GHZ,RTW_CONTROL_BAND_5GHZ,
+        RTW_CONTROL_BAND_5GHZ_HIGH,RTW_CONTROL_BAND_5GHZ_DFS_LOW,
+        RTW_CONTROL_BAND_5GHZ_DFS_MID,0x80000000U,UINT32_MAX};
+    for(uint32_t flags:stationFlags) {
+        assert(rtwui::supported(scan.records[0],flags,&map));
+        scan.records[0].channel=144;assert(!rtwui::supported(scan.records[0],flags,&map));
+        scan.records[0].channel=132;
+    }
+}
+
 int main() {
+    map_validation_is_bounded_per_model_operation();
     const uint32_t dfsLow=1U<<11,dfsMid=1U<<12,explicitFlag=1U<<10;
     RTWControlScanRecord dfs{};dfs.channel=100;dfs.securityFlags=7;
     assert(rtwui::supported(dfs,explicitFlag|dfsMid));

@@ -86,8 +86,8 @@ rtw_r10bu_result rtw_r10bu_rx_next(rtw_r10bu_rx_iterator *it, unsigned chains,
         return RTW_R10BU_MALFORMED;
     used = RTW_R10BU_RX_DESC_BYTES + phy_length + shift + payload_length;
     aligned = (used + 7U) & ~(size_t)7U;
-    if (aligned > remaining && used != remaining)
-        return RTW_R10BU_TRUNCATED;
+    /* Complete wire payload is already bounded above. Pinned Linux USB
+     * parsers permit the final alignment padding to be absent or partial. */
     memset(&frame, 0, sizeof(frame));
     frame.phy = phy_length ? p + RTW_R10BU_RX_DESC_BYTES : NULL;
     frame.phy_length = phy_length;
@@ -109,7 +109,7 @@ rtw_r10bu_result rtw_r10bu_rx_next(rtw_r10bu_rx_iterator *it, unsigned chains,
         frame.c2h_sequence = frame.payload[1];
     }
     *out = frame;
-    it->cursor += aligned <= remaining ? aligned : used;
+    it->cursor += aligned <= remaining ? aligned : remaining;
     ++it->frames;
     return RTW_R10BU_FRAME;
 }

@@ -62,13 +62,19 @@ static const struct rtl8xxxu_fileops rtl8723_ops={
 
 static const struct rtl8xxxu_fileops*r23_ops(void){return &rtl8723_ops;}
 static int r23_paused(rtw_8723bu*c,int e){struct rtw_8723bu_private*p=c->private_state;c->calibrated=0;fail(c,e);p->cleanup=true;(void)rtl8xxxu_write8(p,REG_TXPAUSE,0xff);p->cleanup=false;return c->last_error?c->last_error:e;}
-int rtw_8723bu_h2c(rtw_8723bu*c,const u8*b,size_t n){
+static int r23_h2c(rtw_8723bu*c,const u8*b,size_t n,int advisory){
  struct rtw_8723bu_private*p;u32 words[2]={0,0};unsigned attempt;u8 box;
  if(!valid(c)||!b||n<1||n>8)return EINVAL;if(!c->firmware_running)return ENXIO;if(c->last_error)return c->last_error;
- p=c->private_state;box=c->mailbox;for(attempt=0;attempt<100;attempt++){if(!(rtl8xxxu_read8(p,REG_HMTFR)&(1U<<box)))break;if(c->last_error)return c->last_error;}
- if(attempt==100)return fail(c,ETIMEDOUT);memcpy(words,b,n);
+ p=c->private_state;box=c->mailbox;for(attempt=0;attempt<100;attempt++){u8 status=rtl8xxxu_read8(p,REG_HMTFR);if(c->last_error)return c->last_error;if(!(status&(1U<<box)))break;}
+ if(attempt==100)return advisory?EBUSY:fail(c,ETIMEDOUT);memcpy(words,b,n);
  if(n>4)(void)rtl8xxxu_write32(p,(u16)(REG_HMBOX_EXT0_8723B+box*4U),words[1]);
  (void)rtl8xxxu_write32(p,(u16)(REG_HMBOX_0+box*4U),words[0]);if(c->last_error)return c->last_error;c->mailbox=(u8)((box+1U)&3U);return 0;
+}
+int rtw_8723bu_h2c(rtw_8723bu*c,const u8*b,size_t n){return r23_h2c(c,b,n,0);}
+int rtw_8723bu_report_rssi(rtw_8723bu*c,u8 percent){
+ if(percent>100)return EINVAL;
+ const u8 command[4]={H2C_8723B_RSSI_SETTING,2,0,percent};
+ return r23_h2c(c,command,sizeof(command),1);
 }
 static int r23_endpoints(rtw_8723bu*c){
  struct rtw_8723bu_private*p=c->private_state;u16 sie=rtl8xxxu_read16(p,REG_NORMAL_SIE_EP_TX);
@@ -273,12 +279,16 @@ int rtw_8723bu_c2h(rtw_8723bu*c,const u8*b,size_t n){
  return ENOTSUP;
 }
 int rtw_8723bu_tick(rtw_8723bu*c){
- struct rtw_8723bu_private*p;u8 command[4]={H2C_8723B_RSSI_SETTING,2,0,0};
+ struct rtw_8723bu_private*p;
  if(!valid(c))return EINVAL;if(!c->calibrated||!c->firmware_running)return ENXIO;if(c->last_error)return c->last_error;p=c->private_state;
  /* Read the actual running8723B sensor. Factory thermal data never marks a
   * channel calibrated and no unported temperature/power slope is invented. */
  p->last_thermal=(u8)((rtl8xxxu_read_rfreg(p,RF_A,RF6052_REG_T_METER_8723B)>>10)&63U);if(c->last_error)return r23_paused(c,c->last_error);
- if(c->associated&&c->rssi_valid){if(c->rssi_percent>100)return EINVAL;command[3]=c->rssi_percent;return rtw_8723bu_h2c(c,command,sizeof(command));}return 0;
+ if(c->associated&&c->rssi_valid){int e=rtw_8723bu_report_rssi(c,c->rssi_percent);
+  /* Busy readiness is optional; an identical errno from a bus callback has
+   * already latched last_error and must still tear down the failed device. */
+  if(e==EBUSY&&!c->last_error)return 0;
+  return e;}return 0;
 }
 int rtw_8723bu_tx_endpoint(const rtw_8723bu*c,u8 queue,u8*out){
  static const u8 tid[8]={TXDESC_QUEUE_BE,TXDESC_QUEUE_BK,TXDESC_QUEUE_BK,TXDESC_QUEUE_BE,TXDESC_QUEUE_VI,TXDESC_QUEUE_VI,TXDESC_QUEUE_VO,TXDESC_QUEUE_VO};

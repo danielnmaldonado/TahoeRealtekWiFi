@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(TahoeRealtekWiFi VERSION 0.14.14 LANGUAGES C CXX)
+project(TahoeRealtekWiFi VERSION 0.14.19 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -262,6 +262,7 @@ if(BUILD_TESTING)
     target_link_libraries(rtw-menu-adapter-support-tests PRIVATE rtwcore)
     add_test(NAME rtw-menu-adapter-support-tests COMMAND rtw-menu-adapter-support-tests)
     add_executable(rtw-menu-reconnect-policy-tests app/tests/reconnect-policy-tests.cpp)
+    target_include_directories(rtw-menu-reconnect-policy-tests PRIVATE kext)
     target_include_directories(rtw-menu-reconnect-policy-tests PRIVATE app)
     add_test(NAME rtw-menu-reconnect-policy-tests COMMAND rtw-menu-reconnect-policy-tests)
     add_executable(rtw-menu-instance-lock-tests app/tests/instance-lock-tests.cpp)
@@ -326,6 +327,13 @@ if(BUILD_TESTING)
         target_link_libraries(rtw-menu-control-diagnostics-tests PRIVATE "-framework Foundation")
         add_test(NAME rtw-menu-control-diagnostics-tests COMMAND rtw-menu-control-diagnostics-tests)
         set_tests_properties(rtw-menu-control-diagnostics-tests PROPERTIES TIMEOUT 10)
+        add_executable(rtw-menu-driver-diagnostics-tests app/tests/driver-diagnostics-tests.mm)
+        target_include_directories(rtw-menu-driver-diagnostics-tests PRIVATE app kext)
+        target_compile_options(rtw-menu-driver-diagnostics-tests PRIVATE -fobjc-arc -Wall -Wextra -Werror -Werror=unguarded-availability -Werror=unguarded-availability-new -mmacosx-version-min=13.0)
+        target_link_options(rtw-menu-driver-diagnostics-tests PRIVATE -mmacosx-version-min=13.0)
+        target_link_libraries(rtw-menu-driver-diagnostics-tests PRIVATE "-framework Foundation" "-framework IOKit" "-framework CoreFoundation")
+        add_test(NAME rtw-menu-driver-diagnostics-tests COMMAND rtw-menu-driver-diagnostics-tests)
+
     endif()
 
     add_executable(rtw-control-tests tests/control_tests.cpp)
@@ -363,6 +371,17 @@ if(BUILD_TESTING)
     add_executable(rtw-92e-ht-descriptor-tests tests/rtl8192eu_ht_datapath_tests.cpp)
     target_link_libraries(rtw-92e-ht-descriptor-tests PRIVATE rtwcore)
     add_test(NAME rtw-92e-ht-descriptor-tests COMMAND rtw-92e-ht-descriptor-tests)
+
+    add_executable(rtw-rx-admission-reason-tests tests/rx_admission_reason_tests.cpp)
+    target_link_libraries(rtw-rx-admission-reason-tests PRIVATE rtwcore)
+    add_test(NAME rtw-rx-admission-reason-tests COMMAND rtw-rx-admission-reason-tests)
+
+    add_executable(rtw-rx-control-filter-tests tests/rx_control_filter_tests.cpp)
+    target_link_libraries(rtw-rx-control-filter-tests PRIVATE rtwcore)
+    add_test(NAME rtw-rx-control-filter-tests COMMAND rtw-rx-control-filter-tests)
+    add_test(NAME rtw-rx-control-accounting-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rx-control-accounting.py"
+        --out "${CMAKE_BINARY_DIR}/rx-control-accounting")
 
     add_executable(rtw-family-rx24-tests tests/family_rx24_tests.cpp)
     target_link_libraries(rtw-family-rx24-tests PRIVATE rtwcore)
@@ -427,6 +446,9 @@ if(BUILD_TESTING)
     add_test(NAME rtw-controller-scan-completion-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-controller-scan-completion.py"
         --out "${CMAKE_BINARY_DIR}/controller-scan-completion")
+    add_test(NAME rtw-control-scan-admission-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-control-scan-admission.py"
+        --out "${CMAKE_BINARY_DIR}/control-scan-admission")
     add_test(NAME rtw-usb-termination-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-usb-termination.py"
         --out "${CMAKE_BINARY_DIR}/usb-termination")
@@ -500,6 +522,9 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/english_ui_tests.py")
     add_test(NAME rtw-signal-pipeline-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/signal_pipeline_tests.py")
+    add_test(NAME rtw-rssi-feedback-tests COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-rssi-feedback.py"
+        --out "${CMAKE_BINARY_DIR}/rssi-feedback")
     add_test(NAME rtw-controller-family-tests COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/controller_family_tests.py"
         --out "${CMAKE_BINARY_DIR}/controller-family")

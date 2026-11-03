@@ -98,6 +98,8 @@ struct RTWUSBController:MockNetworkController{
  bool start(IOService*);
  void stop(IOService*);
  IOReturn setPowerState(unsigned long,IOService*)override;
+ // Immutable registry metadata has no power/USB effect in this boundary fixture.
+ void setProperty(const char*,unsigned long long,unsigned){}
  void reportStartStage(const char*stage,IOReturn result=0){lastStage=stage;lastStartResult=result;events.push_back(stage);}
  static void deferredCleanup(){}
  static void completionAction(){}

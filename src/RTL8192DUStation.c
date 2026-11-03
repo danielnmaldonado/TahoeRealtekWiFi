@@ -161,7 +161,10 @@ rtw_92du_result rtw_92du_mac_start(rtw_92du_mac *m) {
     be=bk=m->out_pipes==1U?QUEUE_HIGH:m->out_pipes==2U?QUEUE_NORMAL:QUEUE_LOW;
     vi=m->out_pipes==3U?QUEUE_NORMAL:QUEUE_HIGH;
     priority=(be<<8U)|(bk<<10U)|(vi<<6U)|(QUEUE_HIGH<<4U)|(QUEUE_HIGH<<12U)|(QUEUE_HIGH<<14U);
-    update(m,REG_TRXDMA_CTRL,2,0xfff0U,priority);
+    /* Pinned rtl8192du/hw.c:715 uses no USB RX aggregation. This decoder
+     * accepts one complete unit, so retire an inherited aggregation enable
+     * while preserving the other low control bits and queue priorities. */
+    update(m,REG_TRXDMA_CTRL,2,0xfff4U,priority);
     write_reg(m,REG_PBP,1,0x11);write_reg(m,REG_RX_DRVINFO_SZ,1,4);
     write_reg(m,REG_HISR,4,0xffffffffU);write_reg(m,REG_HIMR,4,0xffffffffU);
     update(m,MSR,1,3U,0);write_reg(m,REG_RCR,4,receive_config());
@@ -205,12 +208,21 @@ rtw_92du_result rtw_92du_mac_start(rtw_92du_mac *m) {
     update(m,REG_FWHW_TXQ_CTRL,4,0,BIT(12));
     m->started=(uint8_t)(m->boot->last_error==RTW_92DU_OK);return finish(m);
 }
-rtw_92du_result rtw_92du_h2c(rtw_92du_mac *m,uint8_t id,const uint8_t *data,uint8_t length) {
+static rtw_92du_result h2c(rtw_92du_mac *m,uint8_t id,const uint8_t *data,uint8_t length,int advisory) {
     uint8_t main[4]={0,0,0,0};unsigned i,offset=0;uint16_t box,ext;
     if(!valid(m) || !data || !length || length>5U || id>0x7fU)return RTW_92DU_BAD_ARGUMENT;
     if(!m->started || !m->boot->firmware_ready || m->next_h2c>3U)return RTW_92DU_WRONG_STATE;
     if(m->boot->last_error!=RTW_92DU_OK)return finish(m);
-    if(!poll_clear(m,REG_HMETFR,1,BIT(m->next_h2c),10))return finish(m);
+    if(advisory) {
+        const unsigned limit=m->boot->max_polls>100U?100U:m->boot->max_polls;
+        for(i=0;i<limit;++i) {
+            const uint32_t busy=read_reg(m,REG_HMETFR,1);
+            if(m->boot->last_error!=RTW_92DU_OK)return finish(m);
+            if(!(busy&BIT(m->next_h2c)))break;
+            wait_us(m,10);if(m->boot->last_error!=RTW_92DU_OK)return finish(m);
+        }
+        if(i==limit)return RTW_92DU_MCU_BUSY;
+    } else if(!poll_clear(m,REG_HMETFR,1,BIT(m->next_h2c),10))return finish(m);
     box=(uint16_t)(REG_HMEBOX_0+4U*m->next_h2c);ext=(uint16_t)(REG_HMEBOX_EXT_0+2U*m->next_h2c);
     main[0]=id;
     if(length>3U) {
@@ -221,6 +233,9 @@ rtw_92du_result rtw_92du_h2c(rtw_92du_mac *m,uint8_t id,const uint8_t *data,uint
     for(i=0;i<4U;++i)write_reg(m,(uint16_t)(box+i),1,main[i]);
     if(m->boot->last_error==RTW_92DU_OK)m->next_h2c=(uint8_t)((m->next_h2c+1U)&3U);
     return finish(m);
+}
+rtw_92du_result rtw_92du_h2c(rtw_92du_mac *m,uint8_t id,const uint8_t *data,uint8_t length) {
+    return h2c(m,id,data,length,0);
 }
 static int channel_valid(const rtw_92du_boot *b,uint8_t channel) {
     const int band5=rtw_station_5ghz_channel(channel);
@@ -326,7 +341,7 @@ rtw_92du_result rtw_92du_mac_report_rssi(rtw_92du_mac *m,uint8_t pwdb) {
     const uint8_t data[3]={0,32,pwdb};
     if(!valid(m) || pwdb>100U)return RTW_92DU_BAD_ARGUMENT;
     if(!m->joined || !m->rate_ready)return RTW_92DU_WRONG_STATE;
-    return rtw_92du_h2c(m,5,data,3);
+    return h2c(m,5,data,3,1);
 }
 rtw_92du_result rtw_92du_mac_edca(rtw_92du_mac *m,uint8_t channel,uint8_t short_slot,const rtw_92du_edca_ac *ac) {
     static const uint16_t registers[4]={REG_EDCA_BE_PARAM,REG_EDCA_BK_PARAM,REG_EDCA_VI_PARAM,REG_EDCA_VO_PARAM};

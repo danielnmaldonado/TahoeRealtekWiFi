@@ -24,7 +24,9 @@ enum {
     RTW_R12AU_MAX_MPDU = 4096,
     RTW_R12AU_MAX_C2H = 256,
     RTW_R12AU_MAX_BULK = 65536,
-    RTW_R12AU_MAX_RX_FRAMES = 64
+    /* Shortest rounded RX24 unit is32 bytes, including a C2H payload.
+     * Pinned rtw88/usb.c iterates to the buffer end without a64-unit cap. */
+    RTW_R12AU_MAX_RX_FRAMES = RTW_R12AU_MAX_BULK / 32
 };
 
 typedef enum {

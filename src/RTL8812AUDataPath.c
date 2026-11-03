@@ -86,8 +86,8 @@ rtw_r12au_result rtw_r12au_rx_next(rtw_r12au_rx_iterator *it, unsigned chains,
         return RTW_R12AU_MALFORMED;
     used = RTW_R12AU_RX_DESC_BYTES + phy_length + shift + payload_length;
     aligned = (used + 7U) & ~(size_t)7U;
-    if (aligned > remaining && used != remaining)
-        return RTW_R12AU_TRUNCATED;
+    /* Complete wire payload is already bounded above. Pinned Linux USB
+     * parsers permit the final alignment padding to be absent or partial. */
     memset(&frame, 0, sizeof(frame));
     /* Pinned rtw88/rx.c: SHIFT padding precedes the PHY report, and the
      * MPDU follows that report. Padding must never become a gain sample. */
@@ -111,7 +111,7 @@ rtw_r12au_result rtw_r12au_rx_next(rtw_r12au_rx_iterator *it, unsigned chains,
         frame.c2h_sequence = frame.payload[1];
     }
     *out = frame;
-    it->cursor += aligned <= remaining ? aligned : used;
+    it->cursor += aligned <= remaining ? aligned : remaining;
     ++it->frames;
     return RTW_R12AU_FRAME;
 }

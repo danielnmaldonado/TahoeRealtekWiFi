@@ -9,12 +9,12 @@
 struct Write {uint16_t address;unsigned width;uint32_t value;};
 struct Fixture {
  std::array<uint8_t,65536> memory{};std::vector<Write> writes;
- unsigned calls=0,fail=0,radio=2;bool busy=false,cam_stuck=false;uint64_t delay=0;
+ unsigned calls=0,fail=0,radio=2;int fail_error=EIO;bool busy=false,cam_stuck=false;uint64_t delay=0;
  rtw88_fw_context fw{};rtw88_mac_context mac{};rtw88_station_context station{};
- static int read(void*p,uint16_t a,unsigned n,uint32_t*out){auto&f=*(Fixture*)p;if(++f.calls==f.fail)return EIO;
+ static int read(void*p,uint16_t a,unsigned n,uint32_t*out){auto&f=*(Fixture*)p;if(++f.calls==f.fail)return f.fail_error;
   *out=0;for(unsigned i=0;i<n;i++)*out|=uint32_t(f.memory[a+i])<<(8*i);
   if(a==0x670&&!f.cam_stuck)*out&=~0x80000000U;if(a==0x1cc&&f.busy)*out=15;return 0;}
- static int write(void*p,uint16_t a,unsigned n,uint32_t v){auto&f=*(Fixture*)p;if(++f.calls==f.fail)return EIO;
+ static int write(void*p,uint16_t a,unsigned n,uint32_t v){auto&f=*(Fixture*)p;if(++f.calls==f.fail)return f.fail_error;
   f.writes.push_back({a,n,v});for(unsigned i=0;i<n;i++)f.memory[a+i]=uint8_t(v>>(8*i));return 0;}
  static void wait(void*p,uint32_t us){((Fixture*)p)->delay+=us;}
  static unsigned radio_state(void*p,uint8_t){return ((Fixture*)p)->radio;}
@@ -43,7 +43,21 @@ static void negotiated_rates(){
  for(const auto&o:{rtw88_station_operating{6,8,40,2},rtw88_station_operating{52,58,80,4},rtw88_station_operating{165,171,80,4},rtw88_station_operating{36,58,80,4},rtw88_station_operating{36,42,80,1}})assert(rtw88_station_operating_validate(&o));
  printf("B/C exact primary RA wire: %u family/NSS/width/VHT-map goldens; full descriptor-rate membership and invalid-policy checks passed\n",checks);
 }
+static void advisory_rssi(){for(auto family:families)for(unsigned box=0;box<4;++box){
+ Fixture f(family);assert(!f.init());f.fw.h2c_box=uint8_t(box);f.busy=true;
+ const uint8_t command[8]={0x42,0,0,57};const auto writes=f.writes.size();
+ assert(rtw88_station_h2c_rssi_monitor(&f.station,command)==EBUSY);
+ assert(!f.fw.last_error&&f.station.initialized&&f.mac.mac_ready&&f.fw.firmware_running&&f.fw.h2c_box==box&&f.writes.size()==writes&&f.delay==3000);
+ f.busy=false;assert(!rtw88_station_h2c_rssi_monitor(&f.station,command)&&f.fw.h2c_box==(box+1)%4);
+ for(int error:{EIO,ETIMEDOUT,EBUSY})for(unsigned position=1;position<=3;++position){
+  Fixture bad(family);assert(!bad.init());bad.fail_error=error;bad.fail=bad.calls+position;
+  assert(rtw88_station_h2c_rssi_monitor(&bad.station,command)==error&&bad.fw.last_error==error&&!bad.station.initialized&&!bad.fw.h2c_box);}
+ Fixture invalid(family);assert(!invalid.init());const auto calls=invalid.calls;
+ for(unsigned index=0;index<8;++index){uint8_t bad[8];std::memcpy(bad,command,8);bad[index]=index==0?1:index==3?101:1;
+  assert(rtw88_station_h2c_rssi_monitor(&invalid.station,bad)==EINVAL&&invalid.calls==calls&&invalid.station.initialized);}
+ }std::puts("B/C optional RSSI:3 families/all boxes preserve busy state and retry; EIO/ETIMEDOUT/EBUSY bus faults stay fatal");}
 int main(){
+ advisory_rssi();
  negotiated_rates();
  unsigned failure_positions=0;
  for(auto family:families){Fixture f(family);assert(f.init()==0);assert(f.station.initialized&&f.value(0x680,2)==0);

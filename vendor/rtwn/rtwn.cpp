@@ -1426,8 +1426,13 @@ rtwn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		rtwn_write_2(sc, R92C_BCN_INTERVAL, ni->ni_intval);
 
 		/* Allow Rx from our BSSID only. */
+		reg = rtwn_read_4(sc, R92C_RCR);
+		/* All shared legacy station paths use the rtl8xxxu physical
+		 * address-match policy; scan/monitor retain their own policy. */
+		if (ic->ic_opmode == IEEE80211_M_STA)
+			reg &= ~R92C_RCR_AAP;
 		rtwn_write_4(sc, R92C_RCR,
-		    rtwn_read_4(sc, R92C_RCR) |
+		    reg |
 		    R92C_RCR_CBSSID_DATA | R92C_RCR_CBSSID_BCN);
 
 		/* Enable TSF synchronization. */
@@ -1443,7 +1448,8 @@ rtwn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			rtwn_set_nettype(sc, IEEE80211_M_MONITOR);
 			break;
 		}
-		if (sc->rate_config.ht || (sc->chip & RTWN_CHIP_92E)) {
+		if (ic->ic_opmode == IEEE80211_M_STA ||
+		    sc->rate_config.ht || (sc->chip & RTWN_CHIP_92E)) {
 			/* RX BlockAck reorder runs in net80211. Program BAR
 			 * (control subtype 8) in the subtype map and keep ACF low:
 			 * the RTL8192E RX filter is bypassed by accept-all-control.

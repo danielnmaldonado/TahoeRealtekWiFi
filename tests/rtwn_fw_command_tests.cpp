@@ -7,16 +7,18 @@ int rtwn_io_error(rtwn_softc *s) { return s->core_error; }
 uint8_t rtwn_read_1(rtwn_softc *s, uint16_t address) {
     CHECK(address == R92C_HMETFR);
     ++s->reads;
-    if (s->reads == s->fail_read_at) { s->core_error = EIO; return 0; }
+    if (s->reads == s->fail_read_at) { s->core_error = s->fault_error; return 0; }
     return s->reads <= s->busy_reads ? uint8_t(1U << s->fwcur) : 0;
 }
 static void write(rtwn_softc *s, unsigned width, uint16_t address, uint32_t value) {
     s->writes.push_back({width,address,value});
-    if (s->writes.size() == s->fail_write_at) s->core_error = EIO;
+    if (s->writes.size() == s->fail_write_at) s->core_error = s->fault_error;
 }
 void rtwn_write_2(rtwn_softc *s, uint16_t address, uint16_t value) { write(s,2,address,value); }
 void rtwn_write_4(rtwn_softc *s, uint16_t address, uint32_t value) { write(s,4,address,value); }
 void rtwn_delay(rtwn_softc *s, uint32_t value) { s->delays.push_back(value); }
+void rtwn_temp_calib(rtwn_softc*s){++s->thermalCalls;}
+static void scheduleCalib(void*cookie){++static_cast<rtwn_softc*>(cookie)->scheduled;}
 static void expected(const FWWrite &w, unsigned width, uint16_t address, uint32_t value) {
     CHECK(w.width == width); CHECK(w.address == address); CHECK(w.value == value);
 }
@@ -67,7 +69,18 @@ int main() {
     { rtwn_softc s; s.busy_reads=2; CHECK(rtwn_fw_cmd(&s,0x42,payload,1)==0);
       CHECK(s.reads==3); CHECK(s.delays.size()==2); CHECK(s.delays[0]==10); }
     { rtwn_softc s; s.busy_reads=100; CHECK(rtwn_fw_cmd(&s,0x42,payload,1)==ETIMEDOUT);
-      CHECK(s.reads==100); CHECK(s.writes.empty()); CHECK(s.fwcur==0); }
+      CHECK(s.reads==100); CHECK(s.writes.empty()); CHECK(s.fwcur==0); CHECK(s.core_error==0);
+      CHECK(rtwn_fw_cmd(&s,0x42,payload,1)==0&&s.fwcur==1); }
+    // CU/88EU use gen1 and EU gen2. Their existing calibration path already
+    // treats firmware mailbox ownership as optional, without latching it.
+    for(unsigned chip:{0U,RTWN_CHIP_92E}){rtwn_softc s;s.chip=chip;s.busy_reads=100;
+      s.sc_ops={&s,scheduleCalib};rtwn_calib(&s);
+      CHECK(!s.core_error&&s.fwcur==0&&s.writes.empty()&&s.thermalCalls==1&&s.scheduled==1);
+      rtwn_calib(&s);CHECK(!s.core_error&&s.fwcur==1&&s.thermalCalls==2&&s.scheduled==2);
+      for(int error:{EIO,ETIMEDOUT,EBUSY})for(bool read:{false,true}){
+       rtwn_softc bad;bad.chip=chip;bad.fault_error=error;if(read)bad.fail_read_at=1;else bad.fail_write_at=1;
+       bad.sc_ops={&bad,scheduleCalib};rtwn_calib(&bad);
+       CHECK(bad.core_error==error&&bad.fwcur==0);if(read)CHECK(bad.writes.empty());}}
     { rtwn_softc s; s.fail_read_at=1; CHECK(rtwn_fw_cmd(&s,0x42,payload,1)==EIO);
       CHECK(s.writes.empty()); CHECK(s.fwcur==0); }
     { rtwn_softc s; s.fail_write_at=1; CHECK(rtwn_fw_cmd(&s,0x42,payload,7)==EIO);

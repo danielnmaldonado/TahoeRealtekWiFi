@@ -6,8 +6,8 @@ from family_control_host import augment_control
 import argparse, subprocess, tempfile
 from host_cpp import compiler, sanitizer_flags
 root=Path(__file__).resolve().parents[1]
-p=argparse.ArgumentParser();p.add_argument('--control',action='store_true');p.add_argument('--library',type=Path,required=True);p.add_argument('--out',type=Path);args=p.parse_args()
-f=root/'kext/RTW8192DUBackend.inc'
+p=argparse.ArgumentParser();p.add_argument('--control',action='store_true');p.add_argument('--library',type=Path,required=True);p.add_argument('--out',type=Path);p.add_argument('--backend-source',type=Path);args=p.parse_args()
+f=args.backend_source or root/'kext/RTW8192DUBackend.inc'
 assert f.exists(), 'missing concrete RTL8192DU kernel station adapter'
 s=f.read_text()
 def function(marker):

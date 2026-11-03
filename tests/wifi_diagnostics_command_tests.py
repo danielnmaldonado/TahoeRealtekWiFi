@@ -479,6 +479,53 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         self.assert_archive_matches(report)
         self.assert_safe_commands()
 
+    def test_au_runtime_failure_context_and_recovery_deltas_are_reported(self):
+        for after, phase in enumerate((self.harness.before, self.harness.after)):
+            row = next(entry for entry in phase if entry["registry_id"] == ADAPTER_A)
+            row["values"].update(RTWDiagPublicationGeneration=10 + 2 * after,
+                RTWDiagPublicationMonotonicMS=1000 + 50 * after,
+                RTWDiagDriverBuild=65, RTWDiagAUFailureStage=19,
+                RTWDiagAUFailureResult=60, RTWDiagAUFirstFailureStage=19,
+                RTWDiagAUFirstFailureResult=60, RTWDiagAUFailures=3 + after,
+                RTWDiagAUStarts=3 + after, RTWDiagAURecoveryAttempts=1 + after,
+                RTWDiagAURecoverySuccesses=1 + after)
+        report = self.harness.run()
+        summary = (report / "RTW-SUMMARY.txt").read_text().split("Controller %d" % ADAPTER_A)[1].split("Controller ")[0]
+        for key, value in {"RTWDiagDriverBuild": 65, "RTWDiagAUFailureStage": 19,
+                           "RTWDiagAUFailureResult": 60, "RTWDiagAUFirstFailureStage": 19,
+                           "RTWDiagAUFirstFailureResult": 60}.items():
+            self.assertIn("%s=%d" % (key, value), summary)
+            self.assertNotIn(key + " before=", summary)
+        self.assertIn("RTWDiagAUFailures before=3 after=4 delta=1", summary)
+        self.assertIn("RTWDiagAUStarts before=3 after=4 delta=1", summary)
+        self.assertIn("RTWDiagAURecoveryAttempts before=1 after=2 delta=1", summary)
+        self.assertIn("RTWDiagAURecoverySuccesses before=1 after=2 delta=1", summary)
+        self.assert_safe_commands()
+
+    def test_au_periodic_phases_are_gauges_and_busy_is_a_separate_counter(self):
+        for after, phase in enumerate((self.harness.before, self.harness.after)):
+            row = next(entry for entry in phase if entry["registry_id"] == ADAPTER_A)
+            row["values"].update(RTWDiagPublicationGeneration=10 + 2 * after,
+                RTWDiagPublicationMonotonicMS=1000 + 50 * after,
+                RTWDiagAUPeriodicCalls=20 + after, RTWDiagAUPeriodicPHYFailures=0,
+                RTWDiagAUPeriodicRSSIAttempts=20 + after,
+                RTWDiagAUPeriodicRSSIBusy=2 + after, RTWDiagAUPeriodicRSSIFailures=0,
+                RTWDiagAUPeriodicPhase=2, RTWDiagAUPeriodicResult=16,
+                RTWDiagAUPeriodicLastFailurePhase=0, RTWDiagAUPeriodicLastFailureResult=0)
+        report = self.harness.run()
+        summary = (report / "RTW-SUMMARY.txt").read_text().split("Controller %d" % ADAPTER_A)[1].split("Controller ")[0]
+        self.assertIn("RTWDiagAUPeriodicRSSIBusy before=2 after=3 delta=1", summary)
+        self.assertIn("RTWDiagAUPeriodicPHYFailures before=0 after=0 delta=0", summary)
+        self.assertIn("RTWDiagAUPeriodicRSSIFailures before=0 after=0 delta=0", summary)
+        self.assertIn("RTWDiagAUPeriodicCalls before=20 after=21 delta=1", summary)
+        self.assertIn("RTWDiagAUPeriodicRSSIAttempts before=20 after=21 delta=1", summary)
+        self.assertIn("RTWDiagAUPeriodicPhase=2", summary)
+        self.assertIn("RTWDiagAUPeriodicResult=16", summary)
+        self.assertNotRegex(summary, r"RTWDiagAUPeriodic(?:Phase|Result|LastFailure)[^\n]*delta=")
+        self.assertNotIn("AU calibration timing: not instrumented", summary)
+        self.assertIn("RSSI busy is deferred", summary)
+        self.assert_safe_commands()
+
     def test_publication_generation_is_compared_per_controller(self):
         for phase, entries in (("before", self.harness.before), ("after", self.harness.after)):
             for entry in entries:
@@ -493,6 +540,62 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         self.assertIn("RTWDiagPublicationMonotonicMS=1050", au)
         self.assertIn("Publication: freshness unknown", eu)
         self.assertIn("not atomic", summary)
+        self.assert_safe_commands()
+
+    def test_rx_rejection_reasons_keep_error_totals_and_scalar_context(self):
+        for after, entries in ((False, self.harness.before), (True, self.harness.after)):
+            for entry in entries:
+                if entry["registry_id"] != ADAPTER_B:
+                    continue
+                entry["values"].update(
+                    RTWDiagPublicationGeneration=10 + 2 * after,
+                    RTWDiagPublicationMonotonicMS=1000 + 50 * after,
+                    RTWDiagRXRejectSchema=1,
+                    RTWDiagRXErrors=78 + 3 * after,
+                    RTWDiagRXInvalidFrameDrops=70 + 3 * after,
+                    RTWDiagRXRejectControl=20 + after,
+                    RTWDiagRXRejectBARReceiver=50 + 2 * after,
+                    RTWDiagRXRejectLastReason=8,
+                    RTWDiagRXRejectLastType=1,
+                    RTWDiagRXRejectLastSubtype=8,
+                    RTWDiagRXRejectLastLength=20,
+                    RTWDiagRXRejectLastReceiverMatchesLocal=0,
+                    RTWDiagRXRejectLastTransmitterMatchesAP=1)
+        report = self.harness.run()
+        summary = (report / "RTW-SUMMARY.txt").read_text().split("Controller %d" % ADAPTER_B)[1]
+        self.assertIn("RTWDiagRXErrors before=78 after=81 delta=3", summary)
+        self.assertIn("RTWDiagRXRejectControl before=20 after=21 delta=1", summary)
+        self.assertIn("RTWDiagRXRejectBARReceiver before=50 after=52 delta=2", summary)
+        self.assertIn("RTWDiagRXRejectLastSubtype=8", summary)
+        self.assertIn("RTWDiagRXRejectLastReceiverMatchesLocal=0", summary)
+        self.assertIn("RTWDiagRXRejectLastTransmitterMatchesAP=1", summary)
+        self.assertNotIn("RTWDiagRXRejectLastSubtype before=", summary)
+        self.assert_safe_commands()
+
+    def test_block_ack_filtering_and_rejected_control_subtypes_are_separate(self):
+        for after, entries in ((False, self.harness.before), (True, self.harness.after)):
+            for entry in entries:
+                if entry["registry_id"] != ADAPTER_B:
+                    continue
+                entry["values"].update(
+                    RTWDiagPublicationGeneration=10 + 2 * after,
+                    RTWDiagPublicationMonotonicMS=1000 + 50 * after,
+                    RTWDiagRXRejectSchema=2,
+                    RTWDiagRXErrors=5 + after,
+                    RTWDiagRXBlockAckFiltered=120 + 89 * after,
+                    RTWDiagRXRejectControl=2 + after,
+                    RTWDiagRXRejectControlSubtype9=2 + after,
+                    RTWDiagRXRejectLastSubtype=9,
+                    RTWDiagRXRejectLastBAControl=6,
+                    RTWDiagRXRejectLastBAFragment=1)
+        report = self.harness.run()
+        summary = (report / "RTW-SUMMARY.txt").read_text().split("Controller %d" % ADAPTER_B)[1]
+        self.assertIn("RTWDiagRXBlockAckFiltered before=120 after=209 delta=89", summary)
+        self.assertIn("RTWDiagRXErrors before=5 after=6 delta=1", summary)
+        self.assertIn("RTWDiagRXRejectControlSubtype9 before=2 after=3 delta=1", summary)
+        self.assertIn("RTWDiagRXRejectLastBAControl=6", summary)
+        self.assertIn("RTWDiagRXRejectLastBAFragment=1", summary)
+        self.assertNotIn("RTWDiagRXRejectLastBAControl before=", summary)
         self.assert_safe_commands()
 
     def test_unchanged_publication_generation_is_not_called_live(self):

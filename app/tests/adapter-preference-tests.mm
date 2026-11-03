@@ -8,6 +8,7 @@
 @property(nonatomic,copy) NSDictionary<NSNumber*,NSDictionary*>* identities;
 @property(nonatomic,assign) BOOL holdPolls;
 - (void)prepareDriver:(RTWDriverConnection*)driver store:(id<RTWCredentialStoring>)store;
+- (void)prepareDisconnectedLookup;
 @end
 @implementation PreferenceApp
 - (NSDictionary*)adapterIdentityForRegistryID:(uint64_t)registryID {return self.identities[@(registryID)];}
@@ -15,6 +16,10 @@
 - (void)considerNetworkRefresh {}
 - (void)poll:(id)sender {if(!self.holdPolls)[super poll:sender];}
 - (double)uptime {return 100;}
+- (void)prepareDisconnectedLookup {
+    _hasStatus=YES;_statusReadDelayed=NO;_status.version=1;_status.state=0;
+    _status.flags=RTW_CONTROL_DEVICE|RTW_CONTROL_RADIO;
+}
 - (void)prepareDriver:(RTWDriverConnection*)driver store:(id<RTWCredentialStoring>)store {
     _driver=driver;_credentials=store;_queue=serialWorkQueue("org.research.TahoeUSBWiFi.test.preference");
     _savedNetworksLoaded=YES;_savedNetworks=@[[@"HomeA" dataUsingEncoding:NSUTF8StringEncoding],[@"HomeB" dataUsingEncoding:NSUTF8StringEncoding]];
@@ -110,6 +115,7 @@ static void testNetworkPreferences(NSUserDefaults* preferences,NSDictionary* a,N
     assert([[boot valueForKey:@"preferredSSID"] isEqual:[@"HomeA" dataUsingEncoding:NSUTF8StringEncoding]]);
     // Off/on during a delayed Keychain read cancels the old automatic request.
     boot.holdPolls=YES;
+    [boot prepareDisconnectedLookup]; // the previous successful link must first be lost
     [boot loadPasswordForSSID:[@"HomeA" dataUsingEncoding:NSUTF8StringEncoding] connect:YES automatic:YES];
     [boot toggleAutoJoin:nil];[boot toggleAutoJoin:nil];
     NSDate* deadline=[NSDate dateWithTimeIntervalSinceNow:5];

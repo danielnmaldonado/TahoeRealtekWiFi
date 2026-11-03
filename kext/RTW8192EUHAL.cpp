@@ -832,56 +832,66 @@ rtw92eu_bb_init(struct rtwn_softc *sc)
 int
 rtw92eu_aggr_init(struct rtwn_softc *sc, bool highSpeed)
 {
-	if (!valid(sc)) return EINVAL;
-	if (rtwn_io_error(sc)) return rtwn_io_error(sc);
-	uint32_t reg = 0;
-	int dmasize, dmatiming, ndesc;
+    if (!valid(sc)) return EINVAL;
+    if (rtwn_io_error(sc)) return rtwn_io_error(sc);
+    RTWLegacyPowerIO io(sc);
+    uint32_t reg = 0;
+    int dmasize, dmatiming, ndesc;
 
-	/* Set burst packet length. */
-	if (sc->chip & (RTWN_CHIP_88F | RTWN_CHIP_92E))
-		rtw92eu_burstlen_init(sc, highSpeed);
+    /* Preserve unrelated burst fields and stop immediately after failed I/O. */
+    if (sc->chip & RTWN_CHIP_92E) {
+        if (!io.update(R92E_RXDMA_PRO, 1, 0x30,
+            highSpeed ? 0x1e : 0x2e)) return io.result();
+    } else if (sc->chip & RTWN_CHIP_88F) {
+        rtw92eu_burstlen_init(sc, highSpeed);
+        if (rtwn_io_error(sc)) return rtwn_io_error(sc);
+    }
 
-	if (sc->chip & RTWN_CHIP_88F) {
-		dmasize = 5;
-		dmatiming = 32;
-		ndesc = 6;
-	} else if (sc->chip & RTWN_CHIP_92E) {
-		dmasize = 6;
-		dmatiming = 32;
-		ndesc = 3;
-	} else {
-		dmasize = 48;
-		dmatiming = 4;
-		ndesc = (sc->chip & RTWN_CHIP_88E) ? 1 : 6;
-	}
+    if (sc->chip & RTWN_CHIP_88F) {
+        dmasize = 5; dmatiming = 32; ndesc = 6;
+    } else if (sc->chip & RTWN_CHIP_92E) {
+        dmasize = 6; dmatiming = 32; ndesc = 3;
+    } else {
+        dmasize = 48; dmatiming = 4;
+        ndesc = (sc->chip & RTWN_CHIP_88E) ? 1 : 6;
+    }
 
-	/* Tx aggregation setting. */
-	reg = urtwn_read_4(sc, R92C_TDECTRL);
-	reg = RW(reg, R92C_TDECTRL_BLK_DESC_NUM, ndesc);
-	urtwn_write_4(sc, R92C_TDECTRL, reg);
-	if (sc->chip & (RTWN_CHIP_88F | RTWN_CHIP_92E))
-		urtwn_write_1(sc, R92E_DWBCN1_CTRL, ndesc << 1);
+    /* Pinned rtl8xxxu core.c:4666-4672 and8188e.c:524-534 explicitly
+     * disable the legacy USB aggregation selector before DMA setup. */
+    if ((sc->chip & (RTWN_CHIP_92C | RTWN_CHIP_88C | RTWN_CHIP_88E)) &&
+        !io.update(R92C_USB_SPECIAL_OPTION, 1,
+            R92C_USB_SPECIAL_OPTION_AGG_EN, 0)) return io.result();
 
-	/* Rx aggregation setting. */
-	urtwn_write_1(sc, R92C_TRXDMA_CTRL,
-	    urtwn_read_1(sc, R92C_TRXDMA_CTRL) | R92C_TRXDMA_CTRL_RXDMA_AGG_EN);
+    if (!io.read(R92C_TDECTRL, 4, reg)) return io.result();
+    reg = RW(reg, R92C_TDECTRL_BLK_DESC_NUM, ndesc);
+    if (!io.write(R92C_TDECTRL, 4, reg)) return io.result();
+    if ((sc->chip & (RTWN_CHIP_88F | RTWN_CHIP_92E)) &&
+        !io.write(R92E_DWBCN1_CTRL, 1, ndesc << 1)) return io.result();
+    if (!io.update(R92C_TRXDMA_CTRL, 1, 0,
+        R92C_TRXDMA_CTRL_RXDMA_AGG_EN)) return io.result();
 
-	urtwn_write_1(sc, R92C_RXDMA_AGG_PG_TH, dmasize);
-	if (sc->chip & (RTWN_CHIP_92C | RTWN_CHIP_88C))
-		urtwn_write_1(sc, R92C_USB_DMA_AGG_TO, dmatiming);
-	else
-		urtwn_write_1(sc, R92C_RXDMA_AGG_PG_TH + 1, dmatiming);
-
-	if (sc->chip & RTWN_CHIP_88F) {
-		urtwn_write_1(sc, R92E_RXDMA_PRO,
-		    urtwn_read_1(sc, R92E_RXDMA_PRO) | R92E_RXDMA_PRO_DMA_MODE);
-	}
-
-	/* Drop incorrect bulk out. */
-	urtwn_write_4(sc, R92C_TXDMA_OFFSET_CHK,
-	    urtwn_read_4(sc, R92C_TXDMA_OFFSET_CHK) |
-	    R92C_TXDMA_OFFSET_CHK_DROP_DATA_EN);
-	return rtwn_io_error(sc);
+    if (sc->chip & RTWN_CHIP_92E) {
+        /* Pinned Mange/rtl8192eu-linux-driver
+         * c629cc972a0d878c930d19c4a9309c27c1e61f92:
+         * include/rtl8192e_spec.h:284-287 defines DMA selector bit 31;
+         * usb_halinit.c:445-460 clears it for USB aggregation. Its size 6
+         * is 6*4 KiB, timeout 32*32 us (148-155). Select that mode explicitly;
+         * preserve the other mode-byte bits and reserved threshold nibble.
+         * RX allocation/initial/replacement/recovery reads hold 32 KiB. */
+        if (!io.update(R92C_RXDMA_AGG_PG_TH + 3, 1, 0x80, 0) ||
+            !io.update(R92C_RXDMA_AGG_PG_TH, 1, 0x0f, dmasize) ||
+            !io.write(R92C_RXDMA_AGG_PG_TH + 1, 1, dmatiming)) return io.result();
+    } else {
+        if (!io.write(R92C_RXDMA_AGG_PG_TH, 1, dmasize)) return io.result();
+        if (!io.write((sc->chip & (RTWN_CHIP_92C | RTWN_CHIP_88C)) ?
+            R92C_USB_DMA_AGG_TO : R92C_RXDMA_AGG_PG_TH + 1,
+            1, dmatiming)) return io.result();
+    }
+    if ((sc->chip & RTWN_CHIP_88F) &&
+        !io.update(R92E_RXDMA_PRO, 1, 0, R92E_RXDMA_PRO_DMA_MODE)) return io.result();
+    if (!io.update(R92C_TXDMA_OFFSET_CHK, 4, 0,
+        R92C_TXDMA_OFFSET_CHK_DROP_DATA_EN)) return io.result();
+    return io.result();
 }
 
 int

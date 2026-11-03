@@ -38,7 +38,7 @@ with tempfile.TemporaryDirectory(prefix='rtw-channel-map-') as temporary:
         build('transport-tests',[root/'tests/channel_map_transport_tests.cpp',root/'app/Transport.cpp'])
         binary=(out/'reconnect-tests').resolve()
         sources=['tests/channel-map-reconnect-tests.mm','LoginItem.mm','CredentialStore.mm',
-            'DriverConnection.mm','ControlDiagnostics.mm','DiagnosticCLI.mm','AdapterDiagnostics.mm','USBWiFiProfiles.cpp','Transport.cpp']
+            'DriverConnection.mm','ControlDiagnostics.mm','DiagnosticCLI.mm','AdapterDiagnostics.mm','DriverDiagnostics.mm','USBWiFiProfiles.cpp','Transport.cpp']
         command=[*compiler(),*flags,'-fobjc-arc',*[str(root/'app'/p) for p in sources]]
         for framework in ['AppKit','ServiceManagement','Security','CoreServices','IOKit','CoreFoundation']:
             command+=['-framework',framework]

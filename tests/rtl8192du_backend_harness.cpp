@@ -212,6 +212,11 @@ int main(){
         assert(!c.state8192DU(&ic,IEEE80211_S_ASSOC,0));
         assert(!c.state8192DU(&ic,IEEE80211_S_RUN,0));node.ni_port_valid=true;
         assert(du_test::control_admitted(c.test.bus,8));
+        c.duRSSIValid_=true;c.duRSSIPWDB_=58;c.test.bus.h2c_busy=15;
+        const auto mailbox=c.duMAC_.next_h2c;
+        assert(!c.tick8192DU()&&c.authorized()&&node.ni_port_valid&&c.duMAC_.joined&&c.duMAC_.rate_ready);
+        assert(c.duCore_.last_error==RTW_92DU_OK&&c.duMAC_.next_h2c==mailbox);
+        c.test.bus.h2c_busy=0;assert(!c.tick8192DU()&&c.duMAC_.next_h2c==(mailbox+1)%4);
         const auto before=generic_calls;c.test.bus.h2c_busy=15;
         assert(c.state8192DU(&ic,IEEE80211_S_SCAN,0)==ETIMEDOUT);
         assert(ic.ic_state==IEEE80211_S_INIT&&!node.ni_port_valid&&generic_calls==before+1);

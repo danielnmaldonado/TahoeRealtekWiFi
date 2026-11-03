@@ -1,5 +1,243 @@
-#include "rtwn_ht_host.hpp"
+/* All thirteen enabled station families exercise their actual RCR and
+ * local-MAC initialization against the existing hardware-boundary fixtures.
+ * RXFLTMAP1 is checked separately: newer AU/B/C bit12 is not legacy ACF. */
+#ifdef RTW_PRIVATE_FILTER
+#include <cassert>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include RTW_FILTER_FIXTURE
+static void filter_bits(uint32_t rcr,bool run) {
+    assert((rcr&15U)==14U); // AAP clear; physical/multicast/broadcast present.
+    assert((rcr&0xc0U)==(run?0xc0U:0U));
+}
+#if RTW_PRIVATE_FILTER == 1
+#include "rtl8192fu_model.hpp"
 int main() {
+    for(bool ht:{false,true}) {
+        FUFixture f;f.identify();assert(!f.boot());
+        const auto rom=fu_rom();assert(!memcmp(f.m.reg.data()+0x610,rom.data()+0x107,6));
+        filter_bits(f.m.read(0x608),false);
+        const uint8_t ap[6]={2,1,2,3,4,5};
+        assert(!rtw_r92fu_station(f.c,1,ap,42,100,0x15,1,ht));
+        filter_bits(f.m.read(0x608),true);
+        assert(f.m.read(0x6a2,2)==(ht?0x100U:0U)&&f.m.read(0x6a4,2)==0xffff);
+        assert(!rtw_r92fu_station(f.c,0,nullptr,0,0,0x15,1,0));
+        filter_bits(f.m.read(0x608),false);assert(!f.m.read(0x6a2,2));
+    }
+    puts("filter RTL8192FU: actual boot/MAC, legacy+HT RUN and scan passed");
+}
+#elif RTW_PRIVATE_FILTER == 2
+#include "rtl8710bu_model.hpp"
+int main() {
+    for(auto vendor:{RTW_R10BU_SMIC,RTW_R10BU_UMC})for(bool ht:{false,true}) {
+        BUFixture f(vendor);f.identify();assert(!f.boot());rtw_r10bu_board board{};
+        assert(!rtw_r10bu_board_info(f.c,&board));assert(!memcmp(f.m.reg.data()+0x610,board.mac,6));
+        filter_bits(f.m.read(0x608),false);const uint8_t ap[6]={2,1,2,3,4,5};
+        assert(!rtw_r10bu_station(f.c,1,ap,42,100,0x15,1,ht));
+        filter_bits(f.m.read(0x608),true);
+        assert(f.m.read(0x6a2,2)==(ht?0x100U:0U)&&f.m.read(0x6a4,2)==0xffff);
+        assert(!rtw_r10bu_station(f.c,0,nullptr,0,0,0x15,1,0));
+        filter_bits(f.m.read(0x608),false);assert(!f.m.read(0x6a2,2));
+    }
+    puts("filter RTL8710BU: actual SMIC/UMC boot/MAC, legacy+HT RUN and scan passed");
+}
+#elif RTW_PRIVATE_FILTER == 3
+static uint32_t word(const uint8_t*p){return uint32_t(p[0])|uint32_t(p[1])<<8|uint32_t(p[2])<<16|uint32_t(p[3])<<24;}
+int main() {
+    for(bool ht:{false,true}) {
+        fake_8723 f;f.simulate=true;rtw_8723bu c{};auto bus=f.bus();
+        rtw_8723bu_usb usb{0x81,{2,3,0},2,1,512};
+        std::vector<uint64_t> storage((rtw_8723bu_private_size()+7)/8);
+        CHECK(!rtw_8723bu_init(&c,0xbda,0xb720,&bus,&usb,storage.data(),storage.size()*8));
+        fake_8723::write(&f,0xf0,4,2U<<12);fake_8723::write(&f,0x68,4,4U|(1U<<18));
+        CHECK(!rtw_8723bu_identify(&c));std::array<uint8_t,512> rom;valid_board_image(rom);
+        CHECK(!rtw_8723bu_parse_board(&c,rom.data(),rom.size()));
+        CHECK(!rtw_8723bu_boot(&c,RTW8723BUFirmware,sizeof(RTW8723BUFirmware)));
+        assert(!memcmp(f.memory.data()+0x610,c.board.mac,6));filter_bits(word(f.memory.data()+0x608),false);
+        CHECK(!rtw_8723bu_set_channel(&c,6,20));CHECK(!rtw_8723bu_calibrate(&c));
+        rtw_8723bu_station p{{2,3,4,5,6,7},6,1,1,uint8_t(ht),0,uint8_t(ht?255:0),1,100,0x15f,0xfff,0};
+        CHECK(!rtw_8723bu_station_state(&c,2,&p));CHECK(!rtw_8723bu_station_state(&c,3,&p));
+        filter_bits(word(f.memory.data()+0x608),true);
+        assert((unsigned(f.memory[0x6a2])|(unsigned(f.memory[0x6a3])<<8))==(ht?0x100U:0U));
+        CHECK(!rtw_8723bu_station_state(&c,1,&p));filter_bits(word(f.memory.data()+0x608),false);
+    }
+    puts("filter RTL8723BU: actual boot/MAC, legacy+HT RUN and scan passed");
+}
+#elif RTW_PRIVATE_FILTER == 4
+int main() {
+    for(unsigned mode:{0U,1U,2U})for(bool ht:{false,true}) {
+        const uint8_t index=uint8_t(mode==2);
+        Fixture f(mode!=0,index);rtw_92du_mac c{};
+        if(!mode)start(f,c);
+        else {
+            const auto primary=plan();
+            const uint8_t cfg[]={9,2,62,0,2,primary.profile->configuration,0,0x80,50,
+                9,4,0,0,2,0xff,0xff,0xff,0,7,5,0x81,2,0,2,0,7,5,2,2,0,2,0,
+                9,4,1,0,3,0xff,0xff,0xff,0,7,5,0x84,2,0,2,0,7,5,5,2,0,2,0,7,5,6,2,0,2,0};
+            f.boot.firmware_ready=0;
+            assert(rtw_92du_mac_init_for_interface(&c,&f.boot,&primary,cfg,sizeof(cfg))==RTW_92DU_OK);
+            assert(rtw_92du_mac_prepare(&c)==RTW_92DU_OK);f.boot.firmware_ready=1;
+            assert(rtw_92du_mac_start(&c)==RTW_92DU_OK);
+        }
+        assert(!memcmp(f.bus.regs.data()+0x610,f.boot.board.mac,6));
+        filter_bits(Bus::word(f.bus.regs.data()+0x608,4),false);
+        uint16_t physical=0;assert(rtw_92du_usb_address(index,0x608,&physical)==RTW_USB_OK);
+        assert(physical==(index?0x4608:0x608));
+        const uint8_t channel=uint8_t(mode==1?36:6);
+        assert(rtw_92du_phy_load_tables(&f.boot)==RTW_92DU_OK);
+        assert(rtw_92du_phy_set_channel(&f.boot,channel)==RTW_92DU_OK);
+        assert(rtw_92du_phy_calibrate(&f.boot)==RTW_92DU_OK);
+        rtw_92du_bss p{};p.channel=channel;p.bssid[0]=2;p.bssid[5]=4;p.aid=42;p.beacon_interval=100;p.basic_rates=mode==1?0x150:0xf;p.short_slot=1;
+        assert(rtw_92du_mac_set_state(&c,RTW_92DU_ST_AUTH,&p)==RTW_92DU_OK);
+        assert(rtw_92du_phy_activate(&f.boot)==RTW_92DU_OK);
+        rtw_92du_peer_rates peer{uint16_t(mode==1?0xff0:0xfff),uint16_t(ht?0xffff:0),uint8_t(ht),0,3};rtw_92du_rate_config rates{};
+        assert(rtw_92du_build_rate_config(&f.boot,channel,&peer,&rates)==RTW_92DU_OK);
+        assert(rtw_92du_mac_set_rates(&c,&rates)==RTW_92DU_OK);
+        assert(rtw_92du_mac_set_state(&c,RTW_92DU_ST_RUN,&p)==RTW_92DU_OK);
+        filter_bits(Bus::word(f.bus.regs.data()+0x608,4),true);
+        assert(Bus::word(f.bus.regs.data()+0x6a2,2)==(ht?0x100U:0U));
+        assert(rtw_92du_mac_set_state(&c,RTW_92DU_ST_SCAN,nullptr)==RTW_92DU_OK);
+        filter_bits(Bus::word(f.bus.regs.data()+0x608,4),false);
+    }
+    puts("filter RTL8192DU: SMSP/DMDP MAC0+MAC1, actual MAC start, legacy+HT RUN and scan passed");
+}
+#elif RTW_PRIVATE_FILTER == 5
+int main() {
+    for(bool one:{false,true})for(bool ht:{false,true}) {
+        Fixture f(one);f.identify();assert(!rtw_r12au_power_on(&f.c));assert(!rtw_r12au_dma_prepare(&f.c));
+        auto image=firmware(one);f.b.expected_fw=image.size()-32;rtw_boot_report report{};
+        assert(!rtw_r12au_download_fw(&f.c,image.data(),image.size(),&report));assert(!rtw_r12au_mac_init(&f.c));
+        assert(!memcmp(f.b.regs.data()+0x610,f.c.board.mac,6));filter_bits(f.b.read(0x608,4),false);
+        const uint8_t ap[6]={2,1,2,3,4,5};assert(!rtw_r12au_mac_station(&f.c,ap,42,1));
+        assert(!actual_au_receive_maps(&f.c,true,ht));filter_bits(f.b.read(0x608,4),true);
+        assert(f.b.read(0x6a2,2)==(ht?0x100U:0U)&&f.b.read(0x6a4,2)==0xffff);
+        assert(!rtw_r12au_mac_station(&f.c,nullptr,0,0));assert(!actual_au_receive_maps(&f.c,false,false));
+        filter_bits(f.b.read(0x608,4),false);assert(!f.b.read(0x6a2,2));
+    }
+    puts("filter RTL8812AU/RTL8821AU: actual bootstrap/MAC and controller subtype writes, legacy+HT RUN and scan passed");
+}
+#elif RTW_PRIVATE_FILTER == 6
+int main() {
+    const auto gated=rtw_wifi_radio_family_capabilities(RTW_WIFI_RTL8814BU);
+    assert(!gated.station_bands&&!gated.station_max_nss);
+    for(size_t i=0;i<rtw_usb_wifi_profile_count();++i) {
+        const auto *p=rtw_usb_wifi_profile_at(i);
+        if(p->family==RTW_WIFI_RTL8814BU)
+            assert(rtw_usb_wifi_station_backend(p)!=RTW_WIFI_RTL8814BU);
+    }
+    for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU})for(bool ht:{false,true}) {
+        Fixture f(family);assert(!f.init());auto p=f.params();
+        assert(!memcmp(f.memory.data()+0x610,p.mac,6));filter_bits(f.value(0x608),false);p.ht=uint8_t(ht);
+        assert(!rtw88_station_configure(&f.station,RTW88_STATION_RUN,&p));filter_bits(f.value(0x608),true);
+        assert(f.value(0x6a2,2)==(ht?0x100U:0U)&&f.value(0x6a4,2)==0xffff);
+        assert(!rtw88_station_configure(&f.station,RTW88_STATION_SCAN,&p));filter_bits(f.value(0x608),false);
+    }
+    puts("filter RTL8821CU/RTL8822BU/RTL8822CU: actual station MAC, legacy+HT RUN and scan passed");
+}
+#elif RTW_PRIVATE_FILTER == 7
+int main() {
+    for(bool ht:{false,true}) {
+        Bus b;auto c=context(b);auto p=params();p.ht=uint8_t(ht);
+        assert(!rtw_8814au_station_initialize(&c,&p));assert(!memcmp(b.bytes+0x610,p.mac,6));filter_bits(value(b,0x608,4),false);
+        assert(!rtw_8814au_station_configure(&c,RTW_8814AU_STATION_RUN,&p));filter_bits(value(b,0x608,4),true);
+        assert(value(b,0x6a2,2)==(ht?0x100U:0U)&&value(b,0x6a4,2)==0xffff);
+        assert(!rtw_8814au_station_configure(&c,RTW_8814AU_STATION_SCAN,&p));filter_bits(value(b,0x608,4),false);
+    }
+    puts("filter RTL8814AU: actual station MAC, legacy+HT RUN and scan passed");
+}
+#endif
+#else
+#include "rtwn_ht_host.hpp"
+static void station_receive_filter() {
+    /* Catch inherited accept-all-unicast surviving association, including
+     * reassociation after monitor mode, without narrowing scan/monitor RX. */
+    for (uint32_t chip : {RTWN_CHIP_USB|RTWN_CHIP_92C|RTWN_CHIP_88C,
+            RTWN_CHIP_USB|RTWN_CHIP_88C,
+            RTWN_CHIP_USB|RTWN_CHIP_92C|RTWN_CHIP_88C|RTWN_CHIP_92C_1T2R,
+            RTWN_CHIP_USB|RTWN_CHIP_88E,RTWN_CHIP_USB|RTWN_CHIP_92E}) {
+    for (bool ht : {false, true}) {
+        rtwn_softc s;
+        s.chip=chip;
+        s.ntxchains=(chip&(RTWN_CHIP_92C|RTWN_CHIP_92E))&&!(chip&RTWN_CHIP_92C_1T2R)?2:1;
+        s.nrxchains=chip&(RTWN_CHIP_92C|RTWN_CHIP_92E)?2:1;
+        ieee80211_node peer;
+        ieee80211_channel channel;
+        s.sc_ic.ic_softc=&s;s.sc_ic.ic_bss=&peer;
+        s.sc_ic.ic_ibss_chan=&channel;peer.ni_chan=&channel;
+        peer.ni_rates={4,{0x82,0x84,0x8b,0x96}};
+        if (ht) {peer.ni_flags=IEEE80211_NODE_HT;peer.ni_rxmcs[0]=peer.ni_rxmcs[1]=0xff;}
+        s.sc_ic.ic_opmode=IEEE80211_M_MONITOR;
+        actual_station_defaults(&s);
+        require(s.sc_ic.ic_opmode==IEEE80211_M_STA&&
+            !memcmp(s.registers+R92C_MACID,s.sc_ic.ic_myaddr,6),
+            "actual attach/init defaults program station mode and the local MAC");
+        rtwn_rxfilter_init(&s);
+        const uint32_t initial=rtwn_read_4(&s,R92C_RCR);
+        const uint32_t preserved=R92C_RCR_APM|R92C_RCR_AM|R92C_RCR_AB|
+            R92C_RCR_APP_ICV|R92C_RCR_AMF|R92C_RCR_HTC_LOC_CTRL|
+            R92C_RCR_APP_MIC|R92C_RCR_APP_PHYSTS;
+        require((initial&(preserved|R92C_RCR_AAP))==(preserved|R92C_RCR_AAP),
+            "filter initialization retains scan receive policy");
+        require(rtwn_newstate(&s.sc_ic,IEEE80211_S_SCAN,0)==0,
+            "initial station scan succeeds");
+        require(rtwn_read_4(&s,R92C_RCR)==initial,
+            "initial scan preserves AAP and physical/multicast/broadcast policy");
+        s.sc_ic.ic_state=IEEE80211_S_ASSOC;
+        require(rtwn_newstate(&s.sc_ic,IEEE80211_S_RUN,0)==0,
+            "station filter test associates");
+        require(!(rtwn_read_4(&s,R92C_RCR)&R92C_RCR_AAP),
+            "every shared legacy station RUN clears accept-all-unicast");
+        require((rtwn_read_4(&s,R92C_RCR)&preserved)==preserved,
+            "station RUN retains physical-match multicast broadcast and status delivery");
+        require((rtwn_read_4(&s,R92C_RCR)&(R92C_RCR_CBSSID_DATA|R92C_RCR_CBSSID_BCN))==
+            (R92C_RCR_CBSSID_DATA|R92C_RCR_CBSSID_BCN),
+            "station RUN enables associated BSSID checks");
+        require(!(rtwn_read_4(&s,R92C_RCR)&R92C_RCR_ACF)&&
+            rtwn_read_2(&s,R92C_RXFLTMAP1)==(ht?0x0100:0)&&
+            rtwn_read_2(&s,R92C_RXFLTMAP2)==0xffff,
+            "station RUN retains only negotiated BAR control subtype and data reception");
+        require(rtwn_newstate(&s.sc_ic,IEEE80211_S_SCAN,0)==0,
+            "station RUN returns to scan");
+        require(!(rtwn_read_4(&s,R92C_RCR)&(R92C_RCR_CBSSID_DATA|R92C_RCR_CBSSID_BCN))&&
+            (rtwn_read_4(&s,R92C_RCR)&preserved)==preserved,
+            "scan still accepts management from any BSSID after station filtering");
+        s.sc_ic.ic_opmode=IEEE80211_M_MONITOR;
+        require(rtwn_newstate(&s.sc_ic,IEEE80211_S_RUN,0)==0,
+            "monitor RUN succeeds after station scan");
+        require((rtwn_read_4(&s,R92C_RCR)&
+            (R92C_RCR_AAP|R92C_RCR_ADF|R92C_RCR_ACF|R92C_RCR_AMF))==
+            (R92C_RCR_AAP|R92C_RCR_ADF|R92C_RCR_ACF|R92C_RCR_AMF)&&
+            rtwn_read_2(&s,R92C_RXFLTMAP1)==0xffff&&
+            rtwn_read_2(&s,R92C_RXFLTMAP2)==0xffff,
+            "monitor RUN restores all-unicast and all control/data subtype reception");
+        require(rtwn_newstate(&s.sc_ic,IEEE80211_S_INIT,0)==0,
+            "monitor teardown succeeds");
+        s.sc_ic.ic_opmode=IEEE80211_M_STA;s.sc_ic.ic_state=IEEE80211_S_ASSOC;
+        require(rtwn_newstate(&s.sc_ic,IEEE80211_S_RUN,0)==0&&
+            !(rtwn_read_4(&s,R92C_RCR)&R92C_RCR_AAP),
+            "station reassociation removes monitor all-unicast admission");
+        require(!(rtwn_read_4(&s,R92C_RCR)&R92C_RCR_ACF)&&
+            rtwn_read_2(&s,R92C_RXFLTMAP1)==(ht?0x0100:0),
+            "legacy and HT reassociation restore station control subtype filtering");
+    }
+    }
+    std::puts("filter RTL8192CU aliases/RTL8188EU/RTL8192EU: actual attach/init MAC, legacy+HT RUN, scan/monitor and reassociation passed");
+    {
+        rtwn_softc s;ieee80211_node peer;
+        s.sc_ic.ic_softc=&s;s.sc_ic.ic_bss=&peer;
+        peer.ni_rates={4,{0x82,0x84,0x8b,0x96}};
+        /* An unsupported nonstation opmode must not inherit the station-only
+         * policy. Existing RUN behavior for other opmodes is unchanged. */
+        s.sc_ic.ic_opmode=3;
+        rtwn_rxfilter_init(&s);
+        require(rtwn_newstate(&s.sc_ic,IEEE80211_S_RUN,0)==0&&
+            (rtwn_read_4(&s,R92C_RCR)&R92C_RCR_AAP),
+            "nonstation opmodes preserve their inherited AAP policy");
+    }
+}
+int main() {
+    station_receive_filter();
     for(unsigned smps=0;smps<4;++smps) {
         rtwn_softc cu;ieee80211_node peer;cu.chip=RTWN_CHIP_92C;cu.ntxchains=cu.nrxchains=2;cu.sc_ic.ic_bss=&peer;
         peer.ni_flags=IEEE80211_NODE_HT;peer.ni_htcaps=uint16_t(smps<<IEEE80211_HTCAP_SMPS_SHIFT);
@@ -216,3 +454,5 @@ int main() {
     require(rtwn_read_chipid(&s)==EIO,"unsupported8192EU test chips fail before HT advertisement");
     std::puts("RTL8192EU HT core tests passed");
 }
+
+#endif /* RTW_PRIVATE_FILTER */

@@ -124,12 +124,17 @@ static inline int rtw_control_channel_map_contains(const RTWControlChannelMap* m
 }
 static inline int rtw_control_channel_map_valid(const RTWControlChannelMap* map) {
     if(!map||map->version!=RTW_CONTROL_VERSION||map->reserved[0]||map->reserved[1]||map->reserved[2])return 0;
-    for(uint32_t channel=0;channel<256U;++channel)if(rtw_control_channel_map_contains(map,channel)) {
-        if(!((channel>=1U&&channel<=11U)||
-             (channel>=36U&&channel<=64U&&channel%4U==0U)||
-             (channel>=100U&&channel<=140U&&channel%4U==0U)||
-             (channel>=149U&&channel<=165U&&(channel-149U)%4U==0U)))return 0;
-    }
+    /* BitN is channelN. Reject every bit outside 1-11, 36-64/4,
+     * 100-140/4 and 149-165/4; channel 144 remains excluded. Checking
+     * bytes bounds validation to 32 iterations without aligned word loads. */
+    static const uint8_t allowed[RTW_CONTROL_CHANNEL_MAP_BYTES]={
+        0xfe,0x0f,0x00,0x00,0x10,0x11,0x11,0x11,
+        0x01,0x00,0x00,0x00,0x10,0x11,0x11,0x11,
+        0x11,0x11,0x20,0x22,0x22,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+    for(uint32_t byte=0;byte<RTW_CONTROL_CHANNEL_MAP_BYTES;++byte)
+        if(map->channels[byte]&(uint8_t)~allowed[byte])return 0;
     return 1;
 }
 

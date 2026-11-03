@@ -9,6 +9,7 @@
 struct event { unsigned addr,width,value; };
 struct model { uint8_t reg[65536], physical[1024]; struct event writes[10000];
  size_t nw, reads, fail_read_n, bulk_count, bulk_bytes; unsigned efuse_addr;
+ unsigned mailbox_busy_reads,mailbox_reads;
  unsigned fail_addr,fail_write,fail_bulk,timeout_efuse,timeout_power,timeout_llt,timeout_ddma,bad_checksum,timeout_fw;
  uint64_t delayed; uint8_t bulk[4200], bulk_headers[32][80]; size_t bulk_lengths[32]; size_t last_bulk; uint8_t qsel; };
 static struct model m;
@@ -23,6 +24,7 @@ static int rd(void *cookie,uint16_t a,unsigned w,uint32_t *v) { assert(cookie==&
  if(a==0x208&&!m.timeout_llt)*v&=~1u;
  if(a==0x1208&&w==4&&!m.timeout_ddma)*v&=~0x80000000u;
  if(a==0x1208&&m.bad_checksum)*v|=1u<<27;
+ if(a==0x1cc&&m.mailbox_busy_reads&&++m.mailbox_reads>m.mailbox_busy_reads)*v=0;
  return 0; }
 static int wr(void *cookie,uint16_t a,unsigned w,uint32_t v) { assert(cookie==&m);
  if(m.fail_write==a+1)return EIO;
@@ -73,7 +75,7 @@ static void power_tests(void) {struct rtw_8814au c;reset(&c);assert(!rtw_8814au_
  reset(&c);m.timeout_power=1;assert(rtw_8814au_power_on(&c)==ETIMEDOUT);assert(!c.powered&&m.reads<21000);
  reset(&c);m.fail_write=0x10c3;assert(rtw_8814au_power_on(&c)==EIO);assert(!c.powered);
 }
-static void mac_tests(void) {struct rtw_8814au c;for(unsigned ep=2;ep<=4;ep++){reset(&c);c.powered=c.fw_running=1;assert(!rtw_8814au_init_mac(&c,ep,RTW_8814AU_HIGH_SPEED));assert(c.mac_initialized&&!c.phy_initialized);assert(c.fifo.txff_pg_num==2038&&c.fifo.rsvd_boundary==1986&&c.fifo.rsvd_fw_txbuf_addr==2034);assert(wrote(0x10c,2,ep==2?0xfaf0:0xf5b0));assert(wrote(0x60f,1,4));assert(wrote(0x208,1,0x30));assert(get(0x16,1)==2);assert(get(0x6a0,4)==0x0400ffff);assert(!wrote(0xf002,2,0));assert(get(0x280,2)==0x2005&&get(0x290,1)==0x1e);assert(!(get(0x100,2)&0x200));}
+static void mac_tests(void) {struct rtw_8814au c;for(unsigned ep=2;ep<=4;ep++){reset(&c);c.powered=c.fw_running=1;put(0x283,1,0xd5);put(0x290,1,0xff);assert(!rtw_8814au_init_mac(&c,ep,RTW_8814AU_HIGH_SPEED));assert(c.mac_initialized&&!c.phy_initialized);assert(c.fifo.txff_pg_num==2038&&c.fifo.rsvd_boundary==1986&&c.fifo.rsvd_fw_txbuf_addr==2034);assert(wrote(0x10c,2,ep==2?0xfaf0:0xf5b0));assert(wrote(0x60f,1,4));assert(wrote(0x208,1,0x30));assert(get(0x16,1)==2);assert(get(0x6a0,4)==0x0400ffff);assert(!wrote(0xf002,2,0));assert(get(0x280,2)==0x2005&&get(0x290,1)==0x1e&&get(0x283,1)==0x55);assert(!(get(0x100,2)&0x200));}
  reset(&c);c.powered=c.fw_running=1;assert(rtw_8814au_init_mac(&c,1,RTW_8814AU_HIGH_SPEED)==EINVAL);assert(!m.nw);
  reset(&c);c.powered=c.fw_running=1;assert(!rtw_8814au_init_mac(&c,3,RTW_8814AU_SUPER_SPEED));assert(wrote(0xf002,2,0)&&get(0x290,1)==0x0e);
  reset(&c);c.powered=c.fw_running=1;m.timeout_llt=1;assert(rtw_8814au_init_mac(&c,3,RTW_8814AU_HIGH_SPEED)==ETIMEDOUT);assert(!c.mac_initialized);
@@ -99,8 +101,44 @@ static void h2c_tests(void) {struct rtw_8814au c;reset(&c);c.fw_running=1;uint8_
  c.h2c_seq=255;assert(!rtw_8814au_h2c_packet(&c,p));assert(c.h2c_seq==256);assert(!rtw_8814au_h2c_packet(&c,p));assert(m.bulk[46]==0&&m.bulk[47]==1);
  put(0x1cc,1,2);assert(rtw_8814au_h2c_mailbox(&c,cmd)==ETIMEDOUT);assert(c.h2c_box==1);
 }
+static void optional_rssi_tests(void) {
+ struct rtw_8814au c;uint8_t cmd[8]={0x42,0,0,52,0,0,0,0};
+ for(unsigned box=0;box<4;box++){
+  reset(&c);c.fw_running=1;c.h2c_box=(uint8_t)box;put(0x1cc,1,1U<<box);
+  for(unsigned retry=0;retry<32;retry++){
+   const size_t reads=m.reads;const uint64_t delayed=m.delayed;
+   assert(rtw_8814au_h2c_rssi_monitor(&c,cmd)==EBUSY);
+   assert(!c.io_error&&c.h2c_box==box&&m.nw==0);
+   assert(m.reads-reads==31&&m.delayed-delayed==3000);
+  }
+  put(0x1cc,1,0);assert(!rtw_8814au_h2c_rssi_monitor(&c,cmd));
+  assert(c.h2c_box==((box+1)&3)&&m.nw==2&&!c.io_error);
+  assert(m.writes[0].addr==0x1f0+box*4&&m.writes[1].addr==0x1d0+box*4);
+ }
+ reset(&c);c.fw_running=1;m.fail_addr=0x1cd;
+ assert(rtw_8814au_h2c_rssi_monitor(&c,cmd)==EIO&&c.io_error==EIO&&!m.nw);
+ reset(&c);c.fw_running=1;m.fail_write=0x1f1;
+ assert(rtw_8814au_h2c_rssi_monitor(&c,cmd)==EIO&&c.io_error==EIO&&!m.nw);
+ reset(&c);c.fw_running=1;put(0x1cc,1,1);
+ assert(rtw_8814au_h2c_mailbox(&c,cmd)==ETIMEDOUT&&c.io_error==ETIMEDOUT&&!m.nw);
+ for(unsigned busy=1;busy<=30;busy++){
+  reset(&c);c.fw_running=1;put(0x1cc,1,1);m.mailbox_busy_reads=busy;
+  assert(!rtw_8814au_h2c_rssi_monitor(&c,cmd));
+  assert(m.reads==busy+1&&m.delayed==busy*100&&m.nw==2&&c.h2c_box==1&&!c.io_error);
+ }
+ for(unsigned byte=0;byte<8;byte++){
+  reset(&c);c.fw_running=1;uint8_t bad[8];memcpy(bad,cmd,8);bad[byte]=byte==3?101:byte==0?0x40:1;
+  assert(rtw_8814au_h2c_rssi_monitor(&c,bad)==EINVAL);
+  assert(!m.reads&&!m.nw&&!m.delayed&&!c.io_error&&c.h2c_box==0);
+ }
+ reset(&c);c.fw_running=1;
+ assert(rtw_8814au_h2c_rssi_monitor(NULL,cmd)==EINVAL);
+ assert(rtw_8814au_h2c_rssi_monitor(&c,NULL)==EINVAL);
+ assert(!m.reads&&!m.nw&&!c.io_error);
+ puts("RTL8814AU optional RSSI: bounded busy deferral, retry, and hard-I/O precedence passed");
+}
 static void startup_tests(void) {struct rtw_8814au c;reset(&c);c.fw_running=c.mac_initialized=c.phy_initialized=c.board_valid=1;c.board.rfe_option=1;c.board.cut=1;c.board.tx_streams=2;c.board.antenna_tx=c.board.antenna_rx=3;c.fifo.rsvd_fw_txbuf_addr=2034;c.fifo.rsvd_boundary=1986;
  assert(!rtw_8814au_send_startup_info(&c));assert(m.bulk_count==2);const uint8_t *g=m.bulk_headers[0]+40,*p=m.bulk_headers[1]+40;assert(g[0]==1&&g[1]==255&&g[2]==13&&g[4]==12&&g[10]==48);assert(p[2]==17&&p[4]==16&&p[6]==1&&p[8]==1&&p[9]==2&&p[10]==1&&p[11]==0x33);
  reset(&c);c.fw_running=c.mac_initialized=c.board_valid=1;assert(rtw_8814au_send_startup_info(&c)==ENXIO);assert(!m.bulk_count);
 }
-int main(int argc,char **argv) {assert(argc==2||argc==3);if(argc==3){assert(!strcmp(argv[1],"image"));FILE *file=fopen(argv[2],"rb");assert(file);assert(!fseek(file,0,SEEK_END));long length=ftell(file);assert(length>0);rewind(file);uint8_t *bytes=malloc((size_t)length);assert(bytes&&fread(bytes,1,(size_t)length,file)==(size_t)length);fclose(file);struct rtw_8814au_fw_info f;assert(!rtw_8814au_inspect_fw(bytes,(size_t)length,&f));struct rtw_8814au c;reset(&c);c.powered=1;assert(!rtw_8814au_download_fw(&c,bytes,(size_t)length));assert(c.fw_running&&!c.phy_initialized);free(bytes);puts("Canonical RTL8814AU firmware trace passed");return 0;}if(!strcmp(argv[1],"efuse"))efuse_tests();else if(!strcmp(argv[1],"power"))power_tests();else if(!strcmp(argv[1],"mac"))mac_tests();else if(!strcmp(argv[1],"fw"))fw_tests();else if(!strcmp(argv[1],"h2c"))h2c_tests();else if(!strcmp(argv[1],"startup"))startup_tests();else abort();puts("RTL8814AU boot trace passed");return 0;}
+int main(int argc,char **argv) {assert(argc==2||argc==3);if(argc==3){assert(!strcmp(argv[1],"image"));FILE *file=fopen(argv[2],"rb");assert(file);assert(!fseek(file,0,SEEK_END));long length=ftell(file);assert(length>0);rewind(file);uint8_t *bytes=malloc((size_t)length);assert(bytes&&fread(bytes,1,(size_t)length,file)==(size_t)length);fclose(file);struct rtw_8814au_fw_info f;assert(!rtw_8814au_inspect_fw(bytes,(size_t)length,&f));struct rtw_8814au c;reset(&c);c.powered=1;assert(!rtw_8814au_download_fw(&c,bytes,(size_t)length));assert(c.fw_running&&!c.phy_initialized);free(bytes);puts("Canonical RTL8814AU firmware trace passed");return 0;}if(!strcmp(argv[1],"efuse"))efuse_tests();else if(!strcmp(argv[1],"power"))power_tests();else if(!strcmp(argv[1],"mac"))mac_tests();else if(!strcmp(argv[1],"fw"))fw_tests();else if(!strcmp(argv[1],"h2c")){h2c_tests();optional_rssi_tests();}else if(!strcmp(argv[1],"startup"))startup_tests();else abort();puts("RTL8814AU boot trace passed");return 0;}

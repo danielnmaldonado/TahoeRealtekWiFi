@@ -55,6 +55,8 @@ rtw_92du_result rtw_92du_build_rate_config(const rtw_92du_boot *,uint8_t channel
     const rtw_92du_peer_rates *,rtw_92du_rate_config *);
 rtw_92du_result rtw_92du_mac_set_rates(rtw_92du_mac *,const rtw_92du_rate_config *);
 rtw_92du_result rtw_92du_mac_set_state(rtw_92du_mac *,rtw_92du_station_state,const rtw_92du_bss *);
+/* Advisory only: mailbox contention returns MCU_BUSY without changing
+ * boot.last_error, joined/rate state or mailbox index. I/O remains fatal. */
 rtw_92du_result rtw_92du_mac_report_rssi(rtw_92du_mac *,uint8_t source_pwdb);
 /* Live DU ABI: MCUFWDL.RDY set, MCUFWDL.EN clear, and the selected
  * FW_MAC0/1_READY bit set. Uses the same typed USB bank mapping as boot.

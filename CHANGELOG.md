@@ -1,3 +1,55 @@
+# 0.14.19 / build66 — association RSSI feedback
+
+- Restrict firmware RSSI and the shared association average to real PHY samples
+  from the current AP in RUN; retain per-frame RSSI for scanning and RX nodes.
+- Correct unguarded firmware feedback on RTL8814AU, RTL8192CU, RTL8188EU and
+  RTL8192EU. Verify the common path across all 13 enabled station families.
+- App0.3.13/build55 is unchanged. See `docs/THROUGHPUT-0.14.19.md` for measured
+  build65 results and the outstanding physical throughput target; this update
+  is not a claim that 100/30 Mbps has been achieved.
+
+# 0.14.18 / build65 — app0.3.13 / build55
+
+- Preserve a live authentication, association or connected link when a queued
+  foreground SCAN reaches the shared control path of any supported family.
+- Separate advisory RSSI mailbox readiness from fatal register/USB errors;
+  preserve mandatory association and rate-command failure behavior.
+- Split RTL8814AU periodic PHY and RSSI failure diagnostics. Collector revision6
+  reports AU maintenance, failures and recovery deltas in its summary.
+- See `docs/DROPS-0.14.18.md` for the reproduced build64 failure and the remaining
+  hardware-validation boundary; stage19 alone does not identify its sub-operation.
+
+# 0.14.17 / build64 — app0.3.12 / build54
+
+- Prevent automatic reconnect and delayed credentials from preempting kernel
+  connection recovery; preserve explicit manual connection requests.
+- Coalesce network-model work while retaining fresh channel-map authorization;
+  reduce equivalent map validation and repeated model checks.
+- Provide an asynchronous, copyable RX diagnostic report on demand, with
+  coherent selected-driver snapshots and separate filtered-control accounting.
+- Regenerate PHY inventory from the compiled catalog and enforce freshness.
+  See `docs/CHECKUP-0.14.17.md` for measurements and hardware limits.
+
+# 0.14.16 / build63 — ordinary BlockAck accounting
+
+- Consume strictly validated ordinary BlockAck control frames in the shared
+  receive path of all 13 enabled station families. Count them separately from
+  RX errors without applying their bitmap or changing TX/BA state.
+- Preserve existing admission and rate/CRC/ICV/security checks. Export rejected
+  control subtypes and bounded BA format metadata through collector revision 5.
+- Retain build62 capacity/mode/alignment corrections. App sources remain build53.
+  See `docs/RX-CONTROL-0.14.16.md` for evidence and validation limits.
+
+# 0.14.15 / build62 — RX bounds and rejection diagnostics
+
+- Correct receive capacity, aggregation mode and final alignment handling in
+  shared/private RX paths; verify all 13 supported station families against
+  their own primary references.
+- Preserve admission/error accounting and export scalar rejection reasons and
+  context through the driver and collector revision 4. App 53 is unchanged.
+- See `docs/RX-ERRORS-0.14.15.md` and its family matrices for capture evidence,
+  per-family corrections and hardware validation limits.
+
 # English documentation — collector revision 3
 
 - Translate project documentation, build output and diagnostic messages into

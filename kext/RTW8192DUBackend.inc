@@ -430,7 +430,9 @@ int RTWUSBController::tick8192DU()
     int error=rtw8192DUError(rtw_92du_mac_health(&duMAC_));
     if(!error&&!uses8192DUFirmwareRate())error=ENXIO;
     if(!error)error=rtw8192DUError(rtw_92du_phy_tick(&duCore_));
-    if(!error&&duRSSIValid_)error=rtw8192DUError(rtw_92du_mac_report_rssi(&duMAC_,duRSSIPWDB_));
+    if(!error&&duRSSIValid_){const auto report=rtw_92du_mac_report_rssi(&duMAC_,duRSSIPWDB_);
+        if(report!=RTW_92DU_MCU_BUSY||duCore_.last_error!=RTW_92DU_OK)error=rtw8192DUError(report);
+    }
     if(error){radioReady_=false;(void)state8192DU(&core_.sc_ic,IEEE80211_S_INIT,-1);core_.core_error=error;}
     return error;
 }

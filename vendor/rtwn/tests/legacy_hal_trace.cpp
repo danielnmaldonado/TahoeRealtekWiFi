@@ -47,7 +47,9 @@ int main() {
           assert(wrote(t,0x800,4,chip==RTWN_CHIP_92C?0x80040002U:0x80040000U));
           assert(wrote(t,0x90c,4,chip==RTWN_CHIP_92C?0x81121313U:0x81121111U));
           if(chip==RTWN_CHIP_88E)assert(wrote(t,0xc50,4,0x69553422));
+          t.regs[R92C_USB_SPECIAL_OPTION]=0xff;
           assert(rtw92eu_aggr_init(&s,true)==0);
+          assert(t.regs[R92C_USB_SPECIAL_OPTION]==0xf7);
           assert(wrote(t,R92C_RXDMA_AGG_PG_TH,1,48));
           assert(wrote(t,chip==RTWN_CHIP_88E?R92C_RXDMA_AGG_PG_TH+1:R92C_USB_DMA_AGG_TO,1,4)); }
         { Trace t;auto s=legacyContext(t,chip);uint8_t data[4096]{};

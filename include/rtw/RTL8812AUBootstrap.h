@@ -57,6 +57,9 @@ int rtw_r12au_fw_inspect(rtw_r12au_chip,const uint8_t *,size_t,rtw_fw_image *);
  * bounded196/8/1-byte USB pages; success requires ALL firmware-ready flags. */
 int rtw_r12au_download_fw(rtw_r12au_boot *,const uint8_t *,size_t,rtw_boot_report *);
 int rtw_r12au_h2c(rtw_r12au_boot *,const uint8_t command[8]);
+/* Only RSSI0x42 is advisory: a firmware-owned mailbox returns unlatched
+ * EBUSY; transport failures remain sticky. Retry on the normal next tick. */
+int rtw_r12au_h2c_rssi_monitor(rtw_r12au_boot *,const uint8_t command[8]);
 /* Best-effort bounded power-down is allowed after a latched transport error.
  * All readiness flags are invalidated before shutdown operations begin. */
 #define RTW_R12AU_CHECKED_STOP 1

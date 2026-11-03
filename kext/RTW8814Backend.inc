@@ -99,6 +99,30 @@ int RTWUSBController::attach8814()
     setProperty("RTW8814TXStreams",(unsigned long long)acCore_.board.tx_streams,8);
     return 0;
 }
+int RTWUSBController::tick8814()
+{
+    auto&d=acRecoveryDiag_;
+    ++d.periodicCalls;d.periodicPhase=1;
+    int error=rtw_8814au_phy_tick(&acCore_);
+    d.periodicResult=(uint32_t)error;
+    if(error){
+        ++d.periodicPHYFailures;d.periodicLastFailurePhase=1;
+        d.periodicLastFailureResult=(uint32_t)error;return error;
+    }
+    uint8_t command[8]{};
+    if(!uses8814FirmwareRate()||!rtw_8814au_make_rssi_monitor(acRSSI_,command))return 0;
+    d.periodicPhase=2;++d.periodicRSSIAttempts;
+    error=rtw_8814au_h2c_rssi_monitor(&acCore_,command);
+    d.periodicResult=(uint32_t)error;
+    /* The next ordinary 2 s tick retries advisory RSSI. No extra timer, USB
+     * write, box advance, or global error is caused by a firmware-owned box. */
+    if(error==EBUSY&&!acCore_.io_error){++d.periodicRSSIBusy;return 0;}
+    if(error){
+        ++d.periodicRSSIFailures;d.periodicLastFailurePhase=2;
+        d.periodicLastFailureResult=(uint32_t)error;
+    }
+    return error;
+}
 int RTWUSBController::start8814()
 {
     auto&ic=core_.sc_ic;auto&ifp=ic.ic_if;

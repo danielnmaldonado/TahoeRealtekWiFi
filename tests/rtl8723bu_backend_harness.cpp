@@ -142,6 +142,17 @@ static void four_pipe_station_and_rollback(){
  std::printf("8723BU four physical pipes: three DMA queue TX routes, restart and all %u startup I/O failures passed\n",start_io);
 }
 int main(){
+ // A transport callback EBUSY/ETIMEDOUT is a failed USB transaction, never
+ // the clean firmware-owned-mailbox result. All tick boundaries stay fatal.
+ unsigned rssi_tick_calls=0;
+ {Fixture f;f.run();f.peer.ni_port_valid=true;f.c.r23Core_.rssi_valid=1;f.c.r23Core_.rssi_percent=50;const auto calls=f.c.hw.calls;CHECK(f.c.tick8723()==0);rssi_tick_calls=f.c.hw.calls-calls;}
+ for(int code:{EIO,EBUSY,ETIMEDOUT})for(unsigned cut=1;cut<=rssi_tick_calls;++cut){Fixture f;f.run();f.peer.ni_port_valid=true;f.c.r23Core_.rssi_valid=1;f.c.r23Core_.rssi_percent=50;f.c.hw.fail_code=code;f.c.hw.fail_at=f.c.hw.calls+cut;CHECK(f.c.tick8723()!=0);CHECK(!f.c.uses8723FirmwareRate()&&!f.c.r23RateReady_&&!f.c.r23Core_.calibrated&&!f.c.r23Core_.firmware_running);}
+ // Optional RSSI readiness contention preserves firmware, calibration and link.
+ {Fixture f;f.run();f.peer.ni_port_valid=true;f.c.r23Core_.rssi_valid=1;f.c.r23Core_.rssi_percent=50;f.c.hw.mailbox_busy=true;
+  for(unsigned retry=0;retry<8;++retry){CHECK(f.c.tick8723()==0);CHECK(!f.c.r23Core_.last_error&&f.c.r23Core_.firmware_running&&f.c.r23Core_.calibrated&&f.c.authorized());}
+  f.c.hw.mailbox_busy=false;CHECK(f.c.tick8723()==0&&f.c.authorized());
+ }
+
  four_pipe_station_and_rollback();
  edca_policy();
  firmware_health();

@@ -54,6 +54,15 @@ void RTWUSBController::publish8814RecoveryDiagnostics()
     publishDiagnosticCounter("RTWDiagAUCleanupResult",d.cleanupResult);
     publishDiagnosticCounter("RTWDiagAUIdentityResult",d.identityResult);
     publishDiagnosticCounter("RTWDiagAUConsecutiveRecoveries",d.consecutiveRecoveries);
+    publishDiagnosticCounter("RTWDiagAUPeriodicCalls",d.periodicCalls);
+    publishDiagnosticCounter("RTWDiagAUPeriodicPHYFailures",d.periodicPHYFailures);
+    publishDiagnosticCounter("RTWDiagAUPeriodicRSSIAttempts",d.periodicRSSIAttempts);
+    publishDiagnosticCounter("RTWDiagAUPeriodicRSSIBusy",d.periodicRSSIBusy);
+    publishDiagnosticCounter("RTWDiagAUPeriodicRSSIFailures",d.periodicRSSIFailures);
+    publishDiagnosticCounter("RTWDiagAUPeriodicPhase",d.periodicPhase);
+    publishDiagnosticCounter("RTWDiagAUPeriodicResult",d.periodicResult);
+    publishDiagnosticCounter("RTWDiagAUPeriodicLastFailurePhase",d.periodicLastFailurePhase);
+    publishDiagnosticCounter("RTWDiagAUPeriodicLastFailureResult",d.periodicLastFailureResult);
 }
 int RTWUSBController::recover8814ForControl()
 {

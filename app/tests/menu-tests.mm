@@ -1,8 +1,47 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Exercise the real AppKit menu update, which can override setEnabled:.
+#include "../Model.hpp"
+// Count actual model executions, including duplicate work in one production
+// poll. The wrapper keeps the complete production algorithm and result.
+static unsigned networkModelRebuilds;
+namespace rtwui {
+static std::vector<RTWControlScanRecord> countedNetworks(const RTWControlScanResults& scan,
+    uint32_t flags,const RTWControlChannelMap* map) {
+    ++networkModelRebuilds;return networks(scan,flags,map);
+}
+}
+#import <Foundation/Foundation.h>
+#include <atomic>
+#include <ifaddrs.h>
+#include <IOKit/IOKitLib.h>
+#include <cassert>
+static std::atomic<unsigned> identityReads{0};
+static std::atomic<bool> identityGateEnabled{false};
+static dispatch_semaphore_t identityEntered,identityGate;
+static CFMutableDictionaryRef menuRegistryIDMatching(uint64_t registryID) {
+    (void)registryID;identityReads.fetch_add(1);
+    if(identityGateEnabled.exchange(false)) {
+        dispatch_semaphore_signal(identityEntered);
+        assert(!dispatch_semaphore_wait(identityGate,dispatch_time(DISPATCH_TIME_NOW,5LL*NSEC_PER_SEC)));
+    }
+    return nullptr;
+}
+#define IORegistryEntryIDMatching menuRegistryIDMatching
+static std::atomic<unsigned> interfaceInfoReads{0};
+static int menuGetIfAddrs(struct ifaddrs** addresses) {
+    (void)addresses;interfaceInfoReads.fetch_add(1);return -1;
+}
+#define getifaddrs menuGetIfAddrs
+extern "C" NSString* menuDriverDiagnosticsReport(uint64_t registryID);
+#define RTWDriverDiagnosticsReport menuDriverDiagnosticsReport
+#define networks countedNetworks
 #define main rtwui_application_main
 #include "../Main.mm"
 #undef main
+#undef networks
+#undef RTWDriverDiagnosticsReport
+#undef getifaddrs
+#undef IORegistryEntryIDMatching
 #include <cassert>
 #include <objc/runtime.h>
 static WiFiApp* modalTarget;
@@ -156,6 +195,7 @@ static void testSignalAppearance() {
 @property(nonatomic,assign) BOOL highGHz;
 @property(nonatomic,assign) BOOL sharedSSID;
 @property(nonatomic,assign) NSUInteger scanReads;
+@property(nonatomic,assign) NSUInteger mapReads;
 @property(nonatomic,assign) unsigned channelMapMode;
 @end
 @implementation BandDriverConnection
@@ -174,6 +214,7 @@ static void testSignalAppearance() {
         auto* reply=static_cast<RTWControlReply*>(output);*reply={};reply->version=1;return 0;
     }
     if(selector==RTW_CONTROL_CHANNEL_MAP) {
+        ++self.mapReads;
         if(!self.channelMapMode)return static_cast<uint32_t>(kIOReturnUnsupported);
         auto* map=static_cast<RTWControlChannelMap*>(output);*map={};map->version=1;
         const unsigned au[]={100,104,108,112,116,132,136,140},ru[]={132,136,140};
@@ -332,6 +373,16 @@ static void testManualNetworkRefresh() {
     NSMenu* menu=[app valueForKey:@"menu"];
     assert(networkItem(menu,"CachedLab")&&driver.scanRequests==0);
     const auto generation=[app adapterGeneration];
+    // A live driver refuses foreground SCAN on an established connection.
+    // The app must keep the link/preferences and release its refresh state.
+    driver.scanError=uint32_t(kIOReturnBusy);[app refresh:nil];drainControlWork(app);[app rebuildMenu];
+    assert(driver.scanRequests==1&&driver.connected&&driver.leaves==0);
+    assert([app adapterGeneration]==generation&&[app selectedAdapterID]==3003);
+    assert([[app valueForKey:@"notice"] containsString:@"Active connections are preserved"]);
+    assert(![[app valueForKey:@"refreshingNetworks"] boolValue]&&![app reconnectPaused]);
+    assert([[preferences persistentDomainForName:suite] isEqual:originalPreferences]);
+    // The remaining cases use a mock that accepts SCAN to exercise completion.
+    driver.scanError=0;driver.scanRequests=0;
     // A timer poll already queued when the user clicks must neither consume
     // the request nor mistake its older connected status for scan completion.
     dispatch_queue_t controlQueue=[app valueForKey:@"queue"];
@@ -373,7 +424,9 @@ static void testManualNetworkRefresh() {
     // A rejected scan must release the refresh action for a retry.
     driver.scanError=uint32_t(kIOReturnBusy);[app refresh:nil];drainControlWork(app);[app rebuildMenu];
     assert([menu itemWithTitle:@"Refresh networks"].enabled);
-    assert([[app valueForKey:@"notice"] containsString:@"error"]);
+    assert([[app valueForKey:@"notice"] containsString:@"refresh deferred"]);
+    assert([[app valueForKey:@"notice"] containsString:@"Active connections are preserved"]);
+    assert(![[app valueForKey:@"refreshingNetworks"] boolValue]);
     [preferences removePersistentDomainForName:suite];
     puts("AppKit manual scan: connected refresh, completion results, duplicate/join/hotplug guards, preferences and disconnect semantics passed");
 }
@@ -382,9 +435,103 @@ static NSModalResponse switchingSSIDModal(id alert,SEL) {
     [modalTarget useAdapter:2002];return NSAlertFirstButtonReturn;
 }
 #include "automatic-refresh-tests.hpp"
+#include "automatic-connection-tests.hpp"
+#include "network-rebuild-tests.hpp"
+#include "driver-details-tests.hpp"
+// Gate an already-entered read, not merely a queued poll. All state,
+// cancellation and replacement-poll behavior remains production Main.
+@interface CancelBoundaryDriver : AutomaticRefreshDriver
+@property(nonatomic,assign) uint32_t gatedSelector;
+@property(nonatomic,assign) BOOL blocked;
+@property(nonatomic,strong) dispatch_semaphore_t boundaryEntered;
+@property(nonatomic,strong) dispatch_semaphore_t boundaryGate;
+@property(nonatomic,assign) unsigned oldStatuses,oldMaps,oldCaches,newStatuses,newMaps,newCaches;
+@end
+@implementation CancelBoundaryDriver
+- (uint32_t)exchangeRegistryID:(uint64_t)registryID selector:(uint32_t)selector
+                        input:(const void*)input length:(size_t)length output:(void*)output capacity:(size_t)capacity {
+    const auto result=[super exchangeRegistryID:registryID selector:selector input:input length:length output:output capacity:capacity];
+    const bool current=registryID==4004;
+    if(selector==RTW_CONTROL_STATUS){
+        auto* status=static_cast<RTWControlStatus*>(output);status->ssidLength=3;
+        std::memcpy(status->ssid,current?"New":"Old",3);
+        if(current)++self.newStatuses;else ++self.oldStatuses;
+    }
+    if(selector==RTW_CONTROL_CHANNEL_MAP){if(current)++self.newMaps;else ++self.oldMaps;}
+    if(selector==RTW_CONTROL_SCAN_RESULTS){if(current)++self.newCaches;else ++self.oldCaches;}
+    if(!self.blocked&&!current&&selector==self.gatedSelector) {
+        self.blocked=YES;dispatch_semaphore_signal(self.boundaryEntered);
+        assert(!dispatch_semaphore_wait(self.boundaryGate,dispatch_time(DISPATCH_TIME_NOW,5LL*NSEC_PER_SEC)));
+    }
+    return result;
+}
+@end
+@interface MigrationBoundaryApp : AutomaticRefreshApp
+- (void)prepareMigration:(CancelBoundaryDriver*)driver;
+@end
+@implementation MigrationBoundaryApp
+- (void)prepareMigration:(CancelBoundaryDriver*)driver {
+    [super prepare:driver];_selection={};_adapterEpoch.store(0);_selectedPresent=NO;
+    _preferredAdapter=nil;_preferredAdapterPendingID=0;_legacyPreferredSSID=nil;
+    _forceDeviceList=YES;_lastDeviceListAt=-1;
+}
+@end
+static void testCancelledPollBoundaries() {
+    unsigned failures=0;
+    const uint32_t stages[]={rtwui::listSelector,RTW_CONTROL_STATUS,RTW_CONTROL_CHANNEL_MAP,RTW_CONTROL_SCAN_RESULTS};
+    for(bool switching:{false,true})for(unsigned stage=0;stage<4;++stage) {
+        CancelBoundaryDriver* driver=[CancelBoundaryDriver new];driver.gatedSelector=stages[stage];
+        driver.boundaryEntered=dispatch_semaphore_create(0);driver.boundaryGate=dispatch_semaphore_create(0);
+        AutomaticRefreshApp* app=automaticRefreshApp(driver);driver->adapters[4004].connected=true;
+        interfaceInfoReads.store(0);[app poll:nil];
+        assert(!dispatch_semaphore_wait(driver.boundaryEntered,dispatch_time(DISPATCH_TIME_NOW,5LL*NSEC_PER_SEC)));
+        if(switching)[app useAdapter:4004];else [app workspaceWillSleep:nil];
+        dispatch_semaphore_signal(driver.boundaryGate);dispatch_sync([app valueForKey:@"queue"],^{});
+        drainControlWork(app);
+        const unsigned wantStatuses=stage>=1?1:0,wantMaps=stage>=2?1:0,wantCaches=stage>=3?1:0;
+        std::printf("Cancelled poll: stage %u switch %d: old STATUS/MAP/cache %u/%u/%u; interface %u\n",
+            stage,switching,driver.oldStatuses,driver.oldMaps,driver.oldCaches,interfaceInfoReads.load());
+        failures+=driver.oldStatuses!=wantStatuses||driver.oldMaps!=wantMaps||driver.oldCaches!=wantCaches||
+            interfaceInfoReads.load()!=(switching?1U:0U);
+        if(switching)assert([app selectedAdapterID]==4004&&[app showsNetwork:"Old4004"]&&
+            driver.newStatuses==1&&driver.newMaps==1&&driver.newCaches==1);
+        assert(![[app valueForKey:@"busy"] boolValue]);
+    }
+    // LIST also starts local identity reads and legacy per-adapter STATUS
+    // discovery. Cancellation inside either traversal must stop its next USB.
+    for(bool switching:{false,true})for(bool metadata:{false,true}) {
+        CancelBoundaryDriver* driver=[CancelBoundaryDriver new];
+        driver->adapters[3003].connected=driver->adapters[4004].connected=true;
+        driver->adapters[3003].radio=driver->adapters[4004].radio=true;
+        driver.gatedSelector=metadata?UINT32_MAX:RTW_CONTROL_STATUS;
+        driver.boundaryEntered=dispatch_semaphore_create(0);driver.boundaryGate=dispatch_semaphore_create(0);
+        MigrationBoundaryApp* app=[MigrationBoundaryApp new];[app prepareMigration:driver];
+        identityEntered=dispatch_semaphore_create(0);identityGate=dispatch_semaphore_create(0);
+        identityReads.store(0);interfaceInfoReads.store(0);identityGateEnabled.store(metadata);
+        [app poll:nil];
+        assert(!dispatch_semaphore_wait(metadata?identityEntered:driver.boundaryEntered,
+            dispatch_time(DISPATCH_TIME_NOW,5LL*NSEC_PER_SEC)));
+        if(switching)[app useAdapter:4004];else [app workspaceWillSleep:nil];
+        dispatch_semaphore_signal(metadata?identityGate:driver.boundaryGate);
+        dispatch_sync([app valueForKey:@"queue"],^{});drainControlWork(app);
+        std::printf("Cancelled migration: metadata %d switch %d: identities %u STATUS old/new %u/%u\n",
+            metadata,switching,identityReads.load(),driver.oldStatuses,driver.newStatuses);
+        failures+=identityReads.load()!=(metadata?1U:2U)||driver.oldStatuses!=(metadata?0U:1U)||
+            driver.newStatuses!=(switching?1U:0U)||interfaceInfoReads.load()!=(switching?1U:0U);
+        if(switching)assert([app selectedAdapterID]==4004&&[app showsNetwork:"Old4004"]);
+        assert(![[app valueForKey:@"busy"] boolValue]);
+    }
+    std::fflush(stdout);assert(!failures&&"an invalidated poll must not start its next read boundary");
+    puts("Actual Main cancellation: in-flight LIST/STATUS/MAP/cache stop before later reads; current adapter poll still completes");
+}
 int main() {
     @autoreleasepool {
         [NSApplication sharedApplication];
+        testCancelledPollBoundaries();
+        const unsigned admissionFailures=testAutomaticConnectionAdmission();
+        const unsigned rebuildFailures=testNetworkRebuildCoalescing();
+        std::fflush(stdout);assert(!admissionFailures&&!rebuildFailures);
+        testDriverDetailsReport();
         testSignalAppearance();
         testManualNetworkRefresh();
         testAutomaticNetworkRefresh();

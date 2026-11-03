@@ -7,7 +7,8 @@ project=Path(__file__).resolve().parents[1]
 info=plistlib.loads((project/"app/Info.plist").read_bytes())
 assert info["CFBundleDevelopmentRegion"]=="en"
 assert info["CFBundleLocalizations"]==["en"]
-assert info["CFBundleShortVersionString"]=="0.3.11"
+assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+",info["CFBundleShortVersionString"])
+assert info["CFBundleVersion"].isdigit()
 ui=(project/"app/Main.mm").read_text()
 for label in ["Connected via WPA2","Open at login","Refresh networks",
               "Signal diagnostics…","Adapter catalog…","Copy report","Quit"]:

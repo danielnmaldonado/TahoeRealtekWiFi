@@ -53,6 +53,8 @@ int rtw_r92fu_write(rtw_r92fu*,uint16_t,uint8_t,uint32_t);
 int rtw_r92fu_update(rtw_r92fu*,uint16_t,uint8_t,uint32_t,uint32_t);
 int rtw_r92fu_tx_endpoint(const rtw_r92fu*,uint8_t,unsigned*);
 int rtw_r92fu_h2c(rtw_r92fu*,const uint8_t[8]);
+/* Unlatched EBUSY means firmware still owns the box; hard I/O stays sticky. */
+int rtw_r92fu_report_rssi(rtw_r92fu*,uint8_t percent);
 int rtw_r92fu_rate_build(uint16_t,const uint8_t[2],int ht,unsigned width,int local_sgi,int peer_sgi,rtw_r92fu_rate*);
 int rtw_r92fu_rate_command(const rtw_r92fu_rate*,int reset,uint8_t[8]);
 int rtw_r92fu_station(rtw_r92fu*,int associated,const uint8_t bssid[6],uint16_t aid,uint16_t interval,uint16_t basic_rates,int short_slot,int ht);

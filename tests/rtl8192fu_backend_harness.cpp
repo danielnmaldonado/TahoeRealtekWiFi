@@ -105,6 +105,18 @@ struct Fixture{
 };
 static mbuf_t packet(bool eapol=false,bool qos=false){auto*p=new TestPacket;p->bytes.resize(qos?42:40);p->bytes[0]=uint8_t(8|(qos?0x80:0));p->bytes[4]=2;unsigned start=qos?26:24;uint8_t llc[8]={0xaa,0xaa,3,0,0,0,uint8_t(eapol?0x88:8),uint8_t(eapol?0x8e:0)};memcpy(p->bytes.data()+start,llc,8);return p;}
 int main(){
+ // Every real tick USB failure still propagates; optional contention cannot
+ // hide a failure in readiness, thermal sensor or either mailbox write.
+ unsigned rssi_tick_calls=0;
+ {Fixture f;f.run();f.n.ni_port_valid=true;f.c.fuRSSIValid_=true;f.c.fuRSSI_=50;const auto calls=f.m.calls;assert(!f.c.tick8192FU());rssi_tick_calls=f.m.calls-calls;}
+ for(unsigned cut=1;cut<=rssi_tick_calls;++cut){Fixture f;f.run();f.n.ni_port_valid=true;f.c.fuRSSIValid_=true;f.c.fuRSSI_=50;f.m.fail=f.m.calls+cut;assert(f.c.tick8192FU()==EIO);rtw_r92fu_status status{};assert(!rtw_r92fu_status_read(f.c.fu_,&status)&&status.error==EIO);assert(!f.c.authorized());}
+ // A firmware-owned mailbox must not tear down an otherwise authorized link.
+ {Fixture f;f.run();f.n.ni_port_valid=true;f.c.fuRSSIValid_=true;f.c.fuRSSI_=50;
+  f.m.reg[0x1cc]=15;
+  for(unsigned retry=0;retry<8;++retry){assert(f.c.tick8192FU()==0);rtw_r92fu_status status{};assert(!rtw_r92fu_status_read(f.c.fu_,&status)&&!status.error);assert(f.c.authorized());}
+  f.m.reg[0x1cc]=0;assert(f.c.tick8192FU()==0&&f.c.authorized());
+ }
+
  // Exercise the actual header-to-options-to-descriptor path. Sequence
  // numbers stay host-owned for management, data and EAPOL, with or without
  // QoS; fragment numbers remain in the copied MAC header across wrap.

@@ -280,7 +280,15 @@ static void test_rx_and_phy() {
         CHECK(rtw_8814au_rx_next(&it,&f)==(n?RTW_PACKETS_TRUNCATED:RTW_PACKETS_DONE));
     }
     b=rx_transfer();rtw_rx_iterator_init(&it,b.data(),86);CHECK(rtw_8814au_rx_next(&it,&f)==RTW_PACKETS_OK);
-    rtw_rx_iterator_init(&it,b.data(),87);CHECK(rtw_8814au_rx_next(&it,&f)==RTW_PACKETS_TRUNCATED);
+    // Complete wire payload/FCS ends at86; its final alignment pad is optional.
+    for(size_t length:{size_t(86),size_t(87),size_t(88)}){
+        rtw_rx_iterator_init(&it,b.data(),length);CHECK(rtw_8814au_rx_next(&it,&f)==RTW_PACKETS_OK);
+        CHECK(it.cursor==length&&f.packet.mpdu_length==28);
+    }
+    for(size_t missing=1;missing<=4;++missing){
+        rtw_rx_iterator_init(&it,b.data(),86-missing);CHECK(rtw_8814au_rx_next(&it,&f)==RTW_PACKETS_TRUNCATED);
+        CHECK(it.cursor==0&&it.frames==0);
+    }
     for(unsigned offset: {0U,12U,2U,3U}) {
         b=rx_transfer();
         if(offset==0) b[0]=4; /* ordinary FCS-only frame is not an MPDU */

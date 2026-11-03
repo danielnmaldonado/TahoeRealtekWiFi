@@ -17,6 +17,7 @@
 #include "Transport.hpp"
 #import "AdapterDiagnostics.h"
 #import "DiagnosticCLI.h"
+#import "DriverDiagnostics.h"
 #import "EnglishErrors.h"
 #include <arpa/inet.h>
 #include <ifaddrs.h>
@@ -106,20 +107,35 @@ static NSString* interfaceInfo(const uint8_t* mac) {
 // Older app versions did not save the chosen USB. Adopt an already confirmed
 // sole link once, rather than infer user intent from enumeration or route order.
 // Called only on the control queue, and every listed adapter must be readable.
-static NSDictionary* existingAdapterLink(RTWDriverConnection* driver,const rtwui::DeviceList& list,NSData* preferredSSID) {
-    if(!rtwui::validDevices(list)||!list.count)return nil;
+static NSDictionary* existingAdapterLink(RTWDriverConnection* driver,const rtwui::DeviceList& list,
+    NSData* preferredSSID,const rtwui::WorkEpoch& work,uint64_t epoch) {
+    if(!work.matches(epoch)||!rtwui::validDevices(list)||!list.count)return nil;
     NSDictionary* result=nil;
     for(unsigned i=0;i<list.count;++i) {
+        if(!work.matches(epoch))return nil;
         RTWControlRequest request{};request.version=RTW_CONTROL_VERSION;RTWControlStatus status{};
         if([driver exchangeRegistryID:list.devices[i].registryID selector:RTW_CONTROL_STATUS
             input:&request length:sizeof(request) output:&status capacity:sizeof(status)]||
            status.version!=RTW_CONTROL_VERSION||status.ssidLength>32||status.state>4)return nil;
+        if(!work.matches(epoch))return nil;
         if(rtwui::phase(status)!=rtwui::Phase::Connected)continue;
         if(result||!status.ssidLength)return nil;
         NSData* ssid=[NSData dataWithBytes:status.ssid length:status.ssidLength];
         result=@{@"registryID":@(list.devices[i].registryID),@"ssid":ssid};
     }
     return result&&(!preferredSSID||[result[@"ssid"] isEqual:preferredSSID])?result:nil;
+}
+static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtwui::DeviceList& list,
+    const rtwui::WorkEpoch& work,uint64_t epoch) {
+    NSMutableDictionary* result=[NSMutableDictionary dictionary];
+    if(rtwui::validDevices(list))for(unsigned i=0;i<list.count;++i) {
+        if(!work.matches(epoch))return nil;
+        const auto registryID=list.devices[i].registryID;
+        NSDictionary* identity=rtwui::readAdapterIdentity(registryID);
+        if(!work.matches(epoch))return nil;
+        if(identity)result[@(registryID)]=identity;
+    }
+    return result;
 }
 
 @interface WiFiApp : NSObject <NSApplicationDelegate,NSMenuDelegate> {
@@ -132,7 +148,7 @@ static NSDictionary* existingAdapterLink(RTWDriverConnection* driver,const rtwui
     NSUserDefaults* _preferences;
     id<RTWCredentialStoring> _credentials;
     dispatch_queue_t _credentialQueue;
-    BOOL _credentialBusy,_terminating,_adapterReportBusy;
+    BOOL _credentialBusy,_terminating,_adapterReportBusy,_driverReportBusy;
     dispatch_queue_t _queue;
     RTWDriverConnection* _driver;
     RTWDriverServiceManager* _serviceManager;
@@ -439,7 +455,7 @@ static NSDictionary* existingAdapterLink(RTWDriverConnection* driver,const rtwui
     NSMenuItem* refresh=[self add:_refreshingNetworks?@"Refreshing networks…":@"Refresh networks"
         action:@selector(refresh:) enabled:canControl&&!_joining&&!_credentialBusy&&
             !_commandPending&&!_refreshingNetworks&&!(_hasStatus&&(_status.flags&RTW_CONTROL_SCANNING))];
-    refresh.toolTip=@"Scan supported Wi-Fi channels. The active network may briefly reconnect.";
+    refresh.toolTip=@"Scan supported Wi-Fi channels while idle. Active connections are preserved; disconnect before starting a radio scan.";
     [self add:_joining?@"Cancel connection":@"Disconnect" action:@selector(disconnect:) enabled:canControl&&(_joining||(_hasStatus&&(_status.flags&RTW_CONTROL_RUNNING)))];
     [_menu addItem:NSMenuItem.separatorItem];
     [self add:[NSString stringWithFormat:@"Nearby networks · %lu",(unsigned long)_networks.size()] action:nil enabled:NO];
@@ -477,7 +493,8 @@ static NSDictionary* existingAdapterLink(RTWDriverConnection* driver,const rtwui
     automatic.state=_autoJoinEnabled?NSControlStateValueOn:NSControlStateValueOff;
     if(_autoJoin.paused)[self add:@"Automatic reconnection paused · select a network to resume." action:nil enabled:NO];
     if(_credentialBusy)[self add:@"Accessing macOS Keychain…" action:nil enabled:NO];
-    [self add:@"Driver details…" action:@selector(details:) enabled:YES];
+    [self add:_driverReportBusy?@"Reading driver details…":@"Driver details…"
+        action:@selector(details:) enabled:!_driverReportBusy];
     [self add:@"Signal diagnostics…" action:@selector(signalDiagnostics:) enabled:YES];
     [self add:@"Adapter catalog…" action:@selector(adapterCatalog:) enabled:YES];
     [self add:@"USB adapters and support…" action:@selector(adapterSupport:) enabled:!_adapterReportBusy];
@@ -596,8 +613,11 @@ static NSDictionary* existingAdapterLink(RTWDriverConnection* driver,const rtwui
         rtwui::DeviceList devices{};
         uint32_t result=[self->_driver exchangeRegistryID:0 selector:rtwui::listSelector
             input:nullptr length:0 output:&devices capacity:sizeof(devices)];
-        NSDictionary* identities=!result?rtwui::readAdapterIdentities(devices):nil;
-        NSDictionary* existing=!result&&discoverExisting?existingAdapterLink(self->_driver,devices,legacySSID):nil;
+        if(!self->_workEpoch.matches(epoch))return;
+        NSDictionary* identities=!result?adapterIdentitiesForWork(devices,self->_workEpoch,epoch):nil;
+        if(!self->_workEpoch.matches(epoch))return;
+        NSDictionary* existing=!result&&discoverExisting?existingAdapterLink(self->_driver,devices,legacySSID,self->_workEpoch,epoch):nil;
+        if(!self->_workEpoch.matches(epoch))return;
         dispatch_async(dispatch_get_main_queue(),^{
             if(self->_terminating||!self->_workEpoch.matches(epoch))return;
             self->_authorizing=NO;
@@ -694,10 +714,11 @@ _autoJoinEnabled=!_autoJoinEnabled;
     });
 }
 - (void)considerAutoJoin {
-    if(_refreshingNetworks||!_autoJoinEnabled||!_savedNetworksLoaded||!_savedNetworks.count)return;
+    if(_refreshingNetworks||_commandPending||!_autoJoinEnabled||!_savedNetworksLoaded||!_savedNetworks.count)return;
     const double now=[self uptime];
     const bool connected=_hasStatus&&(_status.flags&RTW_CONTROL_AUTHORIZED);
     if(connected){_lastLinkedAt=now;return;}
+    if(!rtwui::automaticConnectionIdle(_hasStatus,_statusReadDelayed,_status))return;
     if(!_autoJoin.mayAttempt(now,_authorizedSession&&_selectedPresent&&_selection.registryID,
         _hasStatus&&!_statusReadDelayed&&!_status.usbError,connected,_joining,_credentialBusy,
         _sleeping||_inactiveSession))return;
@@ -825,7 +846,7 @@ _autoJoinEnabled=!_autoJoinEnabled;
     }
     // RUNNING means the interface is initialized, not that it has a link.
     // Association/authentication states still belong to kernel recovery.
-    if(_status.state>=2)return;
+    if(!rtwui::automaticConnectionIdle(_hasStatus,_statusReadDelayed,_status))return;
     const auto* map=[self stationChannelMap];
     bool channels=false;
     for(unsigned channel=1;channel<256&&!channels;++channel)
@@ -862,26 +883,35 @@ _autoJoinEnabled=!_autoJoinEnabled;
         if(!self->_workEpoch.matches(epoch))return;
         rtwui::DeviceList devices{};
         const uint32_t listCode=listDue?[self->_driver exchangeRegistryID:0 selector:rtwui::listSelector input:nullptr length:0 output:&devices capacity:sizeof(devices)]:0;
-        NSDictionary* identities=listDue&&!listCode?rtwui::readAdapterIdentities(devices):nil;
-        NSDictionary* existing=listDue&&!listCode&&discoverExisting?existingAdapterLink(self->_driver,devices,legacySSID):nil;
+        // An entered read cannot be canceled. Yield before its next boundary
+        // without clearing busy state owned by a replacement adapter poll.
+        if(!self->_workEpoch.matches(epoch))return;
+        NSDictionary* identities=listDue&&!listCode?adapterIdentitiesForWork(devices,self->_workEpoch,epoch):nil;
+        if(!self->_workEpoch.matches(epoch))return;
+        NSDictionary* existing=listDue&&!listCode&&discoverExisting?existingAdapterLink(self->_driver,devices,legacySSID,self->_workEpoch,epoch):nil;
+        if(!self->_workEpoch.matches(epoch))return;
         RTWControlRequest request{};request.version=1;
         RTWControlStatus status{};RTWControlScanResults scan{};RTWControlChannelMap channels{};
         const bool listBroken=listDue&&(listCode==rtwui::transportError||listCode==rtwui::protocolError);
         uint32_t code=registryID?(listBroken?listCode:[self->_driver exchangeRegistryID:registryID selector:RTW_CONTROL_STATUS input:&request length:sizeof(request) output:&status capacity:sizeof(status)]):0;
+        if(!self->_workEpoch.matches(epoch))return;
         if(registryID&&!code&&(status.ssidLength>32||status.state>4))code=rtwui::protocolError;
         const bool requestMap=registryID&&!code;
         uint32_t mapCode=requestMap?[self->_driver exchangeRegistryID:registryID selector:RTW_CONTROL_CHANNEL_MAP input:&request length:sizeof(request) output:&channels capacity:sizeof(channels)]:0;
+        if(!self->_workEpoch.matches(epoch))return;
         const bool legacyMap=requestMap&&mapCode==static_cast<uint32_t>(kIOReturnUnsupported);
         if(requestMap&&!mapCode&&!rtw_control_channel_map_valid(&channels))mapCode=rtwui::protocolError;
         const uint32_t mapError=legacyMap?0:mapCode;
         const bool requestScan=scanDue&&registryID&&!code&&!mapError;
         uint32_t scanCode=requestScan?[self->_driver exchangeRegistryID:registryID selector:RTW_CONTROL_SCAN_RESULTS input:&request length:sizeof(request) output:&scan capacity:sizeof(scan)]:0;
+        if(!self->_workEpoch.matches(epoch))return;
         if(requestScan&&!scanCode&&(scan.count>64||scan.truncated>1))scanCode=rtwui::protocolError;
         if(requestScan&&!scanCode)for(unsigned i=0;i<scan.count;++i)if(scan.records[i].ssidLength>32)scanCode=rtwui::protocolError;
         const BOOL broken=(listDue&&listBroken)||code==rtwui::transportError||code==rtwui::protocolError||
             scanCode==rtwui::transportError||scanCode==rtwui::protocolError||
             mapError==rtwui::transportError||mapError==rtwui::protocolError;
         if(broken)[self->_driver close];
+        if(!self->_workEpoch.matches(epoch))return;
         NSString* iface=registryID&&!code&&interfaceDue?interfaceInfo(status.mac):nil;
         dispatch_async(dispatch_get_main_queue(),^{
             // Adapter switches can schedule a replacement poll while an older
@@ -906,19 +936,23 @@ _autoJoinEnabled=!_autoJoinEnabled;
                 self->_notice=@"The selected adapter was disconnected. Choose another from the menu.";
                 [self updateAppearance];return;
             }
+            bool rebuildNetworks=false;
             if(requestMap&&self->_selectedPresent) {
+                const auto previous=self->_channelMap;
                 if(legacyMap)self->_channelMap.setLegacy(self->_selection,registryID,adapterGeneration);
                 else if(!mapError)self->_channelMap.setExact(self->_selection,registryID,adapterGeneration,channels);
                 else self->_channelMap.clear();
+                const auto& current=self->_channelMap;
+                rebuildNetworks=previous.registryID!=current.registryID||
+                    previous.generation!=current.generation||previous.legacy!=current.legacy||
+                    std::memcmp(&previous.value,&current.value,sizeof(current.value));
             }
             if(!code&&self->_selectedPresent){
                 const bool changedBands=(self->_status.flags^status.flags)&(RTW_CONTROL_BAND_5GHZ|RTW_CONTROL_BAND_5GHZ_HIGH|RTW_CONTROL_BAND_5GHZ_DFS_LOW|RTW_CONTROL_BAND_5GHZ_DFS_MID|RTW_CONTROL_BAND_2GHZ|RTW_CONTROL_BANDS_EXPLICIT);
                 self->_hasStatus=YES;self->_statusReadDelayed=NO;
                 self->_lastStatusSuccess=[self uptime];self->_status=status;
-                if(changedBands||requestMap) {
-                    self->_networks=rtwui::networks(self->_scan,status.flags,[self stationChannelMap]);
-                    if(changedBands)self->_forceNetworkCache=YES;
-                }
+                rebuildNetworks|=changedBands;
+                if(changedBands)self->_forceNetworkCache=YES;
                 if(interfaceDue)self->_interface=iface;
                 self->_signal.observe(status,self->_lastStatusSuccess);
             }else if(code){
@@ -927,8 +961,12 @@ _autoJoinEnabled=!_autoJoinEnabled;
             }
             self->_signalHistory.record(status,self->_signal,[self uptime],code);
             if(requestScan&&!scanCode&&self->_selectedPresent){
-                self->_scan=scan;self->_networks=rtwui::networks(scan,status.flags,[self stationChannelMap]);
+                self->_scan=scan;rebuildNetworks=true;
             }
+            // STATUS still re-reads the map on every poll. Sort/group only
+            // when that policy or the cache changed, once even if both did.
+            if(rebuildNetworks)
+                self->_networks=rtwui::networks(self->_scan,self->_status.flags,[self stationChannelMap]);
             if(listCode||code||scanCode||mapError){
                 if(self->_refreshingNetworks)
                     self->_networkRefresh[registryID].failed([self uptime]);
@@ -1005,7 +1043,9 @@ _autoJoinEnabled=!_autoJoinEnabled;
                     self->_refreshingNetworks=NO;self->_refreshStartedAt=-1;
                     self->_networkRefresh[registryID].failed([self uptime]);
                 }
-                self->_notice=errorText(result);self->_pollNotice=NO;
+                self->_notice=selector==RTW_CONTROL_SCAN&&result==uint32_t(kIOReturnBusy)?
+                    @"Network refresh deferred while the radio is busy. Active connections are preserved.":
+                    errorText(result);self->_pollNotice=NO;
                 if(result==rtwui::transportError||result==rtwui::protocolError) {
                     self->_authorizedSession=NO;self->_serviceRetry.fail([self uptime]);
                 }
@@ -1118,6 +1158,12 @@ _autoJoinEnabled=!_autoJoinEnabled;
             }
             if(automatic&&!rtwui::savedProfileReconnectAllowed(self->_scan,
                static_cast<const uint8_t*>(network.bytes),network.length,[self stationFlags],[self stationChannelMap])) {
+                RTWWipePassword(saved);self->_credentialBusy=NO;
+                [self updateAppearance];return;
+            }
+            if(automatic&&(self->_sleeping||self->_inactiveSession||self->_refreshingNetworks||
+               self->_commandPending||!rtwui::automaticConnectionIdle(self->_hasStatus,
+                   self->_statusReadDelayed,self->_status))) {
                 RTWWipePassword(saved);self->_credentialBusy=NO;
                 [self updateAppearance];return;
             }
@@ -1415,8 +1461,34 @@ _autoJoinEnabled=!_autoJoinEnabled;
 }
 - (void)details:(id)sender {
     (void)sender;
-    NSString* detail=_hasStatus?[NSString stringWithFormat:@"%@\n%@\nnet80211 state: %u · flags: 0x%x\nUSB: 0x%08x\nTX: %llu · RX: %llu\nTX errors: %llu · RX errors: %llu\n\nWPA2 authorization indicates a link. An IP address does not prove internet access.",[self phaseTitle],_interface?:@"",_status.state,_status.flags,_status.usbError,(unsigned long long)_status.txPackets,(unsigned long long)_status.rxPackets,(unsigned long long)_status.txErrors,(unsigned long long)_status.rxErrors]:_notice?:@"Authorize driver access from the menu.";
-    [self showMessage:@"USB Wi-Fi diagnostics" detail:detail];
+    if(_terminating||_sleeping||_inactiveSession||_driverReportBusy)return;
+    _driverReportBusy=YES;
+    const auto registryID=_selection.registryID,adapterGeneration=_selection.generation;
+    const auto epoch=_workEpoch.snapshot();
+    NSString* context=_hasStatus?[NSString stringWithFormat:
+        @"App status when requested\n%@\n%@\nnet80211 state: %u · flags: 0x%x\nUSB: 0x%08x\nTX: %llu · RX: %llu\nTX errors: %llu · RX errors: %llu\n",
+        [self phaseTitle],_interface?:@"Interface address unavailable",_status.state,_status.flags,_status.usbError,
+        (unsigned long long)_status.txPackets,(unsigned long long)_status.rxPackets,
+        (unsigned long long)_status.txErrors,(unsigned long long)_status.rxErrors]:
+        [NSString stringWithFormat:@"App status when requested\n%@\n",[self phaseTitle]];
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{
+        @autoreleasepool {
+            NSString* snapshot=nil;
+            if(self->_workEpoch.matches(epoch)&&self->_adapterEpoch.load()==adapterGeneration)
+                snapshot=RTWDriverDiagnosticsReport(registryID);
+            dispatch_async(dispatch_get_main_queue(),^{
+                if(self->_terminating||self->_sleeping||self->_inactiveSession||
+                   !self->_workEpoch.matches(epoch)||self->_selection.registryID!=registryID||
+                   self->_selection.generation!=adapterGeneration) {
+                    self->_driverReportBusy=NO;return;
+                }
+                [self showReport:[context stringByAppendingFormat:@"\n%@",snapshot?:@"Driver snapshot unavailable."]
+                    title:@"USB Wi-Fi diagnostics"
+                    explanation:@"Read-only snapshot. Counters are cumulative since driver attachment. Validated BlockAck filtering is separate from RX errors. WPA2 authorization confirms a link; an IP address does not prove internet access."];
+                self->_driverReportBusy=NO;
+            });
+        }
+    });
 }
 - (void)toggleLoginAtStartup:(id)sender {
     id<RTWLoginItemManaging> manager=[self loginItems];
@@ -1482,7 +1554,13 @@ _autoJoinEnabled=!_autoJoinEnabled;
 }
 - (void)openLoginSettings:(id)sender {(void)sender;[[self loginItems] openSystemSettings];}
 - (void)about:(id)sender {
-    (void)sender;[self showMessage:@"Tahoe Wi-Fi USB 0.3.11" detail:[NSString stringWithFormat:@"Menu-bar controller for TahoeRealtekWiFi (ABI v1).\nRealtek USB adapters · macOS Ventura 13 / Sonoma 14 / Sequoia 15 / Tahoe 26 · Intel\n\nWPA2-Personal/CCMP. Selected driver channels: %@. Low, DFS (52–64 and 100–140) and upper 5 GHz each require their own live station capability. DFS is managed-station HT20, with passive discovery and AP channel-switch recovery; channel 144 is not enabled. Other bands or catalog entries do not imply connection support. Experimental driver. WPA2 passwords can be saved in macOS Keychain. Automatic reconnection after login, sleep and USB reconnection. The background helper requires initial approval in macOS Login Items; the app never saves your administrator password.\n\nProject and macOS development: MaLd0n.\nApple AppKit and SF Symbols.\nApp source: GPL-2.0-only.",text(rtwui::stationChannelDescription([self stationFlags],[self stationChannelMap]))]];
+    (void)sender;
+    id version=[NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+    id build=[NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"];
+    if(![version isKindOfClass:NSString.class]||![version length])version=@"not reported";
+    if(![build isKindOfClass:NSString.class]||![build length])build=@"not reported";
+    NSString* title=[NSString stringWithFormat:@"Tahoe Wi-Fi USB %@ (build %@)",version,build];
+    [self showMessage:title detail:[NSString stringWithFormat:@"Menu-bar controller for TahoeRealtekWiFi (ABI v1).\nRealtek USB adapters · macOS Ventura 13 / Sonoma 14 / Sequoia 15 / Tahoe 26 · Intel\n\nWPA2-Personal/CCMP. Selected driver channels: %@. Low, DFS (52–64 and 100–140) and upper 5 GHz each require their own live station capability. DFS is managed-station HT20, with passive discovery and AP channel-switch recovery; channel 144 is not enabled. Other bands or catalog entries do not imply connection support. Experimental driver. WPA2 passwords can be saved in macOS Keychain. Automatic reconnection after login, sleep and USB reconnection. The background helper requires initial approval in macOS Login Items; the app never saves your administrator password.\n\nProject and macOS development: MaLd0n.\nApple AppKit and SF Symbols.\nApp source: GPL-2.0-only.",text(rtwui::stationChannelDescription([self stationFlags],[self stationChannelMap]))]];
 }
 - (void)quit:(id)sender {(void)sender;[NSApp terminate:nil];}
 - (void)applicationWillTerminate:(NSNotification*)notification {

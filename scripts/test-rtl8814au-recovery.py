@@ -25,11 +25,14 @@ controller = (root / 'kext/RTWUSBController.cpp').read_text()
 units = [function(backend, marker) for marker in (
     'static uint16_t rtw8814RateMask(',
     'rtw_8814au_station_params RTWUSBController::station8814Params()',
+    'int RTWUSBController::tick8814()',
     'int RTWUSBController::start8814(',
     'void RTWUSBController::stop8814(',
     'int RTWUSBController::set8814Channel(',
     'int RTWUSBController::state8814(',
     'void RTWUSBController::initTask8814(')]
+units += [function((root / 'kext/RTWFamilyDataPath.inc').read_text(),
+                   'bool RTWUSBController::uses8814FirmwareRate()')]
 units += [function(controller, marker) for marker in (
     'static IOReturn fromErrno(',
     'IOReturn RTWUSBController::enableStation(',

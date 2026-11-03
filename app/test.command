@@ -26,6 +26,9 @@ xcrun clang++ "${flags[@]}" tests/adapter-support-tests.cpp USBWiFiProfiles.cpp 
 ../out/menu-tests/adapter-support-tests
 xcrun clang++ "${flags[@]}" -fobjc-arc tests/registry-metadata-tests.mm USBWiFiProfiles.cpp \
     -framework Foundation -framework IOKit -framework CoreFoundation -o ../out/menu-tests/registry-metadata-tests
+xcrun clang++ "${flags[@]}" -fobjc-arc tests/driver-diagnostics-tests.mm \
+    -framework Foundation -framework IOKit -framework CoreFoundation -o ../out/menu-tests/driver-diagnostics-tests
+../out/menu-tests/driver-diagnostics-tests
 ../out/menu-tests/registry-metadata-tests
 xcrun clang++ "${flags[@]}" tests/transport-tests.cpp Transport.cpp -o ../out/menu-tests/transport-tests
 ../out/menu-tests/transport-tests
@@ -37,7 +40,7 @@ xcrun clang++ "${flags[@]}" -fobjc-arc tests/credential-store-tests.mm Credentia
     -framework Foundation -framework Security -o ../out/menu-tests/credential-store-tests
 ../out/menu-tests/credential-store-tests
 for suite in menu credential-flow channel-map-reconnect adapter-preference; do
-    xcrun clang++ "${flags[@]}" -fobjc-arc "tests/$suite-tests.mm" LoginItem.mm CredentialStore.mm DriverConnection.mm ControlDiagnostics.mm DiagnosticCLI.mm AdapterDiagnostics.mm USBWiFiProfiles.cpp Transport.cpp \
+    xcrun clang++ "${flags[@]}" -fobjc-arc "tests/$suite-tests.mm" LoginItem.mm CredentialStore.mm DriverConnection.mm ControlDiagnostics.mm DiagnosticCLI.mm AdapterDiagnostics.mm DriverDiagnostics.mm USBWiFiProfiles.cpp Transport.cpp \
         -framework AppKit -framework ServiceManagement -framework Security -framework CoreServices -framework IOKit -framework CoreFoundation \
         -o "../out/menu-tests/$suite-tests"
     "../out/menu-tests/$suite-tests"

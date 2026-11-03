@@ -13,9 +13,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.3.11</string>
+	<string>0.3.13</string>
 	<key>CFBundleVersion</key>
-	<string>53</string>
+	<string>55</string>
 	<key>RTWInstallerProtocolVersion</key>
 	<integer>1</integer>
 	<key>CFBundleIconFile</key>

@@ -81,6 +81,31 @@ static void gen1() {
     inspect(b,129,next92c,RTW_PACKETS_TRUNCATED,128,1);
     inspect(b,129,next88e,RTW_PACKETS_TRUNCATED,128,1);
 }
+static void gen2_optional_final_alignment() {
+    /* Catch rejection of a complete payload merely because its final pad is
+     * partial. Opaque payload bytes, without an 802.11 frame fixture. */
+    for(size_t payload=24;payload<32;++payload){
+        const size_t used=24+payload,padded=(used+7U)&~size_t(7U);
+        std::vector<uint8_t>b(padded,0x5a);
+        std::memset(b.data(),0,24);put32(b.data(),static_cast<uint32_t>(payload));
+        for(size_t length=used;length<=padded;++length)
+            inspect(b,length,next92e,RTW_PACKETS_DONE,length,1);
+        inspect(b,used-1,next92e,RTW_PACKETS_TRUNCATED,0,0);
+        /* Incomplete descriptor still fails, even when entirely zero. */
+        std::vector<uint8_t>short_descriptor(23,0);
+        inspect(short_descriptor,23,next92e,RTW_PACKETS_TRUNCATED,0,0);
+        /* A complete prefix cannot rescue a missing byte of the next payload. */
+        std::vector<uint8_t>two(48+padded,0x5a);
+        std::memset(two.data(),0,24);put32(two.data(),24);
+        std::memcpy(two.data()+48,b.data(),padded);
+        inspect(two,48+used-1,next92e,RTW_PACKETS_TRUNCATED,48,1);
+        for(size_t length=used;length<=padded;++length)
+            inspect(two,48+length,next92e,RTW_PACKETS_DONE,48+length,2);
+        /* A later unknown nonzero suffix is not optional alignment. */
+        b.resize(padded+1);b[padded]=0x5a;
+        inspect(b,b.size(),next92e,RTW_PACKETS_TRUNCATED,padded,1);
+    }
+}
 static void bad_callbacks() {
     std::array<uint8_t,32>b{};
     rtw_rx_preflight_result r{42,42,42,42};
@@ -113,4 +138,4 @@ static void bad_callbacks() {
     CHECK(rtw_rx_preflight_transfer(b.data(),b.size(),fake_too_many,nullptr,&r)==RTW_PACKETS_TOO_MANY);
     CHECK(!r.valid_bytes&&!r.valid_frames);
 }
-int main(){gen2();gen1();bad_callbacks();std::printf("rx preflight: %u checks passed\n",checks);return 0;}
+int main(){gen2_optional_final_alignment();gen2();gen1();bad_callbacks();std::printf("rx preflight: %u checks passed\n",checks);return 0;}

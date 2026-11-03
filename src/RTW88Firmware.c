@@ -120,7 +120,7 @@ fail:
 }
 
 /* Linuxfw.c rtw_fw_send_h2c_command_register; shared by RFK/coex/station. */
-int rtw88_fw_h2c(rtw88_fw_context*c,const uint8_t command[8])
+static int h2c(rtw88_fw_context*c,const uint8_t command[8],int advisory)
 {
  unsigned i;uint32_t busy;int e;
  if(!c||!command||!family(c->family)||!c->bus.read||!c->bus.write||!c->bus.delay_us||
@@ -132,8 +132,14 @@ int rtw88_fw_h2c(rtw88_fw_context*c,const uint8_t command[8])
   if(!(busy&(1U<<c->h2c_box)))break;
   if(i<30)c->bus.delay_us(c->bus.cookie,100);
  }
- if(i>30)return error(c,ETIMEDOUT);
+ if(i>30)return advisory?EBUSY:error(c,ETIMEDOUT);
  if((e=wr(c,(uint16_t)(0x1f0+4*c->h2c_box),4,le32(command+4))))return e;
  if((e=wr(c,(uint16_t)(0x1d0+4*c->h2c_box),4,le32(command))))return e;
  c->h2c_box=(uint8_t)((c->h2c_box+1U)&3U);return 0;
+}
+int rtw88_fw_h2c(rtw88_fw_context*c,const uint8_t command[8]){return h2c(c,command,0);}
+int rtw88_fw_h2c_rssi_monitor(rtw88_fw_context*c,const uint8_t command[8])
+{
+ if(!command||command[0]!=0x42||command[1]||command[2]||command[3]>100||command[4]||command[5]||command[6]||command[7])return EINVAL;
+ return h2c(c,command,1);
 }

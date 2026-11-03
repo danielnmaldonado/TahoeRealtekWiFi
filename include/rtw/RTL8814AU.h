@@ -82,6 +82,10 @@ int rtw_8814au_stop(struct rtw_8814au *);
  * Successful cleanup does not itself authorize reuse of a failed context. */
 int rtw_8814au_stop_checked(struct rtw_8814au *);
 int rtw_8814au_h2c_mailbox(struct rtw_8814au *, const uint8_t command[8]);
+/* Periodic RSSI is advisory. A busy mailbox returns EBUSY without poisoning
+ * the context or writing/advancing a box; retry on the next scheduled tick.
+ * Only the validated RSSI command is accepted. Bus failures remain sticky. */
+int rtw_8814au_h2c_rssi_monitor(struct rtw_8814au *, const uint8_t command[8]);
 int rtw_8814au_h2c_packet(struct rtw_8814au *, const uint8_t packet[32]);
 /* After MAC queues, PHY tables and RX transfers are established. */
 int rtw_8814au_send_startup_info(struct rtw_8814au *);

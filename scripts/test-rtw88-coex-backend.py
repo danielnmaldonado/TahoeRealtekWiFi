@@ -14,7 +14,13 @@ def method(source,marker):
 markers=['bool RTWUSBController::owns88Discovery(','void RTWUSBController::clear88Discovery(','bool RTWUSBController::owns88Authority(','void RTWUSBController::remember88Authority(','bool RTWUSBController::cleanup88Authorized(','static uint16_t rtw88RateMask(','bool RTWUSBController::is88Family(','void RTWUSBController::refresh88Modes(','bool RTWUSBController::supports88Band(','bool RTWUSBController::permits88Channel(','unsigned RTWUSBController::r88RadioState(','int RTWUSBController::set88Channel(','int RTWUSBController::set88Operating(','int RTWUSBController::peer88Operating(','bool RTWUSBController::uses88HighThroughput(','bool RTWUSBController::accepts88ReceiveRate(','int RTWUSBController::ampdu88TXStart(','void RTWUSBController::update88Width(','uint16_t RTWUSBController::station88Rates(','int RTWUSBController::station88Hardware(','int RTWUSBController::state88(','void RTWUSBController::update88EDCA(','bool RTWUSBController::uses88FirmwareRate(','int RTWUSBController::tick88(','int RTWUSBController::start88(','void RTWUSBController::stop88(','int RTWUSBController::send88Startup(','rtw_packet_error RTWUSBController::decode88USBFrame(','int RTWUSBController::sample88RSSI(','void RTWUSBController::handle88C2H(','int RTWUSBController::send88Frame(']
 for name,kind in [('coex88Ready','bool'),('coex88Input','rtw88_coex_input'),('coex88Start','int'),('coex88Notify','int'),('coex88Stop','void'),('coex88Schedule','void'),('coex88Tick','int'),('coex88TimerAction','void'),('prepare88Rate','int'),('send88SMPS','int'),('coex88Mimo','int'),('handle88SMPSReport','bool')]:markers.append(kind+' RTWUSBController::'+name+'(')
 text=(r/'tests/rtw88_backend_harness.cpp').read_text();text=text[:text.index('static void firmwareRegression')]
-text=text.replace(method(text,'extern "C" int rtw88_fw_h2c('),'')
+for name in ('rtw88_fw_h2c','rtw88_fw_h2c_rssi_monitor'):
+ text=text.replace(method(text,'extern "C" int '+name+'('),'')
+# This derived fixture links the real firmware implementation; the removed
+# advisory stub's injected-error state is unused here as well.
+mock_state='static int advisoryRSSIError=0;static bool advisoryRSSISticky=false;\n'
+assert text.count(mock_state)==1
+text=text.replace(mock_state,'')
 text=text.replace('class RTWUSBController{public:','class RTWUSBController:public OSObject{public:\n unsigned quiesces=0;void quiesce(bool){++quiesces;stop88();}')
 text=text.replace('uint16_t ni_associd,ni_intval;','uint16_t ni_associd,ni_intval,ni_txseq=0;')
 text=text.replace('ieee80211_edca_ac_params ic_edca_ac[4]{};','ieee80211_edca_ac_params ic_edca_ac[4]{};uint8_t ic_myaddr[6]{2};int ic_nnodes=3;')

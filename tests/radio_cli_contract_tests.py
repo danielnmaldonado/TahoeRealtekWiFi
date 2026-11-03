@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """End-to-end parse of generated inventory; never mistake silicon vs. station."""
+import argparse
+import csv
 import json
+from pathlib import Path
 import subprocess
-import sys
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('binary', help='compiled rtw-backends inventory tool')
+parser.add_argument('--docs-root', type=Path,
+                    default=Path(__file__).resolve().parents[1] / 'docs')
+args = parser.parse_args()
 
 dual={'RTL8192DU','RTL8812AU','RTL8814AU','RTL8821AU','RTL8821CU','RTL8822BU','RTL8822CU'}
-binary = sys.argv[1]
+binary = args.binary
 family = json.loads(subprocess.check_output([binary, '--json'], text=True))
 assert len(family['families']) == 14
 assert family['catalog_profiles'] == 270
@@ -27,7 +35,17 @@ assert all(row['station_phy_ceiling_mbps'] <= row['family_phy_ceiling_mbps'] for
 assert all(not row['station_enabled'] or row['station_phy_ceiling_mbps'] > 0 for row in rows)
 assert all(row['chip_family_5ghz'] or row['family_5g_width_mhz'] == 0 for row in rows)
 assert all(not row['identity_verified'] or row['family'] != 'UNKNOWN' for row in rows)
-print('Family and all-USB-ID JSON inventory contracts passed.')
-
 only_five={"04bb:0959","04bb:095a","0bda:2003"}
 assert {r["vid_pid"] for r in rows if r["station_5ghz"] and not r["station_2ghz"]}==only_five
+
+# Published support must describe the same immutable IDs, eligibility and PHY
+# limits as the compiled catalog. A valid CLI result alone missed stale files.
+documented = json.loads((args.docs_root / 'USB-PHY-CAPABILITIES.json').read_text())
+assert documented == all_cards, 'committed PHY JSON differs from compiled catalog/capabilities'
+with (args.docs_root / 'USB-PHY-CAPABILITIES.csv').open(newline='') as stream:
+    reader = csv.DictReader(stream)
+    assert reader.fieldnames == list(rows[0]), 'committed PHY CSV fields differ from CLI'
+    documented_csv = list(reader)
+expected_csv = [{key: str(value) for key, value in row.items()} for row in rows]
+assert documented_csv == expected_csv, 'committed PHY CSV differs from compiled catalog/capabilities'
+print('Family, all-USB-ID inventory and committed JSON/CSV freshness contracts passed.')

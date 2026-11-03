@@ -42,6 +42,8 @@
 @end
 @implementation FlowWiFiApp
 - (void)prepareObservedSSID:(NSData*)ssid {
+    _hasStatus=YES;_statusReadDelayed=NO;_status.version=1;
+    _status.flags=RTW_CONTROL_DEVICE|RTW_CONTROL_RADIO;
     _channelMap.setLegacy(_selection,_selection.registryID,_selection.generation);
     _scan={};_scan.version=1;_scan.count=1;
     auto& row=_scan.records[0];row.channel=6;row.securityFlags=7;

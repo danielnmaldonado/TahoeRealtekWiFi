@@ -41,6 +41,7 @@ int rtw88_station_set_edca(rtw88_station_context*,int short_slot,
  const rtw88_station_edca[4]);
 /* Real four-box H2C register flow. No implicit retry after an I/O error. */
 int rtw88_station_h2c(rtw88_station_context*,const uint8_t command[8]);
+int rtw88_station_h2c_rssi_monitor(rtw88_station_context*,const uint8_t command[8]);
 /* B/C firmware has one32-bit RA mask. VHT bits12..31 are MCS0..9 per
  * stream; descriptor rates44..63 map to mask bits12..31. The retained
  * rates.sgi20 member is the selected operating width's short-GI flag. */

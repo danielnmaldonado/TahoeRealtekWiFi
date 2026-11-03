@@ -44,6 +44,9 @@ int rtw88_fw_download(rtw88_fw_context*,const uint8_t*,size_t,uint8_t*,size_t);
  * callbacks enforce their own request timeouts. Writes EX before MAIN and
  * advances only on success. */
 int rtw88_fw_h2c(rtw88_fw_context*,const uint8_t command[8]);
+/* Advisory RSSI0x42 only: mailbox contention is unlatched EBUSY; actual
+ * register/USB failures, including ETIMEDOUT/EBUSY, remain sticky. */
+int rtw88_fw_h2c_rssi_monitor(rtw88_fw_context*,const uint8_t command[8]);
 #ifdef __cplusplus
 }
 #endif

@@ -50,6 +50,8 @@ int rtw_8723bu_set_channel(rtw_8723bu*,uint8_t,unsigned);
  * before explicitly allowing active scan/AUTH/RUN transmission. */
 int rtw_8723bu_calibrate(rtw_8723bu*);
 int rtw_8723bu_h2c(rtw_8723bu*,const uint8_t*,size_t);
+/* Unlatched EBUSY means firmware still owns the box; hard I/O stays sticky. */
+int rtw_8723bu_report_rssi(rtw_8723bu*,uint8_t percent);
 int rtw_8723bu_c2h(rtw_8723bu*,const uint8_t*,size_t);
 int rtw_8723bu_tick(rtw_8723bu*);
 #define RTW_8723BU_CHECKED_STOP 1

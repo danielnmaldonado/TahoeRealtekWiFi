@@ -132,7 +132,8 @@ rtw_packet_error rtw_92c_rx_next(rtw_rx_iterator *it,int is_88e,rtw_92c_rx_frame
     if(!f.report_type && !(dw3&0x40U) && (dw3&0x3fU)>11U)return RTW_PACKETS_MALFORMED;
     used=24U+info+shift+n;padded=(used+127U)&~(size_t)127U;
     if(padded>remain) {
-        if(used!=remain)return RTW_PACKETS_TRUNCATED;
+        /* Full descriptor/info/shift/wire payload already fit above. The
+         * final128-byte alignment pad is optional in pinned urtwn_rxeof. */
         next=it->length;
     } else next=it->cursor+padded;
     f.packet.mpdu=b+24U+info+shift;f.packet.mpdu_length=n;

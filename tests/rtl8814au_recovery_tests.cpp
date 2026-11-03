@@ -56,6 +56,8 @@ struct Bus {
  std::array<uint8_t,65536> reg{};std::array<uint8_t,1024> otp{};
  unsigned otpAddress=0,reads=0,writes=0,bulks=0,rfkStarts=0,otpReads=0,powerOns=0;
  bool rfkFail=false,powerOffFail=false,identityReadFail=false;
+ unsigned failReadAddress=0x10000,failWriteAddress=0x10000;
+ int failureError=EIO;
  uint32_t get(unsigned a,unsigned w) const {uint32_t v=0;for(unsigned i=0;i<w;i++)v|=uint32_t(reg[a+i])<<(8*i);return v;}
  void put(unsigned a,unsigned w,uint32_t v){for(unsigned i=0;i<w;i++)reg[a+i]=uint8_t(v>>(8*i));}
  Bus(){otp.fill(255);put(0x100,1,0xea);put(0xf0,4,0x044411b5);put(0xfc,4,0x80000008);put(4,4,0x30453f15);
@@ -67,7 +69,7 @@ struct Bus {
    else{otp[j++]=uint8_t(((block&7)<<5)|15);otp[j++]=uint8_t((block&0x78)<<1);}
    for(unsigned k=0;k<8;k++)otp[j++]=logical[block*8+k];}otp[j]=255;
  }
- int read(uint16_t a,unsigned w,uint32_t *v){reads++;if(identityReadFail&&a==0xf0)return EIO;*v=get(a,w);
+ int read(uint16_t a,unsigned w,uint32_t *v){reads++;if((identityReadFail&&a==0xf0)||a==failReadAddress)return failureError;*v=get(a,w);
   if(a==0x30&&w==4){otpReads++;*v=(*v&~255U)|otp[otpAddress]|0x80000000U;}
   if(a==5)*v&=~3U;if(a==6)*v|=2U;if(a==0x208)*v&=~1U;
   if(a==0x1208&&w==4)*v&=~0x80000000U;
@@ -76,7 +78,7 @@ struct Bus {
   if(a==0x1b00&&w==4&&(!rfkFail||((*v>>4)&15U)!=1U))*v&=~1U;
   if(a==0x1b08&&w==4)*v=0;if(a==0x1bfc&&w==4)*v=0x00100010U;return 0;
  }
- int write(uint16_t a,unsigned w,uint32_t v){if(powerOffFail&&a==5&&(v&2))return EIO;writes++;put(a,w,v);
+ int write(uint16_t a,unsigned w,uint32_t v){if((powerOffFail&&a==5&&(v&2))||a==failWriteAddress)return failureError;writes++;put(a,w,v);
   if(a==0x30&&w==4)otpAddress=(v>>8)&1023;
   if(a==5&&(v&2))put(0x100,1,0xea);else if(a==5&&(v&1)){powerOns++;put(0x100,1,0);}
   if(a==3&&(v&4)&&(get(0x80,2)&0x4000))put(0x80,2,0xc078);
@@ -141,6 +143,7 @@ public:
  int start8192DU(){return ENOTSUP;}int start88(){return ENOTSUP;}int start8812(){return ENOTSUP;}
  void status(RTWControlStatus*){}void scanResults(RTWControlScanResults*){}void channelMap(RTWControlChannelMap*){}
  int start8814();void stop8814();int set8814Channel(uint8_t);int state8814(ieee80211com*,ieee80211_state,int);
+ int tick8814();bool uses8814FirmwareRate()const;
  static void initTask8814(void*);
  rtw_8814au_station_params station8814Params()const;IOReturn enableStation();IOReturn handleControl(ControlCall*);
  IOReturn request(uint32_t selector){RTWControlJoin input{};input.version=RTW_CONTROL_VERSION;input.ssidLength=1;input.ssid[0]='x';
@@ -223,5 +226,51 @@ static void deferredStopRetainsCleanupFailure(){auto c=std::make_unique<RTWUSBCo
  CHECK(c->request(RTW_CONTROL_SCAN)!=kIOReturnSuccess&&c->acRecoveryDiag_.recoveryAttempts==attempts);}
 static void unvalidatedInitialRXBlocksBootstrap(){auto c=std::make_unique<RTWUSBController>();c->rxRecovery_.initialDrainMask=1;
  const auto reads=c->bus.reads,writes=c->bus.writes;CHECK(c->start8814()==EBUSY);CHECK(c->bus.reads==reads&&c->bus.writes==writes&&!c->rxSubmitted);}
+static std::unique_ptr<RTWUSBController> periodicFixture(){
+ auto c=std::make_unique<RTWUSBController>();CHECK(c->request(RTW_CONTROL_SCAN)==kIOReturnSuccess);
+ c->core_.sc_ic.ic_state=IEEE80211_S_RUN;c->acMediaConnected_=c->acRateReady_=true;c->acRSSI_=52;
+ c->bus.put(0x2908,4,31U<<10);return c;
+}
+static void advisoryRSSIBusyKeepsActualPHYAndContextHealthy(){
+ auto c=periodicFixture();const auto rfk=c->bus.rfkStarts;const auto box=c->acCore_.h2c_box;
+ c->bus.put(0x1cc,1,1U<<box);
+ for(unsigned retry=0;retry<32;retry++){
+  CHECK(c->tick8814()==0);CHECK(!c->core_.core_error&&!c->acCore_.io_error);
+  CHECK(c->acCore_.phy_initialized&&c->running_&&c->radioReady_);
+  CHECK(c->acCore_.h2c_box==box&&c->bus.rfkStarts==rfk);
+ }
+ c->publish8814RecoveryDiagnostics();
+ CHECK(c->published["RTWDiagAUPeriodicCalls"]==32&&c->published["RTWDiagAUPeriodicRSSIAttempts"]==32);
+ CHECK(c->published["RTWDiagAUPeriodicRSSIBusy"]==32&&c->published["RTWDiagAUPeriodicResult"]==EBUSY);
+ CHECK(c->published["RTWDiagAUPeriodicPHYFailures"]==0&&c->published["RTWDiagAUPeriodicRSSIFailures"]==0);
+ CHECK(c->published["RTWDiagAUPeriodicLastFailurePhase"]==0&&c->published["RTWDiagAUPeriodicLastFailureResult"]==0);
+ c->bus.put(0x1cc,1,0);CHECK(c->tick8814()==0);CHECK(c->acCore_.h2c_box==((box+1)&3));
+ c->publish8814RecoveryDiagnostics();CHECK(c->published["RTWDiagAUPeriodicResult"]==0);
+ CHECK(c->published["RTWDiagAUPeriodicRSSIBusy"]==32&&c->published["RTWDiagAUPeriodicRSSIAttempts"]==33);
+}
+static void periodicHardErrorsRetainTypedPhase(){
+ for(int error:{EIO,EBUSY,ETIMEDOUT})for(unsigned boundary=0;boundary<3;boundary++){
+  auto c=periodicFixture();if(boundary)c->bus.failWriteAddress=(boundary==1?0x1f0:0x1d0)+c->acCore_.h2c_box*4;
+  else c->bus.failReadAddress=0x1cc;
+  c->bus.failureError=error;CHECK(c->tick8814()==error&&c->acCore_.io_error==error);
+  c->publish8814RecoveryDiagnostics();CHECK(c->published["RTWDiagAUPeriodicRSSIFailures"]==1);
+  CHECK(c->published["RTWDiagAUPeriodicLastFailurePhase"]==2&&c->published["RTWDiagAUPeriodicLastFailureResult"]==(uint32_t)error);
+  CHECK(c->published["RTWDiagAUPeriodicRSSIBusy"]==0&&c->published["RTWDiagAUPeriodicPHYFailures"]==0);
+ }
+ for(int error:{EBUSY,EIO,ETIMEDOUT}){
+  auto c=periodicFixture();c->acCore_.io_error=error;const auto reads=c->bus.reads,writes=c->bus.writes;
+  CHECK(c->tick8814()==error&&c->acCore_.io_error==error);
+  CHECK(c->bus.reads==reads&&c->bus.writes==writes);
+  c->publish8814RecoveryDiagnostics();CHECK(c->published["RTWDiagAUPeriodicPHYFailures"]==1);
+  CHECK(c->published["RTWDiagAUPeriodicLastFailurePhase"]==1&&c->published["RTWDiagAUPeriodicLastFailureResult"]==(uint32_t)error);
+  CHECK(c->published["RTWDiagAUPeriodicRSSIBusy"]==0&&c->published["RTWDiagAUPeriodicRSSIAttempts"]==0);
+ }
+ auto c=periodicFixture();CHECK(c->tick8814()==0);c->bus.put(0x2908,4,63U<<10);c->bus.rfkFail=true;
+ CHECK(c->tick8814()==ETIMEDOUT&&!c->acCore_.phy_initialized);
+ c->publish8814RecoveryDiagnostics();CHECK(c->published["RTWDiagAUPeriodicPHYFailures"]==1);
+ CHECK(c->published["RTWDiagAUPeriodicLastFailurePhase"]==1&&c->published["RTWDiagAUPeriodicLastFailureResult"]==ETIMEDOUT);
+ CHECK(c->published["RTWDiagAUPeriodicRSSIAttempts"]==1&&c->published["RTWDiagAUPeriodicRSSIFailures"]==0);
+}
 int main(){retryStartsFromNativeReset();joinAlsoRecovers();persistentTimeoutIsBounded();negativeGates();failedPowerOffNeverRestarts();changedRomNeverRestarts();failedIdentityReadNeverRestarts();changedChipNeverRestarts();drainMustFinish();cleanupSeparatesOriginalError();healthyStopMustDrainBeforeRestart();initialTransientDoesNotLatch();directStartCannotBypassLatchedRecovery();finalCallbackCompletesDisabledStop();deferredStopDoesNotAccessUnavailableUSB();deferredStopRetainsCleanupFailure();unvalidatedInitialRXBlocksBootstrap();
+ advisoryRSSIBusyKeepsActualPHYAndContextHealthy();periodicHardErrorsRetainTypedPhase();
  std::printf("AU actual startup/control recovery: %u checks, %u failures\n",checks,failures);return failures?1:0;}

@@ -99,9 +99,15 @@ extern "C" int rtw_r12au_download_fw(rtw_r12au_boot*c,const uint8_t*image,size_t
 extern "C" int rtw_r12au_power_off(rtw_r12au_boot*c){event(91);c->powered=c->firmware_running=c->mac_initialized=c->dma_prepared=c->associated=0;return c->io_error;}
 extern "C" int rtw_r12au_power_off_checked(rtw_r12au_boot*c){int original=c->io_error;c->io_error=0;const int error=rtw_r12au_power_off(c);c->io_error=original;return error;}
 static std::vector<std::array<uint8_t,8>> commands;
+static int advisoryRSSIError=0;static bool advisoryRSSISticky=false;
 extern "C" int rtw_r12au_h2c(rtw_r12au_boot*c,const uint8_t*b){
  if(c->io_error)return c->io_error;std::array<uint8_t,8> command{};memcpy(command.data(),b,8);commands.push_back(command);
  assert(b[0]==0x40||b[0]==1||b[0]==0x42||b[0]>=0x60);c->h2c_box=(uint8_t)((c->h2c_box+1)%4);int e=event(b[0]>=0x60?36:b[0]==0x40?30:b[0]==1?(b[1]?32:33):34);if(e)c->io_error=e;return e;}
+extern "C" int rtw_r12au_h2c_rssi_monitor(rtw_r12au_boot*c,const uint8_t*b){
+ assert(b[0]==0x42);if(c->io_error)return c->io_error;
+ if(advisoryRSSIError){if(advisoryRSSISticky)c->io_error=advisoryRSSIError;return advisoryRSSIError;}
+ return rtw_r12au_h2c(c,b);
+}
 static uint64_t testClock=1000;
 class RTWUSBController {public:
 
@@ -411,8 +417,20 @@ int main(){coexStopWaitsForCallbacks();shiftedPHYReports();profileBandAdmission(
   assert(f.c.decode8812USBFrame(&it,&out,&report)==RTW_PACKETS_OK&&out.payload.mpdu_length==28&&out.payload.mpdu[27]==0x7b);
   assert(f.c.decode8812USBFrame(&it,&out,&report)==RTW_PACKETS_OK&&report==5&&out.payload.mpdu_length==6);
   assert(f.c.decode8812USBFrame(&it,&out,&report)==RTW_PACKETS_DONE);
-  it.cursor=0;it.frames=65;assert(f.c.decode8812USBFrame(&it,&out,&report)==RTW_PACKETS_BAD_ARGUMENT);
+  // The real count guards remain active after removing the obsolete64 cap.
+  it.frames=RTW_R12AU_MAX_RX_FRAMES;assert(f.c.decode8812USBFrame(&it,&out,&report)==RTW_PACKETS_DONE&&it.cursor==it.length);
+  it.cursor=0;assert(f.c.decode8812USBFrame(&it,&out,&report)==RTW_PACKETS_TOO_MANY&&it.cursor==0);
+  it.frames=RTW_R12AU_MAX_RX_FRAMES+1;assert(f.c.decode8812USBFrame(&it,&out,&report)==RTW_PACKETS_BAD_ARGUMENT&&it.cursor==0);
   it.frames=0;it.length=8;assert(f.c.decode8812USBFrame(&it,&out,&report)==RTW_PACKETS_TRUNCATED&&it.cursor==0);
+ }
+ for(auto family:{RTW_WIFI_RTL8812AU,RTW_WIFI_RTL8821AU}){
+  // Opaque complete wire units only; no radio frame fixture or USB I/O.
+  Fixture f(family);std::vector<uint8_t>v(65*56,0x5a);
+  for(unsigned i=0;i<65;++i){auto*descriptor=v.data()+i*56;std::memset(descriptor,0,24);descriptor[0]=32;}
+  rtw_rx_iterator it{v.data(),v.size(),0,0};rtw_8192eu_rx_frame out{};uint8_t report=0;unsigned count=0;
+  rtw_packet_error result;
+  while((result=f.c.decode8812USBFrame(&it,&out,&report))==RTW_PACKETS_OK){assert(!report&&out.payload.mpdu_length==32);++count;}
+  assert(result==RTW_PACKETS_DONE&&count==65&&it.frames==65&&it.cursor==3640);
  }
  // Download mode and an all-ones/lost USB status cannot retain RUN or keys.
  // Execute the actual watchdog method for both AU firmware families.
@@ -425,6 +443,15 @@ int main(){coexStopWaitsForCallbacks();shiftedPHYReports();profileBandAdmission(
   assert(!f.n.ni_port_valid&&f.c.core_.sc_ic.ic_state==IEEE80211_S_INIT&&f.c.core_.core_error==EIO);
   assert(!f.phy.status.calibrated&&!f.phy.status.tx_enabled&&commands.size()==sent);
   assert(std::count(events.begin(),events.end(),35)==thermal);
+ }
+ for(auto family:{RTW_WIFI_RTL8812AU,RTW_WIFI_RTL8821AU}){
+  Fixture f(family);f.run();f.n.ni_port_valid=true;f.c.auRSSI_=51;f.c.auRSSIValid_=true;
+  const auto before=commands.size();advisoryRSSIError=EBUSY;
+  assert(!f.c.tick8812()&&f.c.authorized()&&f.n.ni_port_valid&&f.c.auRateReady_&&commands.size()==before&&!f.c.auCore_.io_error);
+  advisoryRSSIError=0;assert(!f.c.tick8812()&&commands.back()[0]==0x42);
+  for(int error:{EIO,ETIMEDOUT,EBUSY}){f.c.auCore_.io_error=0;advisoryRSSIError=error;advisoryRSSISticky=true;
+   assert(f.c.tick8812()==error&&f.c.auCore_.io_error==error);}
+  advisoryRSSIError=0;advisoryRSSISticky=false;
  }
  {Fixture f;f.run();regs[0x80]=0xc6;assert(!f.c.tick8812());f.c.auRSSI_=51;f.c.auRSSIValid_=true;assert(!f.c.tick8812()&&commands.back()[0]==0x42&&commands.back()[3]==51);
   uint8_t report[6]={0x0c,0,11,0,0,0};f.c.handle8812C2H(report,6);assert(f.c.rateControl_.reports==1&&f.c.rateControl_.finalRate==11);report[2]=12;f.c.handle8812C2H(report,6);assert(f.c.rateControl_.invalid==1);

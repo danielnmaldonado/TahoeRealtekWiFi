@@ -1172,6 +1172,25 @@ int RTWUSBController::sendFrame(mbuf_t packet,ieee80211_node*node) {
     }
     return error;
 }
+void RTWUSBController::updateFirmwareRSSI(const rtw_rx_packet&p,int dbm,unsigned percent) {
+    const auto*n=core_.sc_ic.ic_bss;
+    /* Per-frame RSSI still belongs to its RX node during scanning. Firmware
+     * rate feedback and the association average must only use the linked AP.
+     * RUN may precede WPA authorization, so do not gate this on port_valid. */
+    if(!p.phy_status_present||!rtw_signal_valid_dbm(dbm)||
+       core_.sc_ic.ic_state!=IEEE80211_S_RUN||!n||
+       !rtw_signal_from_ap(p.mpdu,p.mpdu_length,n->ni_bssid))return;
+    if(family_==RTW_WIFI_RTL8814AU){
+        if(percent>100U)return;
+        acRSSI_=(uint8_t)percent;
+    }
+    if(family_==RTW_WIFI_RTL8192CU||family_==RTW_WIFI_RTL8188EU||family_==RTW_WIFI_RTL8192EU)
+        rtwn_update_avgrssi(&core_,p.rate_index,(int8_t)dbm);
+    else{
+        const auto value=rtw_signal_node_value(dbm);
+        core_.avg_pwdb=core_.avg_pwdb<0?value:(core_.avg_pwdb*19+value)/20;
+    }
+}
 void RTWUSBController::receive(const uint8_t*bytes,size_t length) {
     if(!attached_||!running_||!netif_||!stats_||!core_.sc_ic.ic_if.iface)return;
     ++rxDiag_.aggregates;rxDiag_.bytes+=length;
@@ -1214,14 +1233,54 @@ void RTWUSBController::receive(const uint8_t*bytes,size_t length) {
         const auto&p=frame.payload;
         if(reportType){++rxDiag_.c2h;if(reportType==7)handle8723C2H(p.mpdu,p.mpdu_length);else if(reportType==6)handle88C2H(p.mpdu,p.mpdu_length);else if(reportType==5){if(is8192FUFamily())handle8192FUC2H(p.mpdu,p.mpdu_length);else if(is8710BUFamily())handle8710BUC2H(p.mpdu,p.mpdu_length);else handle8812C2H(p.mpdu,p.mpdu_length);}else if(reportType==4)handle8814C2H(p.mpdu,p.mpdu_length);else if(reportType==1)handleTxReport(p.mpdu,p.mpdu_length);continue;}
         uint64_t*drop=nullptr;
+        const bool authorizedHT=authorized()&&(usesFirmwareRate()||usesLegacyHighThroughput()||(uses8814FirmwareRate()&&acRateConfig_.ht)||uses88HighThroughput()||uses8812HighThroughput()||uses8192FUHighThroughput()||uses8710BUHighThroughput()||(uses8723FirmwareRate()&&(r23Rates_.mask&0xff000U))||(uses8192DUFirmwareRate()&&duMAC_.rates.ht));
+        const uint8_t*peer=core_.sc_ic.ic_bss?core_.sc_ic.ic_bss->ni_bssid:nullptr;
+        rtw_rx_admission_reason admissionReason=RTW_RX_REJECT_RATE;
         if(((family_==RTW_WIFI_RTL8192CU||family_==RTW_WIFI_RTL8188EU)&&!acceptsLegacyReceiveRate(p))||(is8723Family()&&(p.rate_index>=20||(p.rate_index>=12&&(!uses8723FirmwareRate()||!(r23Rates_.mask&0xff000U)||p.bandwidth_code))))||(is8710BUFamily()&&!accepts8710BUReceiveRate(p))||(is8192FUFamily()&&!accepts8192FUReceiveRate(p))||(family_==RTW_WIFI_RTL8192DU&&p.rate_index>=12U+8U*core_.nrxchains)||(is8812Family()&&!accepts8812ReceiveRate(p))||(is88Family()&&!accepts88ReceiveRate(p))||(family_==RTW_WIFI_RTL8814AU&&p.rate_index>27)||
            (family_!=RTW_WIFI_RTL8192CU&&family_!=RTW_WIFI_RTL8188EU&&family_!=RTW_WIFI_RTL8192EU&&family_!=RTW_WIFI_RTL8814AU&&!is88Family()&&!is8812Family()&&family_!=RTW_WIFI_RTL8192DU&&family_!=RTW_WIFI_RTL8192FU&&family_!=RTW_WIFI_RTL8710BU&&family_!=RTW_WIFI_RTL8723BU&&p.rate_index>=12))drop=&rxDiag_.invalidFrameDrops;
         else if(p.crc_error)drop=&rxDiag_.crcDrops;
         else if(p.icv_error)drop=&rxDiag_.icvDrops;
-        else if(!rtw_92e_rx_frame_allowed(p.mpdu,p.mpdu_length,authorized()&&(usesFirmwareRate()||usesLegacyHighThroughput()||(uses8814FirmwareRate()&&acRateConfig_.ht)||uses88HighThroughput()||uses8812HighThroughput()||uses8192FUHighThroughput()||uses8710BUHighThroughput()||(uses8723FirmwareRate()&&(r23Rates_.mask&0xff000U))||(uses8192DUFirmwareRate()&&duMAC_.rates.ht)),
-                core_.sc_ic.ic_myaddr,core_.sc_ic.ic_bss?core_.sc_ic.ic_bss->ni_bssid:nullptr))drop=&rxDiag_.invalidFrameDrops;
+        else if((admissionReason=rtw_92e_rx_frame_reason(p.mpdu,p.mpdu_length,authorizedHT,
+                core_.sc_ic.ic_myaddr,peer))!=RTW_RX_ADMIT)drop=&rxDiag_.invalidFrameDrops;
         else if(frame.security_code&&!frame.sw_decrypt_required)drop=&rxDiag_.hardwareDecryptDrops;
-        if(drop){++*drop;rxErrors_++;stats_->inputErrors++;continue;}
+        if(drop){
+            /* Hardware/FW TX feedback is independent of this received copy.
+             * Consume only an ordinary validated BA; never apply its bitmap,
+             * change BA state, or reinterpret a USB completion as an ACK. */
+            if(drop==&rxDiag_.invalidFrameDrops&&admissionReason==RTW_RX_REJECT_CONTROL&&
+               !frame.security_code&&rtw_92e_rx_ba_consumable(p.mpdu,p.mpdu_length,
+                   authorizedHT,core_.sc_ic.ic_myaddr,peer)){
+                ++rxDiag_.blockAckFiltered;continue;
+            }
+            if(drop==&rxDiag_.invalidFrameDrops){
+                ++rxDiag_.rejectedReasons[admissionReason];
+                if(admissionReason==RTW_RX_REJECT_CONTROL&&p.mpdu&&p.mpdu_length)
+                    ++rxDiag_.rejectedControlSubtypes[p.mpdu[0]>>4];
+                rxDiag_.rejectLastReason=admissionReason;
+                rxDiag_.rejectLastLength=p.mpdu_length;rxDiag_.rejectLastMS=nowMS();
+                rxDiag_.rejectLastType=p.mpdu&&p.mpdu_length?((p.mpdu[0]>>2)&3U):255U;
+                rxDiag_.rejectLastSubtype=p.mpdu&&p.mpdu_length?(p.mpdu[0]>>4):255U;
+                rxDiag_.rejectLastFlags=p.mpdu&&p.mpdu_length>=2U?p.mpdu[1]:0U;
+                rxDiag_.rejectLastVersion=p.mpdu&&p.mpdu_length?(p.mpdu[0]&3U):255U;
+                rxDiag_.rejectLastSecurity=frame.security_code;
+                rxDiag_.rejectLastSoftwareDecrypt=frame.sw_decrypt_required;
+                rxDiag_.rejectLastPHY=p.phy_status_present;
+                rxDiag_.rejectLastPHYBytes=p.phy_info_length;
+                rxDiag_.rejectLastReceiverMatch=p.mpdu&&p.mpdu_length>=10U&&
+                    !memcmp(p.mpdu+4,core_.sc_ic.ic_myaddr,6);
+                rxDiag_.rejectLastTransmitterMatch=p.mpdu&&p.mpdu_length>=16U&&core_.sc_ic.ic_bss&&
+                    !memcmp(p.mpdu+10,core_.sc_ic.ic_bss->ni_bssid,6);
+                rxDiag_.rejectLastState=core_.sc_ic.ic_state;
+                rxDiag_.rejectLastAuthorized=authorized();
+                rxDiag_.rejectLastReadBytes=length;rxDiag_.rejectLastRate=p.rate_index;
+                rxDiag_.rejectLastBAControl=65535;rxDiag_.rejectLastBAFragment=255;
+                if(p.mpdu&&p.mpdu_length>=18U&&(p.mpdu[0]&0xfcU)==0x94U){
+                    rxDiag_.rejectLastBAControl=(unsigned)p.mpdu[16]|((unsigned)p.mpdu[17]<<8U);
+                    if(p.mpdu_length>=20U)rxDiag_.rejectLastBAFragment=p.mpdu[18]&15U;
+                }
+            }
+            ++*drop;rxErrors_++;stats_->inputErrors++;continue;
+        }
         if((p.mpdu[0]&IEEE80211_FC0_TYPE_MASK)==IEEE80211_FC0_TYPE_CTL)++rxBARPackets_;
         observeReceivedRate(p);
         if(p.mpdu[1]&IEEE80211_FC1_PROTECTED)++rxDiag_.protectedMPDUs;
@@ -1231,60 +1290,33 @@ void RTWUSBController::receive(const uint8_t*bytes,size_t length) {
            associatedBeacon(p.mpdu,p.mpdu_length))lastBeaconMs_=nowMS();
         ieee80211_rxinfo info{};
         int measuredRSSI=0;
+        unsigned firmwarePercent=0;
         unsigned scanPhysicalChannel=0;
         if(family_==RTW_WIFI_RTL8814AU&&p.phy_status_present){
             rtw_8814au_rx_frame acFrame{};acFrame.packet=p;rtw_8814au_phy_status phy{};
             if(rtw_8814au_parse_phy(&acFrame,acCore_.board.antenna_rx,&phy)){
                 measuredRSSI=phy.signal_dbm;
                 scanPhysicalChannel=phy.channel;
-                if(rtw_signal_valid_dbm(measuredRSSI)){
-                    acRSSI_=phy.rssi;
-                    info.rxi_rssi=rtw_signal_node_value(measuredRSSI);
-                    core_.avg_pwdb=core_.avg_pwdb<0?info.rxi_rssi:(core_.avg_pwdb*19+info.rxi_rssi)/20;
-                }
+                firmwarePercent=phy.rssi;
             }
         }else if(is8723Family()){
             measuredRSSI=sample8723RSSI(p);
-            if(rtw_signal_valid_dbm(measuredRSSI)){
-                info.rxi_rssi=rtw_signal_node_value(measuredRSSI);
-                core_.avg_pwdb=core_.avg_pwdb<0?info.rxi_rssi:(core_.avg_pwdb*19+info.rxi_rssi)/20;
-            }
         }else if(is8710BUFamily()){
             measuredRSSI=sample8710BURSSI(p);
-            if(rtw_signal_valid_dbm(measuredRSSI)){
-                info.rxi_rssi=rtw_signal_node_value(measuredRSSI);
-                core_.avg_pwdb=core_.avg_pwdb<0?info.rxi_rssi:(core_.avg_pwdb*19+info.rxi_rssi)/20;
-            }
         }else if(is8192FUFamily()){
             measuredRSSI=sample8192FURSSI(p);
-            if(rtw_signal_valid_dbm(measuredRSSI)){
-                info.rxi_rssi=rtw_signal_node_value(measuredRSSI);
-                core_.avg_pwdb=core_.avg_pwdb<0?info.rxi_rssi:(core_.avg_pwdb*19+info.rxi_rssi)/20;
-            }
         }else if(family_==RTW_WIFI_RTL8192DU){
             measuredRSSI=sample8192DURSSI(p);
-            if(rtw_signal_valid_dbm(measuredRSSI)){
-                info.rxi_rssi=rtw_signal_node_value(measuredRSSI);
-                core_.avg_pwdb=core_.avg_pwdb<0?info.rxi_rssi:(core_.avg_pwdb*19+info.rxi_rssi)/20;
-            }
         }else if(is88Family()){
             measuredRSSI=sample88RSSI(p);
-            if(rtw_signal_valid_dbm(measuredRSSI)){
-                info.rxi_rssi=rtw_signal_node_value(measuredRSSI);
-                core_.avg_pwdb=core_.avg_pwdb<0?info.rxi_rssi:(core_.avg_pwdb*19+info.rxi_rssi)/20;
-            }
         }else if(is8812Family()){
             measuredRSSI=sample8812RSSI(p);
-            if(rtw_signal_valid_dbm(measuredRSSI)){
-                info.rxi_rssi=rtw_signal_node_value(measuredRSSI);
-                core_.avg_pwdb=core_.avg_pwdb<0?info.rxi_rssi:(core_.avg_pwdb*19+info.rxi_rssi)/20;
-            }
         }else if(p.phy_status_present&&p.phy_info_length>=sizeof(r92c_rx_phystat)){
             measuredRSSI=rtwn_get_rssi(&core_,p.rate_index,const_cast<uint8_t*>(p.phy_info));
-            if(rtw_signal_valid_dbm(measuredRSSI)){
-                rtwn_update_avgrssi(&core_,p.rate_index,(int8_t)measuredRSSI);
-                info.rxi_rssi=rtw_signal_node_value(measuredRSSI);
-            }
+        }
+        if(rtw_signal_valid_dbm(measuredRSSI)){
+            info.rxi_rssi=rtw_signal_node_value(measuredRSSI);
+            updateFirmwareRSSI(p,measuredRSSI,firmwarePercent);
         }
         info.rxi_tstamp=p.timestamp;
         auto*channel=core_.sc_ic.ic_bss?core_.sc_ic.ic_bss->ni_chan:nullptr;
@@ -1356,8 +1388,7 @@ void RTWUSBController::calibAction(OSObject*o,IOTimerEventSource*) {
         return;
     }
     if(s->family_==RTW_WIFI_RTL8814AU){
-        int e=rtw_8814au_phy_tick(&s->acCore_);uint8_t command[8]{};
-        if(!e&&s->uses8814FirmwareRate()&&rtw_8814au_make_rssi_monitor(s->acRSSI_,command))e=rtw_8814au_h2c_mailbox(&s->acCore_,command);
+        int e=s->tick8814();
         if(e){s->record8814Failure(AUThermal,e);s->core_.core_error=e;s->quiesce(false);}else s->calibTimer_->setTimeoutMS(2000);
         return;
     }
@@ -1659,6 +1690,39 @@ void RTWUSBController::publishDiagnostics() {
     publish("RTWDiagRXCRCDrops",rxDiag_.crcDrops);
     publish("RTWDiagRXICVDrops",rxDiag_.icvDrops);
     publish("RTWDiagRXInvalidFrameDrops",rxDiag_.invalidFrameDrops);
+    publish("RTWDiagRXErrors",rxErrors_);
+    publish("RTWDiagRXRejectSchema",2);
+    publish("RTWDiagRXBlockAckFiltered",rxDiag_.blockAckFiltered);
+    for(unsigned i=0;i<16;++i){
+        char key[64];snprintf(key,sizeof(key),"RTWDiagRXRejectControlSubtype%u",i);
+        publish(key,rxDiag_.rejectedControlSubtypes[i]);
+    }
+    static const char*const rejectNames[RTW_RX_REJECT_REASON_COUNT]={
+        "Accepted","Length","Version","Header","Control","BARAuth",
+        "BARContext","BARFlags","BARReceiver","BARTransmitter","Rate"};
+    for(unsigned i=1;i<RTW_RX_REJECT_REASON_COUNT;++i){
+        char key[64];snprintf(key,sizeof(key),"RTWDiagRXReject%s",rejectNames[i]);
+        publish(key,rxDiag_.rejectedReasons[i]);
+    }
+    publish("RTWDiagRXRejectLastReason",rxDiag_.rejectLastReason);
+    publish("RTWDiagRXRejectLastLength",rxDiag_.rejectLastLength);
+    publish("RTWDiagRXRejectLastMonotonicMS",rxDiag_.rejectLastMS);
+    publish("RTWDiagRXRejectLastType",rxDiag_.rejectLastType);
+    publish("RTWDiagRXRejectLastSubtype",rxDiag_.rejectLastSubtype);
+    publish("RTWDiagRXRejectLastFlags",rxDiag_.rejectLastFlags);
+    publish("RTWDiagRXRejectLastVersion",rxDiag_.rejectLastVersion);
+    publish("RTWDiagRXRejectLastSecurity",rxDiag_.rejectLastSecurity);
+    publish("RTWDiagRXRejectLastSoftwareDecrypt",rxDiag_.rejectLastSoftwareDecrypt);
+    publish("RTWDiagRXRejectLastPHY",rxDiag_.rejectLastPHY);
+    publish("RTWDiagRXRejectLastPHYBytes",rxDiag_.rejectLastPHYBytes);
+    publish("RTWDiagRXRejectLastReceiverMatchesLocal",rxDiag_.rejectLastReceiverMatch);
+    publish("RTWDiagRXRejectLastTransmitterMatchesAP",rxDiag_.rejectLastTransmitterMatch);
+    publish("RTWDiagRXRejectLastState",rxDiag_.rejectLastState);
+    publish("RTWDiagRXRejectLastAuthorized",rxDiag_.rejectLastAuthorized);
+    publish("RTWDiagRXRejectLastReadBytes",rxDiag_.rejectLastReadBytes);
+    publish("RTWDiagRXRejectLastRate",rxDiag_.rejectLastRate);
+    publish("RTWDiagRXRejectLastBAControl",rxDiag_.rejectLastBAControl);
+    publish("RTWDiagRXRejectLastBAFragment",rxDiag_.rejectLastBAFragment);
     publish("RTWDiagRXHardwareDecryptDrops",rxDiag_.hardwareDecryptDrops);
     publish("RTWDiagRXAllocationDrops",rxDiag_.allocationDrops);
     publish("RTWDiagRXCopyDrops",rxDiag_.copyDrops);
@@ -1865,6 +1929,13 @@ IOReturn RTWUSBController::handleControl(ControlCall*call) {
     auto*reply=static_cast<RTWControlReply*>(call->output);reply->version=RTW_CONTROL_VERSION;
     if(call->selector==RTW_CONTROL_LEAVE){quiesce(true);return kIOReturnSuccess;}
     if(!attached_||!present_||sleeping_||usbError_!=kIOReturnSuccess)return kIOReturnNotReady;
+    /* SCAN is a foreground operation: net80211_begin_scan clears BSS keys.
+     * The app's last idle STATUS can precede an in-kernel recovery. Admit
+     * against the live, serialized state before any backend recovery/reset,
+     * preserving authentication, association and an established connection.
+     * Faulted/stopped radios still reach their normal recovery path below. */
+    if(call->selector==RTW_CONTROL_SCAN&&running_&&!stopping_&&!core_.core_error&&
+       core_.sc_ic.ic_state>=IEEE80211_S_AUTH)return kIOReturnBusy;
     if(family_==RTW_WIFI_RTL8814AU&&
        (call->selector==RTW_CONTROL_SCAN||call->selector==RTW_CONTROL_JOIN)){
         const int recovery=recover8814ForControl();if(recovery)return fromErrno(recovery);
@@ -2042,6 +2113,8 @@ bool RTWUSBController::start(IOService*provider) {
     cleanupCall_=thread_call_allocate_with_options(deferredCleanup,this,THREAD_CALL_PRIORITY_KERNEL,0);
     if(!lifecycleLock_||!loop_||!completionLock_||!cleanupCall_){reportStartStage("locks-workloop",kIOReturnNoMemory);releasePlatform();return false;}
     if(!super::start(provider)){reportStartStage("network-super-start",kIOReturnError);releasePlatform();return false;}
+    // Immutable identity is published once, independently of periodic counters.
+    setProperty("RTWDiagDriverBuild",(unsigned long long)66,64);
     usb_=OSDynamicCast(IOUSBHostInterface,provider);
     if(!usb_||!usb_->open(this)){reportStartStage("usb-open",kIOReturnNotOpen);releasePlatform();super::stop(provider);markTeardownReady();return false;}
     usbOpened_=present_=true;

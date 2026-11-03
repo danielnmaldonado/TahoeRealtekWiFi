@@ -57,9 +57,10 @@ struct Trace {
     std::vector<uint32_t> delays;
     int error=0;
     bool completeLLT=true,completePower=true;
-    unsigned writesUntilError=0;
+    unsigned writesUntilError=0,readsUntilError=0,readCalls=0;
 };
 static uint32_t read(Trace &t,uint16_t a) {
+    ++t.readCalls;if(t.readsUntilError && --t.readsUntilError==0)t.error=EIO;
     uint32_t v=t.regs[a];
     if(a==R92E_AUTO_LLT && t.completeLLT) v&=~R92E_AUTO_LLT_EN;
     if(a==R92C_APS_FSMCO && t.completePower) v=(v|R92C_APS_FSMCO_SUS_HOST)&~R92C_APS_FSMCO_APFM_ONMAC;
@@ -111,9 +112,22 @@ int main(){
      size_t agc=0;for(auto&w:t.writes)if(w.address==R92C_OFDM0_AGCRSSITABLE)agc++;
      assert(agc==129); /* one BB default plus 128 AGC entries */assert(wrote(t,R92C_AFE_XTAL_CTRL,4,0x000f81fb));
      assert(wrote(t,R92C_OFDM0_AGCCORE1(0),4,0x00040022));}
-    for(bool highSpeed:{false,true}){Trace t;auto s=context(t);assert(rtw92eu_aggr_init(&s,highSpeed)==0);
+    for(bool highSpeed:{false,true}){Trace t;auto s=context(t);
+     // The previous owner may have left DMA mode selected. USB aggregation
+     // must explicitly clear only mode bit 31 and preserve the other 7 bits.
+     t.regs[R92C_RXDMA_AGG_PG_TH+3]=0xd5;
+     t.regs[R92C_RXDMA_AGG_PG_TH]=0xb0;
+     assert(rtw92eu_aggr_init(&s,highSpeed)==0);
      assert(wrote(t,R92E_RXDMA_PRO,1,highSpeed?0x1e:0x2e));
-     assert(wrote(t,R92C_RXDMA_AGG_PG_TH,1,6));assert(wrote(t,R92C_RXDMA_AGG_PG_TH+1,1,32));}
+     assert(t.regs[R92C_RXDMA_AGG_PG_TH+3]==0x55);
+     assert(t.regs[R92C_RXDMA_AGG_PG_TH]==0xb6);assert(wrote(t,R92C_RXDMA_AGG_PG_TH+1,1,32));}
+    for(unsigned fail=1;fail<=8;++fail){Trace t;auto s=context(t);t.writesUntilError=fail;
+     assert(rtw92eu_aggr_init(&s,true)==EIO);assert(t.writes.size()==fail);}
+    // Every failed read stops before writing a value derived from that read.
+    for(unsigned fail=1;fail<=6;++fail){Trace t;auto s=context(t);t.readsUntilError=fail;
+     const unsigned writesBeforeRead[]={0,1,3,4,5,7};
+     assert(rtw92eu_aggr_init(&s,true)==EIO);assert(t.readCalls==fail);
+     assert(t.writes.size()==writesBeforeRead[fail-1]);}
     {Trace t;auto s=context(t);uint8_t bytes[4096];for(size_t i=0;i<sizeof(bytes);i++)bytes[i]=(uint8_t)i;
      assert(rtw92eu_fw_loadpage(&s,7,bytes,sizeof(bytes))==0);size_t count=0;
      for(auto&b:t.blocks){assert(b.address==R92C_FW_START_ADDR+count);assert(b.bytes.size()<=254);assert(!memcmp(b.bytes.data(),bytes+count,b.bytes.size()));count+=b.bytes.size();}

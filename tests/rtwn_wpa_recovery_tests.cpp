@@ -451,6 +451,11 @@ static void manual_scan_waits_for_rx_recovery_without_changing_hardware_state() 
             CHECK(c.scanCalls==0&&c.initCalls==0&&c.transitions.size()==transitions&&backendCalls(c)==calls);
             c.rxRecovery_.pending=false;c.running_=true;size=sizeof(reply);
             call.selector=RTW_CONTROL_SCAN;call.output=&reply;
+            CHECK(c.handleControl(&call)==kIOReturnBusy);
+            CHECK(c.scanCalls==0&&c.initCalls==0&&c.transitions.size()==transitions&&backendCalls(c)==calls);
+            CHECK(c.core_.sc_ic.ic_state==IEEE80211_S_RUN);
+            // Once the live attempt has ended, normal idle discovery resumes.
+            c.core_.sc_ic.ic_state=IEEE80211_S_INIT;size=sizeof(reply);
             CHECK(c.handleControl(&call)==kIOReturnSuccess);
             CHECK(c.scanCalls==1&&c.initCalls==0&&c.transitions.size()==transitions+1&&backendCalls(c)==calls+1);
             CHECK(c.core_.sc_ic.ic_state==IEEE80211_S_SCAN);

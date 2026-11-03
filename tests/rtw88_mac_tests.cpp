@@ -21,10 +21,10 @@ int main(){
   assert(p.queue_mapping==(pipes==2?0xfea0:pipes==3?0xf5a0:0xc5a0));
   for(unsigned q=0;q<20;q++){uint8_t ep=99;int e=rtw88_mac_queue_endpoint(&p,q,&ep);if(q>=8&&q<=15)assert(e==EINVAL&&ep==99);else assert(!e&&ep<pipes);}
   for(auto speed:{RTW88_USB_FULL_SPEED,RTW88_USB_HIGH_SPEED,RTW88_USB_SUPER_SPEED}){
-   Bus b;auto dev=b.context(f);rtw88_mac_context c{};assert(!rtw88_mac_initialize(&c,&dev,pipes,speed));assert(c.mac_ready);
+   Bus b;b.reg[0x283]=0xd5;auto dev=b.context(f);rtw88_mac_context c{};assert(!rtw88_mac_initialize(&c,&dev,pipes,speed));assert(c.mac_ready);
    assert(b.get(0x100,1)==0xff);assert(b.get(0x204,2)==p.reserved_boundary);assert(b.get(0x230,2)==p.high_pages);assert(b.get(0x240,2)==p.public_pages);
    assert(b.get(0x11c,4)==p.rx_fifo_bytes-257);assert(b.get(0x244,4)==uint32_t(p.h2c_page)*128);assert(b.get(0x248,4)==uint32_t(p.h2c_page+8)*128);
-   assert(b.get(0x290,1)==(speed==RTW88_USB_FULL_SPEED?0x2e:speed==RTW88_USB_HIGH_SPEED?0x1e:0x0e));assert(b.get(0x280,2)==0x2005);
+   assert(b.get(0x290,1)==(speed==RTW88_USB_FULL_SPEED?0x2e:speed==RTW88_USB_HIGH_SPEED?0x1e:0x0e));assert(b.get(0x280,2)==0x2005);assert(b.get(0x283,1)==0x55);assert(b.get(0x10c,1)&4);
    assert(b.get(0x60f,1)==4);assert(b.get(0x608,4)&0x10000000);assert(b.get(0x718,1)&0x40);
   }
  }

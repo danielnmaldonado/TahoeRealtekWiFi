@@ -50,7 +50,8 @@ static void happy(){
   assert(!rtw_r12au_power_on(&f.c));assert(f.c.powered&&f.b.read(0x100,2)==0x63f&&f.b.regs[0x522]==0x3f);if(one)assert(f.b.regs[0x7c]&0x40);
   assert(!rtw_r12au_dma_prepare(&f.c));unsigned boundary=one?248:247;assert(f.c.rsvd_boundary==boundary);for(unsigned i=0;i<256;++i)assert(f.b.llt[i]==(i==boundary-1?255:i==255?boundary:i+1));
   auto image=firmware(one);f.b.expected_fw=image.size()-32;rtw_boot_report r{};assert(!rtw_r12au_download_fw(&f.c,image.data(),image.size(),&r));assert(f.c.firmware_running&&r.firmware_ready&&r.checksum_seen&&r.pages_written==3&&r.bytes_written==8500&&r.version==42&&r.subversion==4);assert((f.b.regs[0x80]&0xc7)==0xc6);assert(!std::memcmp(image.data()+32,f.b.ram.data(),8500));assert(f.b.regs[0x1d]&(one?1:8));
-  assert(!rtw_r12au_mac_init(&f.c));assert(f.c.mac_initialized&&!f.c.associated&&f.b.regs[0x522]==0x3f);assert((f.b.read(0x100,2)&0xc0)==0xc0&&f.b.read(0x680,2)==0);assert(f.b.regs[0x609]&0x40);assert(!(f.b.regs[0x60b]&0x80));assert(f.b.regs[0x60f]==4);assert(f.b.read(0x116,2)==15999);assert(f.b.read(0x514,2)==0x100a);assert(f.b.regs[0x456]==(one?0x5e:0x70));assert(f.b.regs[0x114]==boundary);
+  f.b.regs[0x283]=0xd5;f.b.regs[0x290]=0xff;
+  assert(!rtw_r12au_mac_init(&f.c));assert(f.b.regs[0x283]==0xd5);assert(f.b.regs[0x290]==(speed==RTW_R12AU_USB_SUPER?0x0e:speed==RTW_R12AU_USB_HIGH?0x1e:0x2e));assert(f.c.mac_initialized&&!f.c.associated&&f.b.regs[0x522]==0x3f);assert((f.b.read(0x100,2)&0xc0)==0xc0&&f.b.read(0x680,2)==0);assert(f.b.regs[0x609]&0x40);assert(!(f.b.regs[0x60b]&0x80));assert(f.b.regs[0x60f]==4);assert(f.b.read(0x116,2)==15999);assert(f.b.read(0x514,2)==0x100a);assert(f.b.regs[0x456]==(one?0x5e:0x70));assert(f.b.regs[0x114]==boundary);
   unsigned hq=one?8:16,nq=endpoints>=3?hq:0,eq=one&&endpoints==4?4:0,pub=boundary-hq-nq-eq-1;assert(f.b.read(0x200,4)==(0x80000000U|hq|(pub<<16)));assert(f.b.read(0x214,4)==(nq|(eq<<16)));assert(f.b.read(0x280,2)==(speed==RTW_R12AU_USB_SUPER?0x1a06:0x2005));
   uint8_t ep=0;assert(!rtw_r12au_qsel_endpoint(&f.c,0,&ep)&&ep==(endpoints==2?3:4));assert(!rtw_r12au_qsel_endpoint(&f.c,0x12,&ep)&&ep==(endpoints==4?5:2));assert(rtw_r12au_qsel_endpoint(&f.c,15,&ep)==EINVAL&&!ep);
   const uint8_t bssid[6]={2,0xaa,0xbb,0xcc,0xdd,0xee};assert(!rtw_r12au_mac_station(&f.c,bssid,123,1));assert(f.c.associated&&f.b.read(0x6a8,2)==123&&(f.b.read(0x100,4)&0x30000)==0x20000);assert(!std::memcmp(f.b.regs.data()+0x618,bssid,6));assert(f.b.regs[0x608]&0xc0);assert(f.b.regs[0x522]==0x3f);assert(!rtw_r12au_mac_station(&f.c,nullptr,0,0)&&!f.c.associated);
@@ -143,4 +144,21 @@ static void timeouts(){
  }
 }
 static void checked_cleanup(){for(bool one:{false,true}){Fixture clean(one);clean.seed(3);clean.c.io_error=ETIMEDOUT;assert(rtw_r12au_power_off_checked(&clean.c)==0&&clean.c.io_error==ETIMEDOUT&&!clean.c.powered);Fixture failed(one);failed.seed(3);failed.b.fail_at=failed.b.calls+1;assert(rtw_r12au_power_off_checked(&failed.c)==EIO);failed.b.fail_at=0;assert(rtw_r12au_power_off_checked(&failed.c)==EIO);}}
-int main(int argc,char**argv){warm_reset_failures();checked_cleanup();assert(argc==1||argc==3);if(argc==3){actual_firmware(argv[1],false);actual_firmware(argv[2],true);}inputs();happy();firmware_boundaries();timeouts();error_sweep();ambiguous_writes_and_station();std::puts("Typed AU bootstrap/MAC: distinct OTP,8051,power,LLT,DMA,USB,station,H2C,rollback passed");}
+static void advisory_rssi(){for(bool one:{false,true})for(unsigned box=0;box<4;++box){
+ Fixture f(one);f.seed(3);f.c.associated=1;f.c.h2c_box=uint8_t(box);f.b.regs[0x1cc]=uint8_t(1U<<box);
+ const uint8_t command[8]={0x42,0,0,57};const auto writes=f.b.writes.size();
+ assert(rtw_r12au_h2c_rssi_monitor(&f.c,command)==EBUSY);
+ assert(!f.c.io_error&&f.c.firmware_running&&f.c.associated&&f.c.h2c_box==box&&f.b.writes.size()==writes&&f.b.waits==30);
+ f.b.regs[0x1cc]=0;assert(!rtw_r12au_h2c_rssi_monitor(&f.c,command)&&f.c.h2c_box==(box+1)%4);
+ for(unsigned position=1;position<=3;++position){Fixture bad(one);bad.seed(3);bad.b.fail_at=position;
+  assert(rtw_r12au_h2c_rssi_monitor(&bad.c,command)==EIO&&bad.c.io_error==EIO&&!bad.c.h2c_box);}
+ Fixture delay(one);delay.seed(3);delay.b.regs[0x1cc]=1;delay.b.delay_fail=true;
+ assert(rtw_r12au_h2c_rssi_monitor(&delay.c,command)==EIO&&delay.c.io_error==EIO);
+ Fixture invalid(one);invalid.seed(3);uint8_t bad[8]={0x40};
+ assert(rtw_r12au_h2c_rssi_monitor(&invalid.c,bad)==EINVAL&&!invalid.b.calls);
+ for(unsigned index=0;index<8;++index){std::memcpy(bad,command,8);bad[index]=index==0?1:index==3?101:1;
+  assert(rtw_r12au_h2c_rssi_monitor(&invalid.c,bad)==EINVAL&&!invalid.b.calls);}
+ for(int error:{EIO,ETIMEDOUT,EBUSY}){invalid.c.io_error=error;
+  assert(rtw_r12au_h2c_rssi_monitor(&invalid.c,command)==error&&!invalid.b.calls);}
+ }std::puts("AU optional RSSI: both families/all boxes preserve busy station, retry next tick; hard/sticky I/O and mandatory H2C remain fatal");}
+int main(int argc,char**argv){advisory_rssi();warm_reset_failures();checked_cleanup();assert(argc==1||argc==3);if(argc==3){actual_firmware(argv[1],false);actual_firmware(argv[2],true);}inputs();happy();firmware_boundaries();timeouts();error_sweep();ambiguous_writes_and_station();std::puts("Typed AU bootstrap/MAC: distinct OTP,8051,power,LLT,DMA,USB,station,H2C,rollback passed");}

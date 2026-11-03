@@ -142,6 +142,7 @@ public:
     int tick8723(){++familyTimerCalls;return 0;}int tick8710BU(){++familyTimerCalls;return 0;}
     int tick8192FU(){++familyTimerCalls;return 0;}int tick8192DU(){++familyTimerCalls;return 0;}
     int tick88(){++familyTimerCalls;return 0;}int tick8812(){++familyTimerCalls;return 0;}
+    int tick8814(){++acCore_.timerHardwareCalls;return 0;}
     bool uses8814FirmwareRate()const{return false;}void chooseRateControl(){}
     RTWUSBController(){endpoints_.bulk_in[0]=0x81;for(unsigned i=0;i<RTW_TRANSFER_SLOTS;++i){transfers_[i].owner=this;transfers_[i].index=i;transfers_[i].memory=&memory_[i];}}
     void retain(){++references;}void release(){if(!references)std::abort();--references;}

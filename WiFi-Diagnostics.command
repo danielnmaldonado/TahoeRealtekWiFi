@@ -7,7 +7,7 @@ set -o pipefail
 umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
-COLLECTOR_REVISION=3
+COLLECTOR_REVISION=6
 MINUTES=30
 INCLUDE_DEBUG=0
 RAW=0
@@ -589,6 +589,11 @@ my @au_numeric=qw(RTWAUBootstrapStage RTWAUBootstrapResult RTWAUBootstrapFirstEr
     RTWAUWarmResetMCU RTWAUWarmResetResult RTWAU2GHzChannel1PowerResult
     RTWAU5GHzChannel36PowerResult);
 my %au_numeric=map {$_=>1} @au_numeric;
+my @au_runtime_counters=qw(RTWDiagAUStarts RTWDiagAUFailures
+    RTWDiagAURecoveryAttempts RTWDiagAURecoverySuccesses
+    RTWDiagAUPeriodicCalls RTWDiagAUPeriodicPHYFailures
+    RTWDiagAUPeriodicRSSIAttempts RTWDiagAUPeriodicRSSIBusy RTWDiagAUPeriodicRSSIFailures);
+my %au_runtime_counters=map {$_=>1} @au_runtime_counters;
 my @au_stage_names=qw(RTWAUBootstrapStageName RTWAUWarmResetStageName);
 open my $status,"<","$root/STATUS.tsv" or die "capture status: $!";
 while (my $line=<$status>) {
@@ -745,7 +750,7 @@ for my $id (sort {$a<=>$b} keys %ids) {
         print $out "Publication: generation advanced $before->{$publication[0]} -> $after->{$publication[0]}.\n";
     }
     for my $k (@publication) {print $out "$k=$after->{$k}\n" if exists $after->{$k};}
-    for my $k (qw(RTWDiagCurrentChannel RTWDiagWPAPortValid RTWDiagWPAState RTWDiagRXRecoveryStage IOLinkStatus IOLinkSpeed
+    for my $k (qw(RTWDiagDriverBuild RTWDiagCurrentChannel RTWDiagWPAPortValid RTWDiagWPAState RTWDiagRXRecoveryStage IOLinkStatus IOLinkSpeed
         RTWDiagHTNegotiated RTWDiagVHTNegotiated RTWDiagHTChannelWidthMHz RTWDiagHTTXStreams RTWDiagHTTXBATIDs RTWDiagHTRXBATIDs
         RTWDiagLinkSpeedKnown RTWDiagLinkSpeedBps RTWDiagNativeIfnetIndex RTWDiagNativeIfnetStatsValid RTWDiagNativeIfnetStatsError)) {
         print $out "$k=$after->{$k}\n" if exists $after->{$k};
@@ -756,12 +761,18 @@ for my $id (sort {$a<=>$b} keys %ids) {
     print $out "RTWUSBDiscoveryStage=$after->{RTWUSBDiscoveryStage}\n" if exists $after->{RTWUSBDiscoveryStage};
     for my $k (sort grep {/^RTWDiagUSBDiscovery/} keys %$after) {print $out "$k=$after->{$k}\n";}
     for my $k (@au_numeric,@au_stage_names) {print $out "$k=$after->{$k}\n" if exists $after->{$k};}
-    # These are cumulative before/after values around ONE sampled input batch,
-    # not counters spanning the collector's capture interval. Export as gauges.
-    for my $k (sort grep {/^RTWDiagRXNative/ || /^RTWDiagRXInputInterfaceMatchesChild$/} keys %$after) {
+    # Stage/result/time fields describe context, not event counts. Preserve
+    # the typed AU runtime failure even when the radio has already recovered.
+    for my $k (sort grep {/^RTWDiagAU/ && !$au_runtime_counters{$_}} keys %$after) {
         print $out "$k=$after->{$k}\n";
     }
-    for my $k (qw(RTWDiagRXRecoveryErrors RTWDiagRXRecoveryAttempts RTWDiagRXRecoveryFailures RTWDiagRXRecoveryCompleted RTWDiagRXRecoveryExhausted RTWDiagTXUSBTransferErrors RTWDiagTXQueueDrops RTWDiagRXAggregateErrors RTWDiagRXAggregateTruncated RTWDiagRXAggregateMalformed RTWDiagRXAggregateTooMany RTWDiagRXAggregateBadArgument RTWDiagRXBytes RTWDiagRXAggregates RTWDiagRXEthernetQueued
+    # These are cumulative before/after values around ONE sampled input batch,
+    # not counters spanning the collector's capture interval. Export as gauges.
+    for my $k (sort grep {/^RTWDiagRXNative/ || /^RTWDiagRXInputInterfaceMatchesChild$/ || /^RTWDiagRXReject(?:Last|Schema)/} keys %$after) {
+        print $out "$k=$after->{$k}\n";
+    }
+    for my $k (@au_runtime_counters,qw(RTWDiagRXBlockAckFiltered RTWDiagRXRejectControlSubtype0 RTWDiagRXRejectControlSubtype1 RTWDiagRXRejectControlSubtype2 RTWDiagRXRejectControlSubtype3 RTWDiagRXRejectControlSubtype4 RTWDiagRXRejectControlSubtype5 RTWDiagRXRejectControlSubtype6 RTWDiagRXRejectControlSubtype7 RTWDiagRXRejectControlSubtype8 RTWDiagRXRejectControlSubtype9 RTWDiagRXRejectControlSubtype10 RTWDiagRXRejectControlSubtype11 RTWDiagRXRejectControlSubtype12 RTWDiagRXRejectControlSubtype13 RTWDiagRXRejectControlSubtype14 RTWDiagRXRejectControlSubtype15 RTWDiagRXErrors RTWDiagRXRejectLength RTWDiagRXRejectVersion RTWDiagRXRejectHeader RTWDiagRXRejectControl RTWDiagRXRejectBARAuth RTWDiagRXRejectBARContext RTWDiagRXRejectBARFlags RTWDiagRXRejectBARReceiver RTWDiagRXRejectBARTransmitter RTWDiagRXRejectRate
+        RTWDiagRXRecoveryErrors RTWDiagRXRecoveryAttempts RTWDiagRXRecoveryFailures RTWDiagRXRecoveryCompleted RTWDiagRXRecoveryExhausted RTWDiagTXUSBTransferErrors RTWDiagTXQueueDrops RTWDiagRXAggregateErrors RTWDiagRXAggregateTruncated RTWDiagRXAggregateMalformed RTWDiagRXAggregateTooMany RTWDiagRXAggregateBadArgument RTWDiagRXBytes RTWDiagRXAggregates RTWDiagRXEthernetQueued
         RTWDiagNet80211InputErrors RTWDiagNet80211RXBABelowWindow RTWDiagNet80211RXBAAboveWindow
         RTWDiagNet80211RXBAWindowSlides RTWDiagNet80211RXBAWindowJumps RTWDiagNet80211RXBANoBuffer
         RTWDiagNet80211RXBAFramesLost RTWDiagNet80211RXBAWindowGapTimeouts RTWDiagNet80211RXBATimeouts
@@ -785,7 +796,11 @@ for my $id (sort {$a<=>$b} keys %ids) {
         if ($after->{$k}<$before->{$k}) {print $out "$k before=$before->{$k} after=$after->{$k}; reset/restarted, delta unavailable\n";next;}
         print $out "$k before=$before->{$k} after=$after->{$k} delta=".($after->{$k}-$before->{$k})."\n";
     }
-    print $out "AU calibration timing: not instrumented; RTWDiagCalib*=0 does not measure the absence of delay.\n" if ($r->{family}//"") =~ /AU$/;
+    if (exists $after->{RTWDiagAUPeriodicPhase}) {
+        print $out "AU maintenance phase: 1=PHY/thermal, 2=RSSI H2C. RSSI busy is deferred only with no latched I/O error. Calibration duration is not instrumented.\n";
+    } elsif (($r->{family}//"") =~ /AU$/) {
+        print $out "AU calibration timing: not instrumented; RTWDiagCalib*=0 does not measure the absence of delay.\n";
+    }
 }
 close $out or die "close summary: $!";
 PERL_RTW

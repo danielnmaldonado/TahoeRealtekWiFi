@@ -191,6 +191,19 @@ private:
         uint64_t partialAggregates = 0, partialPrefixFrames = 0;
         uint64_t partialPrefixBytes = 0;
         uint64_t crcDrops = 0, icvDrops = 0, invalidFrameDrops = 0;
+        /* Validated consume-only BlockAck is separate from rejected input.
+         * Metadata only: never export packet bytes or MAC addresses. */
+        uint64_t blockAckFiltered = 0;
+        uint64_t rejectedControlSubtypes[16]{};
+        uint64_t rejectedReasons[RTW_RX_REJECT_REASON_COUNT]{};
+        uint64_t rejectLastReason = 0, rejectLastLength = 0, rejectLastMS = 0;
+        uint64_t rejectLastType = 255, rejectLastSubtype = 255, rejectLastFlags = 0;
+        uint64_t rejectLastVersion = 255, rejectLastSecurity = 0;
+        uint64_t rejectLastSoftwareDecrypt = 0, rejectLastPHY = 0, rejectLastPHYBytes = 0;
+        uint64_t rejectLastReceiverMatch = 0, rejectLastTransmitterMatch = 0;
+        uint64_t rejectLastState = 0, rejectLastAuthorized = 0;
+        uint64_t rejectLastReadBytes = 0, rejectLastRate = 255;
+        uint64_t rejectLastBAControl = 65535, rejectLastBAFragment = 255;
         uint64_t hardwareDecryptDrops = 0, allocationDrops = 0;
         uint64_t copyDrops = 0, noNodeDrops = 0, protectedMPDUs = 0;
         uint64_t ethernetQueued = 0, handoffErrors = 0;
@@ -285,7 +298,7 @@ private:
     static int acWrite(void *, uint16_t, unsigned, uint32_t);
     static int acBulk(void *, uint8_t, const uint8_t *, size_t);
     rtw_8814au_speed acSpeed() const;
-    int attach8814(), start8814(), set8814Channel(uint8_t);
+    int attach8814(), start8814(), set8814Channel(uint8_t), tick8814();
     void stop8814();
     int state8814(ieee80211com *, ieee80211_state, int);
     static void update8814EDCA(ieee80211com *);
@@ -324,6 +337,7 @@ private:
     void serviceTXOutputQueue();
     void abortTransfers();
     void receive(const uint8_t *, size_t);
+    void updateFirmwareRSSI(const rtw_rx_packet &, int, unsigned);
     void publishDiagnosticCounter(const char *, uint64_t);
     void publishDiagnostics();
     void publishRateControlDiagnostics();

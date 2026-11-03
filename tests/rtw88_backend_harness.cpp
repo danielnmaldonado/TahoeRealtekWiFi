@@ -63,6 +63,7 @@ class OSObject;class IOTimerEventSource;
 struct TestMemory{uint8_t b[4352]{};void*getBytesNoCopy(){return b;}};struct TestPipe{unsigned number;unsigned getSpeed()const{return 3;}};
 static std::vector<int>events;static unsigned ioCalls=0,failIO=0;static int failEvent=0,genericFail=-1;
 static std::array<uint8_t,65536>regs{};static std::vector<std::array<uint8_t,8>>commands;
+static int advisoryRSSIError=0;static bool advisoryRSSISticky=false;
 static int event(int e){events.push_back(e);return failEvent==e?EIO:0;}
 static int ieee80211_chan2ieee(ieee80211com*,ieee80211_channel*c){return c->number;}
 static int rawRead(void*,uint16_t a,unsigned w,uint32_t*v){*v=0;if(++ioCalls==failIO)return EIO;for(unsigned i=0;i<w;i++)*v|=(uint32_t)regs[a+i]<<(i*8);if(a==0x670)*v&=~0x80000000U;return 0;}
@@ -81,6 +82,11 @@ extern "C" void rtw88_phy_radio_invalidate(rtw88_phy_context*c){if(c)c->radio_st
 extern "C" int rtw88_boot_stop(rtw88_boot_context*c){event(91);c->firmware.powered=c->firmware.firmware_running=c->board_valid=0;return c->firmware.last_error;}
 extern "C" int rtw88_boot_stop_checked(rtw88_boot_context*c){int original=c->firmware.last_error;c->firmware.last_error=0;const int error=rtw88_boot_stop(c);c->firmware.last_error=original;return error;}
 extern "C" int rtw88_fw_h2c(rtw88_fw_context*c,const uint8_t*b){if(c->last_error)return c->last_error;std::array<uint8_t,8>x{};memcpy(x.data(),b,8);commands.push_back(x);int e=event(b[0]==0x40?30:b[0]==1?(b[1]?32:33):b[0]==0x42?34:35);if(e)c->last_error=e;return e;}
+extern "C" int rtw88_fw_h2c_rssi_monitor(rtw88_fw_context*c,const uint8_t*b){
+ assert(b[0]==0x42);if(c->last_error)return c->last_error;
+ if(advisoryRSSIError){if(advisoryRSSISticky)c->last_error=advisoryRSSIError;return advisoryRSSIError;}
+ return rtw88_fw_h2c(c,b);
+}
 extern "C" int rtw88_mac_queue_endpoint(const rtw88_mac_plan*p,unsigned q,uint8_t*out){if(!p||!out||q>=20||p->queue_endpoint[q]>=p->bulk_out_count)return EINVAL;*out=p->queue_endpoint[q];return 0;}
 extern "C" int rtw88_mac_initialize(rtw88_mac_context*m,rtw88_fw_context*c,unsigned,rtw88_usb_speed){int e=event(5);m->device=c;m->mac_ready=!e;return e;}
 extern "C" int rtw88_phy_load_boot_tables(rtw88_phy_context*p,rtw88_boot_context*b,rtw88_mac_context*m){p->boot=b;p->mac=m;int e=event(6);p->tables_loaded=!e;return e;}
@@ -130,6 +136,16 @@ static mbuf_t packet(bool data,bool eapol,bool qos=false,size_t length=80){auto*
 static uint32_t get32(const uint8_t*b){return(uint32_t)b[0]|((uint32_t)b[1]<<8)|((uint32_t)b[2]<<16)|((uint32_t)b[3]<<24);}
 static void firmwareRegression(){
  unsigned cases=0;
+ for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU}){
+  {Fixture f(family);f.run();f.n.ni_port_valid=true;f.c.r88RSSI_=55;f.c.r88RSSIValid_=true;
+   const auto before=commands.size();advisoryRSSIError=EBUSY;
+   assert(!f.c.tick88()&&f.c.authorized()&&f.n.ni_port_valid&&f.c.r88RateReady_&&commands.size()==before&&!f.c.r88Core_.firmware.last_error);
+   advisoryRSSIError=0;assert(!f.c.tick88()&&commands.back()[0]==0x42);}
+  for(int error:{EIO,ETIMEDOUT,EBUSY}){Fixture f(family);f.run();f.c.r88RSSI_=55;f.c.r88RSSIValid_=true;
+   advisoryRSSIError=error;advisoryRSSISticky=true;
+   assert(f.c.tick88()==error&&f.c.r88Core_.firmware.last_error==error&&!f.c.r88Station_.initialized);
+   advisoryRSSIError=0;advisoryRSSISticky=false;}
+ }
  for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU})for(unsigned channel:{6U,36U,52U,56U,60U,64U,100U,104U,108U,112U,116U,120U,124U,128U,132U,136U,140U,165U}){
   for(unsigned clock:{0U,0x1000U,0x2000U,0x3000U}){Fixture f(family);if(channel>14)f.five(channel);f.run();uint16_t ready=(uint16_t)(0xc078U|clock);regs[0x80]=(uint8_t)ready;regs[0x81]=(uint8_t)(ready>>8);f.c.r88RSSI_=55;f.c.r88RSSIValid_=true;assert(!f.c.tick88()&&commands.back()[0]==0x42&&f.c.uses88FirmwareRate());++cases;}
   for(uint16_t invalid:{0U,0xc6U,0xc070U,0x4078U,0xc079U,0xc0f8U}){Fixture f(family);if(channel>14)f.five(channel);f.run();regs[0x80]=(uint8_t)invalid;regs[0x81]=(uint8_t)(invalid>>8);assert(f.c.tick88()==EIO&&!f.c.r88Core_.firmware.firmware_running&&!f.c.uses88FirmwareRate());++cases;}

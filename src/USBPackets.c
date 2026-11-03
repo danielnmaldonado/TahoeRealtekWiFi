@@ -79,8 +79,10 @@ rtw_packet_error rtw_rx_next(rtw_rx_iterator* it, rtw_rx_packet* packet) {
     packet->bandwidth_code=(uint8_t)((load32(base+16U)>>4U)&3U);
     packet->timestamp=load32(base+20U);
     if (padded > remain) {
-        /* Last MPDU can finish exactly at USB transfer end without padding. */
-        if (consumed != remain) return RTW_PACKETS_TRUNCATED;
+        /* All descriptor/info/shift/payload bytes already fit above. The
+         * final alignment pad may be absent or partial: pinned Linux
+         * rtl8xxxu_parse_rxdesc24 and OpenBSD urtwn_rxeof both process a
+         * complete payload before advancing its rounded unit length. */
         it->cursor=it->length;
     } else {
         /* The hardware may use arbitrary pad content; don't inspect it. */

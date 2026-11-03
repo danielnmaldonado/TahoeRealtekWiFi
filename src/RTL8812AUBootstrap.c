@@ -168,10 +168,18 @@ int rtw_r12au_download_fw(rtw_r12au_boot*c,const uint8_t*image,size_t n,rtw_boot
 fail:
  (void)download_disable(c);c->firmware_running=0;c->mac_initialized=0;c->firmware_version=0;c->firmware_subversion=0;return e;
 }
-int rtw_r12au_h2c(rtw_r12au_boot*c,const uint8_t command[8]){
+static int h2c(rtw_r12au_boot*c,const uint8_t command[8],int advisory){
  int e;if(!valid(c)||!command||!c->identified||!c->powered||!c->firmware_running||c->h2c_box>3)return EINVAL;if(c->io_error)return c->io_error;
- uint8_t box=c->h2c_box;if((e=poll(c,REG_HMETFR,1,BIT(box),0,31,100)))return e;
+ uint8_t box=c->h2c_box;unsigned i;
+ for(i=0;i<31;++i){uint32_t busy=0;if((e=rtw_r12au_read(c,REG_HMETFR,1,&busy)))return e;
+  if(!(busy&BIT(box)))break;if(i+1<31&&(e=rtw_r12au_delay(c,100)))return e;}
+ if(i==31)return advisory?EBUSY:latch(c,ETIMEDOUT);
  if((e=rtw_r12au_write(c,(uint16_t)(0x1f0+box*4),4,le32(command+4)))||(e=rtw_r12au_write(c,(uint16_t)(0x1d0+box*4),4,le32(command))))return e;c->h2c_box=(uint8_t)((box+1)&3);return 0;
+}
+int rtw_r12au_h2c(rtw_r12au_boot*c,const uint8_t command[8]){return h2c(c,command,0);}
+int rtw_r12au_h2c_rssi_monitor(rtw_r12au_boot*c,const uint8_t command[8]){
+ if(!command||command[0]!=0x42||command[1]||command[2]||command[3]>100||command[4]||command[5]||command[6]||command[7])return EINVAL;
+ return h2c(c,command,1);
 }
 int rtw_r12au_power_off_checked(rtw_r12au_boot*c){
  if(!valid(c)||!c->identified)return EINVAL;int original=c->io_error,first=0,e;uint32_t fsm=0,status=0;c->io_error=0;c->powered=0;c->dma_prepared=0;c->firmware_running=0;c->mac_initialized=0;c->associated=0;c->h2c_box=0;c->firmware_version=0;c->firmware_subversion=0;c->cleanup=1;
