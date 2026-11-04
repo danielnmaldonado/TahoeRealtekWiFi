@@ -12,7 +12,7 @@ inline bool automaticConnectionIdle(bool hasStatus,bool statusDelayed,
                                     const RTWControlStatus& status) {
     return hasStatus&&!statusDelayed&&!status.usbError&&
         (status.flags&RTW_CONTROL_DEVICE)&&
-        !(status.flags&(RTW_CONTROL_AUTHORIZED|RTW_CONTROL_SCANNING))&&status.state<2;
+        !(status.flags&(RTW_CONTROL_AUTHORIZED|RTW_CONTROL_SCANNING|RTW_CONTROL_USER_RADIO_DISABLED))&&status.state<2;
 }
 // Monotonic, bounded backoff. A rollback (test clock, reboot) resets the wait.
 struct RetryGate {

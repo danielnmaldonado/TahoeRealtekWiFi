@@ -24,6 +24,7 @@ public:
     rtw_wifi_family family_=RTW_WIFI_RTL8192EU;
     bool attached_=true,running_=true,radioReady_=true,joinRequested_=false,present_=true;
     bool sleeping_=false,stopping_=false,closing_=false,browseScanComplete_=false;
+    bool userRadioDisabled_=false;
     unsigned publications=0;
     rtw::ScanDiagnostics scanDiag_{};
     ScanCompletionTimer timer;

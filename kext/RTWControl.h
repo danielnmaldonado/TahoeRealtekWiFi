@@ -46,7 +46,10 @@ enum RTWControlStatusFlags {
     /* Managed-station DFS groups. No AP operation or channel144 permission.
      * Advertised only when the registered backend covers the complete group. */
     RTW_CONTROL_BAND_5GHZ_DFS_LOW = 1U << 11, /* 52/56/60/64 */
-    RTW_CONTROL_BAND_5GHZ_DFS_MID = 1U << 12  /* 100..140 in steps of4 */
+    RTW_CONTROL_BAND_5GHZ_DFS_MID = 1U << 12, /* 100..140 in steps of4 */
+    /* Explicit LEAVE persists until a new user JOIN/SCAN. Automatic app work
+     * must respect this per-adapter state; older drivers omit the bit. */
+    RTW_CONTROL_USER_RADIO_DISABLED = 1U << 13
 };
 
 enum RTWControlSecurityFlags {

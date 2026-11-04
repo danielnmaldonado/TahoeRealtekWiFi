@@ -24,6 +24,9 @@ int main(){
   c.stop(&usb);
   assert(!c.powerManaged_&&c.stopEffects==1&&c.platformReleased&&c.teardownReady);
   assert(event(c,"PMstop")<event(c,"release"));
+  const auto stoppedEvents=c.events.size();const auto stoppedQuiesces=c.quiesces;
+  assert(c.setPowerState(0,&c)==kIOPMAckImplied&&c.setPowerState(1,&c)==kIOPMAckImplied);
+  assert(!c.attached_&&c.events.size()==stoppedEvents&&c.quiesces==stoppedQuiesces);
  }
  {
   RTWUSBController c;IOUSBHostInterface usb;c.registrationError=-19;

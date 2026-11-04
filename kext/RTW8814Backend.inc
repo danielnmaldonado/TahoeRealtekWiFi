@@ -175,6 +175,10 @@ void RTWUSBController::stop8814()
     if(acRecoveryDiag_.cleanupResult==EBUSY)acRecoveryDiag_.cleanupResult=0;
     auto&ic=core_.sc_ic;auto&ifp=ic.ic_if;
     core_.sc_tx_timer=0;ifp.if_timer=0;ifp.if_flags&=~IFF_RUNNING;ifq_clr_oactive(&ifp.if_snd);
+    /* The checked power-off below resets firmware. Retire its media state
+     * before INIT so teardown does not depend on an available H2C mailbox.
+     * Station registers, host keys, PHY stop and power-off remain checked. */
+    acMediaConnected_=acRateReady_=false;
     /* Generic INIT must flush host keys and authorization even after USB loss. */
     if(core_.sc_newstate){
         if(rxRecovery_.initialDrainError!=kIOReturnSuccess)

@@ -128,4 +128,31 @@ static void overlappingPolicyRequests(){
  puts("B/C real BLE/HID freerun policy: third-report MP collision sends exact LNA H2C on ACK for all3 chips");
 }
 
-int main(){hidRegression();traces();boundaries();failures();wireReports();mpResponses();overlappingPolicyRequests();}
+static void busyFirmwareDoesNotBlockFullStop(){
+ for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU})for(bool shared:{false,true})for(unsigned box=0;box<4;++box){
+  Fixture f(family,shared);f.start();f.connect();uint8_t a2dp[9]={9,0,1,0x49,0,20,0,0,40};
+  assert(!rtw88_coex_c2h(f.c,a2dp,sizeof(a2dp),&f.input));assert(f.status().bt_profiles==1);
+  f.boot.firmware.h2c_box=box;f.bus.reg[0x1cc]=0xf;const auto sent=f.bus.commands.size();
+  assert(rtw88_coex_stop(f.c)==0);
+  assert(!f.status().error&&!f.boot.firmware.last_error&&!f.status().active&&!f.status().pending_work);
+  assert(f.bus.commands.size()==sent&&f.boot.firmware.h2c_box==box);
+  assert((f.bus.read32(0xaa)&0xffffU)==0x8000U&&f.status().antenna_phase==2);
+  f.bus.reg[0x1cc]=0;f.start();assert(f.status().active&&!f.status().error);assert(!rtw88_coex_stop(f.c));
+ }
+ puts("B/C full stop: 3 families, active BT/A2DP, both antennas, all4 busy firmware boxes retire without H2C and restart");
+}
+static void fullStopIoFailuresRemainSticky(){
+ unsigned faults=0;
+ for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU})for(bool shared:{false,true}){
+  Fixture measured(family,shared);measured.start();measured.connect();auto begin=measured.bus.calls;
+  assert(!rtw88_coex_stop(measured.c));const unsigned operations=measured.bus.calls-begin;assert(operations);
+  for(bool after:{false,true})for(unsigned step=1;step<=operations;++step){
+   Fixture f(family,shared);f.start();f.connect();f.bus.after=after;f.bus.fail=f.bus.calls+step;
+   assert(rtw88_coex_stop(f.c)==EIO);
+   assert(f.status().error==EIO&&f.boot.firmware.last_error==EIO&&!f.status().active&&!f.status().pending_work);
+   f.bus.fail=0;assert(rtw88_coex_stop(f.c)==EIO&&f.boot.firmware.last_error==EIO);++faults;
+  }
+ }
+ std::printf("B/C full stop: %u antenna/scoreboard/direct+indirect I/O faults before/after effect stay sticky\n",faults);
+}
+int main(){busyFirmwareDoesNotBlockFullStop();fullStopIoFailuresRemainSticky();hidRegression();traces();boundaries();failures();wireReports();mpResponses();overlappingPolicyRequests();}

@@ -134,6 +134,7 @@ static void cx_info_response(struct rtw_dev*c,struct sk_buff*s){if(c->mp.pending
 #include "RTL8821AUCoexWrappers.inc"
 #include "RTW88CoexCallbacks.inc"
 #include "RTW88CoexTables.inc"
+static void rtw_coex_ips_notify(struct rtw_dev*,u8) __attribute__((unused));
 #include "RTL8821AUCoexPolicy.inc"
 /* The primary synchronous MP wait serialized these two policy decisions.
  * Retry only the latest deferred LNA decision after the real slot is free;
@@ -213,6 +214,15 @@ int rtw88_coex_c2h(rtw88_coex*c,const uint8_t*b,size_t length,const rtw88_coex_i
 }
 int rtw88_coex_rfk(rtw88_coex*c,int active){if(!c||(active!=0&&active!=1))return EINVAL;if(!c->active)return c->error?c->error:ENXIO;c->rfk_active=active;return 0;}
 void rtw88_coex_forget(rtw88_coex*c){if(!c)return;c->active=c->rfk_active=false;c->flags[0]=0;c->mp.pending=c->mp.ready=c->mp.lna_pending=false;c->coex.stop_dm=true;for(unsigned n=0;n<8;++n)cx_work(c,n)->queued=false;}
-int rtw88_coex_stop(rtw88_coex*c){if(!c)return EINVAL;if(c->active&&!c->error&&!cx_health(c)){rtw_coex_ips_notify(c,COEX_IPS_ENTER);rtw_coex_power_off_setting(c);}rtw88_coex_forget(c);return c->error;}
+int rtw88_coex_stop(rtw88_coex*c){
+ if(!c)return EINVAL;
+ if(c->active&&!c->error&&!cx_health(c)){
+  /* Firmware is about to power off. Keep checked scoreboard/antenna MMIO,
+   * while avoiding runtime IPS policy's dependency on a free TDMA mailbox. */
+  c->coex.stat.wl_under_ips=true;rtw_coex_write_scbd(c,COEX_SCBD_ALL,false);
+  rtw_coex_set_ant_path(c,true,COEX_SET_ANT_WOFF);rtw_coex_power_off_setting(c);
+ }
+ rtw88_coex_forget(c);return c->error;
+}
 void rtw88_coex_get_status(const rtw88_coex*c,rtw88_coex_status*s){if(!s)return;memset(s,0,sizeof(*s));if(!c)return;s->initialized=c->initialized;s->active=c->active;s->error=c->error;s->bt_disabled=c->coex.stat.bt_disabled;s->bt_profiles=c->coex.stat.bt_profile_num;s->table=c->coex.dm.cur_table;s->tdma=c->coex.dm.cur_ps_tdma;s->under_5g=c->coex.under_5g;s->frozen=c->coex.freeze;s->antenna_phase=(u8)c->coex.dm.cur_ant_pos_type;s->share_ant=c->efuse.share_ant;s->bt_rssi=(u8)c->coex.stat.bt_rssi;s->policy_runs=c->coex.stat.cnt_wl[COEX_CNT_WL_COEXRUN];s->bt_info_events=c->bt_info_events;s->mp_timeouts=c->mp_timeouts;s->mimo_ps=c->mimo_enabled;s->rfk_active=c->rfk_active;s->bt_ble_scan_type=c->coex.stat.bt_ble_scan_type;s->bt_init_scan=c->coex.stat.bt_init_scan;s->tx_mbps=c->stats.tx_throughput;s->rx_mbps=c->stats.rx_throughput;s->next_deadline_ms=rtw88_coex_next_deadline(c);for(unsigned n=0;n<8;++n)if(cx_work((struct rtw_dev*)c,n)->queued)++s->pending_work;}
 int rtw88_coex_parse_tx_status(const uint8_t*b,size_t n,uint8_t*token,int*acked){if(token)*token=0;if(acked)*acked=0;if(!b||!token||!acked||n<2||n>257)return EINVAL;if(b[0]==3){if(n<9)return EINVAL;*token=b[8]&0xfcU;*acked=(b[2]&0xc0U)==0;return 0;}if(b[0]==255){if(n<3)return EINVAL;if(b[2]!=15)return ENOMSG;if(n<12)return EINVAL;*token=b[10]&0xfcU;*acked=(b[11]&0xc0U)==0;return 0;}return ENOMSG;}

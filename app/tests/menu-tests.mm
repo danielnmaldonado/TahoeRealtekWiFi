@@ -264,6 +264,9 @@ static void completeBandPoll(WiFiApp* app,bool scan=true) {
 - (void)prepareAutomaticSSID:(NSString*)ssid;
 @end
 @implementation MapReconnectWiFiApp
+- (instancetype)init {
+    self=[super init];if(self)_connectionPreferencesLoaded=YES;return self;
+}
 - (void)prepareAutomaticSSID:(NSString*)ssid {
     _preferredSSID=[ssid dataUsingEncoding:NSUTF8StringEncoding];_savedNetworks=@[_preferredSSID];
     _savedNetworksLoaded=YES;_autoJoinEnabled=YES;_autoJoin.paused=false;
@@ -438,6 +441,8 @@ static NSModalResponse switchingSSIDModal(id alert,SEL) {
 #include "automatic-connection-tests.hpp"
 #include "network-rebuild-tests.hpp"
 #include "driver-details-tests.hpp"
+#include "screen-lifecycle-tests.hpp"
+#include "manual-radio-policy-tests.hpp"
 // Gate an already-entered read, not merely a queued poll. All state,
 // cancellation and replacement-poll behavior remains production Main.
 @interface CancelBoundaryDriver : AutomaticRefreshDriver
@@ -527,6 +532,8 @@ static void testCancelledPollBoundaries() {
 int main() {
     @autoreleasepool {
         [NSApplication sharedApplication];
+        testScreenLifecyclePreservesLink();testScreenRefreshYieldsToSuspension();testLifecycleDiagnosticReasons();
+        testManualRadioOffSurvivesLifecycle();
         testCancelledPollBoundaries();
         const unsigned admissionFailures=testAutomaticConnectionAdmission();
         const unsigned rebuildFailures=testNetworkRebuildCoalescing();

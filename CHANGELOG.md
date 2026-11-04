@@ -1,3 +1,17 @@
+# 0.14.20 / build67 — app0.3.14 / build56 — power recovery
+
+- Preserve the configured network across OS interface power-down and restore
+  through normal interface enable; retain explicit manual radio-off intent.
+- Avoid a spurious firmware-mailbox timeout during RTL8814AU power-off; retain
+  checked hardware cleanup and mandatory association command errors.
+- Apply mailbox-independent full-stop coexistence cleanup to RTL8821AU,
+  RTL8821CU, RTL8822BU and RTL8822CU, retaining antenna handoff and MMIO errors.
+- Distinguish screen power notifications from system sleep and refresh current
+  status on screen wake. Record bounded app lifecycle metadata.
+- Collector7 includes power assertions/history and radio/sleep/manual-off state.
+- See `docs/POWER-0.14.20.md` for the reproduced profile-loss defect and the
+  remaining physical validation boundary.
+
 # 0.14.19 / build66 — association RSSI feedback
 
 - Restrict firmware RSSI and the shared association average to real PHY samples

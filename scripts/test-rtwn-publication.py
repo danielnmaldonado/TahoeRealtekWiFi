@@ -51,7 +51,7 @@ struct publication_host_interface { ifnet_t iface=nullptr; ifnet_t getIfnet() co
     struct { uint64_t inputPackets=0,inputErrors=0; } statsStorage_, *stats_=&statsStorage_;
     uint64_t txQueueDrops_=0,txUSBTransferErrors_=0,txLinkDrops_=0,rxPackets_=0,rxErrors_=0;
     uint64_t diagnosticPublicationGeneration_=0,diagnosticPublicationMonotonicMS_=0;
-    bool attached_=true,closing_=false,enabled_=false,present_=true,radioReady_=false,sleeping_=false;
+    bool attached_=true,closing_=false,enabled_=false,present_=true,radioReady_=false,sleeping_=false,userRadioDisabled_=false;
     publication_host_interface *netif_=nullptr;
     static uint64_t nowMS() { return publicationHostNow; }
     void publishDiagnostics();

@@ -18,6 +18,7 @@
 #import "AdapterDiagnostics.h"
 #import "DiagnosticCLI.h"
 #import "DriverDiagnostics.h"
+#import "ControlDiagnostics.h"
 #import "EnglishErrors.h"
 #include <arpa/inet.h>
 #include <ifaddrs.h>
@@ -27,6 +28,7 @@
 #include <unistd.h>
 #include <memory>
 #include <map>
+#include <set>
 
 static NSString* text(const std::string& value) {
     return [[NSString alloc] initWithBytes:value.data() length:value.size() encoding:NSUTF8StringEncoding] ?: @"[SSID]";
@@ -155,6 +157,9 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
     rtwui::RetryGate _serviceRetry;
     rtwui::AutoJoinPolicy _autoJoin;
     BOOL _sleeping,_inactiveSession,_autoJoinEnabled;
+    BOOL _screenRefreshPending,_screenRefreshApplying;
+    std::set<uint64_t> _manualRadioOffAdapters;
+    BOOL _manualRadioPauseBound;
     BOOL _savedNetworksLoaded,_loadingSavedNetworks,_reloadSavedAgain;
     NSArray<NSData*>* _savedNetworks;
     NSData* _preferredSSID;
@@ -328,6 +333,10 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
         name:NSWorkspaceWillSleepNotification object:nil];
     [workspace addObserver:self selector:@selector(workspaceDidWake:)
         name:NSWorkspaceDidWakeNotification object:nil];
+    [workspace addObserver:self selector:@selector(workspaceScreensDidSleep:)
+        name:NSWorkspaceScreensDidSleepNotification object:nil];
+    [workspace addObserver:self selector:@selector(workspaceScreensDidWake:)
+        name:NSWorkspaceScreensDidWakeNotification object:nil];
     [workspace addObserver:self selector:@selector(workspaceBecameInactive:)
         name:NSWorkspaceSessionDidResignActiveNotification object:nil];
     [workspace addObserver:self selector:@selector(workspaceBecameActive:)
@@ -652,6 +661,7 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
     _notice=@"You disabled the service.";[self updateAppearance];
 }
 - (void)suspendActivity {
+    _screenRefreshPending=NO;
     [self invalidatePendingWork];
     _signal.clear();_signalHistory.clear();
     ++_joinGeneration;_joining=NO;_joinAccepted=NO;_joinSSID=nil;
@@ -668,16 +678,32 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
     [self refreshPollingTimer];[self reloadSavedNetworks];[self poll:nil];
 }
 - (void)workspaceWillSleep:(NSNotification*)notification {
+    RTWLogLifecycle(RTWLifecycleReason::SystemSleep,_selection.registryID);
     (void)notification;_sleeping=YES;[self suspendActivity];
 }
 - (void)workspaceBecameInactive:(NSNotification*)notification {
+    RTWLogLifecycle(RTWLifecycleReason::SessionInactive,_selection.registryID);
     (void)notification;_inactiveSession=YES;[self suspendActivity];
 }
 - (void)workspaceDidWake:(NSNotification*)notification {
+    RTWLogLifecycle(RTWLifecycleReason::SystemWake,_selection.registryID);
     (void)notification;_sleeping=NO;[self resumeActivity];
 }
 - (void)workspaceBecameActive:(NSNotification*)notification {
+    RTWLogLifecycle(RTWLifecycleReason::SessionActive,_selection.registryID);
     (void)notification;_inactiveSession=NO;[self resumeActivity];
+}
+- (void)workspaceScreensDidSleep:(NSNotification*)notification {
+    (void)notification;
+    RTWLogLifecycle(RTWLifecycleReason::ScreenSleep,_selection.registryID);
+    // Display sleep leaves the awake computer's link, work and timer intact.
+}
+- (void)workspaceScreensDidWake:(NSNotification*)notification {
+    (void)notification;
+    RTWLogLifecycle(RTWLifecycleReason::ScreenWake,_selection.registryID);
+    if(_terminating||_sleeping||_inactiveSession)return;
+    _screenRefreshPending=YES;_forceDeviceList=YES;_forceNetworkCache=YES;
+    [self poll:nil];
 }
 - (void)toggleAutoJoin:(id)sender {
 _autoJoinEnabled=!_autoJoinEnabled;
@@ -715,6 +741,7 @@ _autoJoinEnabled=!_autoJoinEnabled;
 }
 - (void)considerAutoJoin {
     if(_refreshingNetworks||_commandPending||!_autoJoinEnabled||!_savedNetworksLoaded||!_savedNetworks.count)return;
+    if(_manualRadioOffAdapters.count(_selection.registryID))return;
     const double now=[self uptime];
     const bool connected=_hasStatus&&(_status.flags&RTW_CONTROL_AUTHORIZED);
     if(connected){_lastLinkedAt=now;return;}
@@ -755,6 +782,11 @@ _autoJoinEnabled=!_autoJoinEnabled;
 }
 - (void)useAdapter:(uint64_t)registryID {
     if(!_selection.select(registryID))return;
+    // Older drivers cannot report per-adapter radio intent. Bind a restored
+    // explicit pause to the first selected USB, leaving other USBs discoverable.
+    if(registryID&&_autoJoin.paused&&!_manualRadioPauseBound) {
+        _manualRadioOffAdapters.insert(registryID);_manualRadioPauseBound=YES;
+    }
     if(registryID!=_pendingNetworkRegistryID){_pendingNetworkSSID=nil;_pendingNetworkRegistryID=0;}
     _adapterEpoch.store(_selection.generation);
     [self clearAdapterState];_selectedPresent=NO;_autoJoin.reset();_lastLinkedAt=-1;
@@ -834,6 +866,8 @@ _autoJoinEnabled=!_autoJoinEnabled;
     if(_terminating||_sleeping||_inactiveSession||!_authorizedSession||!_selectedPresent||
        !_selection.registryID||!_queue||!_hasStatus||_statusReadDelayed||_status.usbError||
        _joining||_credentialBusy||_commandPending||_refreshingNetworks)return;
+    if((_status.flags&RTW_CONTROL_USER_RADIO_DISABLED)||
+       _manualRadioOffAdapters.count(_selection.registryID))return;
     if(!(_status.flags&RTW_CONTROL_DEVICE)||
        (_status.flags&RTW_CONTROL_AUTHORIZED))return;
     auto& policy=_networkRefresh[_selection.registryID];
@@ -860,11 +894,13 @@ _autoJoinEnabled=!_autoJoinEnabled;
 - (void)poll:(id)sender {
     (void)sender;
     if(_terminating||_sleeping||_inactiveSession)return;
-    if(!_savedNetworksLoaded&&!_loadingSavedNetworks&&
+    const BOOL screenRefresh=_screenRefreshPending||_screenRefreshApplying;
+    if(!screenRefresh&&!_savedNetworksLoaded&&!_loadingSavedNetworks&&
        rtwui::refreshDue([self uptime],_lastSavedReloadAt,30.0))
         [self reloadSavedNetworks];
-    if(!_authorizedSession){[self connectDriverAutomatically];return;}
+    if(!_authorizedSession){_screenRefreshPending=NO;if(!screenRefresh)[self connectDriverAutomatically];return;}
     if(_busy||!_queue)return;
+    _screenRefreshPending=NO;
     _busy=YES;
     const double now=[self uptime];
     const auto generation=_joinGeneration,registryID=_selection.registryID,adapterGeneration=_selection.generation;
@@ -918,11 +954,19 @@ _autoJoinEnabled=!_autoJoinEnabled;
             // result is in flight. Never apply old LIST/STATUS to the new UI.
             if(self->_terminating||self->_sleeping||self->_inactiveSession||
                pollToken!=self->_pollToken||!self->_workEpoch.matches(epoch))return;
+            const BOOL followScreenRefresh=self->_screenRefreshPending;
             self->_busy=NO;
             if(broken){self->_authorizedSession=NO;self->_serviceRetry.fail([self uptime]);}
             if(listDue&&listCode)self->_forceDeviceList=YES;
             if(scanDue&&(code||scanCode||mapError))self->_forceNetworkCache=YES;
-            if(listDue&&!listCode){self->_adapterIdentities=identities;self->_existingAdapterLink=existing;[self applyAdapters:devices];}
+            if(listDue&&!listCode){
+                self->_adapterIdentities=identities;self->_existingAdapterLink=existing;
+                // Adapter recovery can enqueue another poll while applying LIST.
+                // Keep a screen-triggered traversal read-only at that boundary.
+                const BOOL applying=self->_screenRefreshApplying;
+                self->_screenRefreshApplying=screenRefresh||followScreenRefresh;
+                [self applyAdapters:devices];self->_screenRefreshApplying=applying;
+            }
             if(!self->_selection.matches(registryID,adapterGeneration)){[self updateAppearance];return;}
             if(!registryID){
                 if(listCode){self->_notice=errorText(listCode);self->_pollNotice=YES;}
@@ -1011,12 +1055,13 @@ _autoJoinEnabled=!_autoJoinEnabled;
                 self->_autoJoin.retry.fail([self uptime]);
                 self->_notice=@"The connection timed out while the driver was unavailable.";
             }
-            [self considerNetworkRefresh];[self considerAutoJoin];
+            if(!screenRefresh&&!followScreenRefresh){[self considerNetworkRefresh];[self considerAutoJoin];}
             if(self->_diagnostic&&!self->_diagnosticPrinted){
                 self->_diagnosticPrinted=YES;
                 printf("{\"menuBar\":%s,\"helper\":true,\"registryID\":%llu,\"statusError\":%u,\"scanError\":%u,\"flags\":%u,\"state\":%u,\"channel\":%u,\"usbError\":%u,\"accessPoints\":%u,\"networks\":%zu}\n",self->_item.visible?"true":"false",(unsigned long long)registryID,code,scanCode,status.flags,status.state,status.channel,status.usbError,self->_scan.count,self->_networks.size());fflush(stdout);
             }
             [self updateAppearance];
+            if(self->_screenRefreshPending)[self poll:nil];
         });
     });
 }
@@ -1060,10 +1105,15 @@ _autoJoinEnabled=!_autoJoinEnabled;
     if(_terminating||_sleeping||_inactiveSession||!_authorizedSession||!_selectedPresent||
        !_selection.registryID||!_queue||_joining||_credentialBusy||_commandPending||
        _refreshingNetworks||(_hasStatus&&(_status.flags&RTW_CONTROL_SCANNING)))return;
+    _manualRadioOffAdapters.erase(_selection.registryID);
+    _manualRadioPauseBound=YES;
     _refreshingNetworks=YES;_notice=@"Refreshing networks…";_pollNotice=NO;
     [self command:RTW_CONTROL_SCAN];[self updateAppearance];
 }
 - (void)disconnect:(id)sender {
+    RTWLogLifecycle(RTWLifecycleReason::ManualDisconnect,_selection.registryID);
+    if(_selection.registryID)_manualRadioOffAdapters.insert(_selection.registryID);
+    _manualRadioPauseBound=YES;
     (void)sender;[self invalidatePendingWork];_autoJoin.paused=true;
     [[self preferences] setBool:YES forKey:@"RTWAutoJoinPaused"];
     ++_joinGeneration;_joining=NO;_joinAccepted=NO;_joinSSID=nil;_rememberCurrentJoin=NO;
@@ -1112,6 +1162,7 @@ _autoJoinEnabled=!_autoJoinEnabled;
 }
 - (void)connectSSID:(NSData*)ssid {
     if(!_authorizedSession||!_selectedPresent||_joining||_credentialBusy)return;
+    _manualRadioOffAdapters.erase(_selection.registryID);_manualRadioPauseBound=YES;
     _autoJoin.paused=false;_autoJoin.reset();
     [[self preferences] setBool:NO forKey:@"RTWAutoJoinPaused"];
     [self requestPasswordForSSID:ssid connect:YES];
@@ -1564,6 +1615,8 @@ _autoJoinEnabled=!_autoJoinEnabled;
 }
 - (void)quit:(id)sender {(void)sender;[NSApp terminate:nil];}
 - (void)applicationWillTerminate:(NSNotification*)notification {
+    RTWLogLifecycle(RTWLifecycleReason::AppTermination,_selection.registryID);
+    _screenRefreshPending=NO;
     (void)notification;_terminating=YES;[self invalidatePendingWork];
     [_timer invalidate];_timer=nil;
     [NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];

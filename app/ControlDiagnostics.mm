@@ -21,6 +21,19 @@ NSString* operation(uint32_t selector) {
     default:return @"INVALID";
     }
 }
+NSString* lifecycleReason(RTWLifecycleReason reason) {
+    switch(reason) {
+    case RTWLifecycleReason::SystemSleep:return @"system_sleep";
+    case RTWLifecycleReason::SystemWake:return @"system_wake";
+    case RTWLifecycleReason::ScreenSleep:return @"screen_sleep";
+    case RTWLifecycleReason::ScreenWake:return @"screen_wake";
+    case RTWLifecycleReason::SessionInactive:return @"session_inactive";
+    case RTWLifecycleReason::SessionActive:return @"session_active";
+    case RTWLifecycleReason::AppTermination:return @"app_termination";
+    case RTWLifecycleReason::ManualDisconnect:return @"manual_disconnect";
+    }
+    return @"invalid";
+}
 NSString* timestamp() {
     // Formatting is on every request/result path. Construct this immutable
     // formatter once; serialize use so concurrent CLI/control callers do not
@@ -45,6 +58,11 @@ NSDictionary* RTWControlExchangeRecord(uint64_t registryID,uint32_t selector,
     if(!beginning){record[@"result"]=@(result);record[@"result_hex"]=[NSString stringWithFormat:@"0x%08x",result];
         record[@"duration_ms"]=@(std::isfinite(durationMS)&&durationMS>=0?durationMS:0);}
     return record;
+}
+NSDictionary* RTWLifecycleDiagnosticRecord(RTWLifecycleReason reason,uint64_t registryID) {
+    return @{@"event":@"lifecycle",@"reason":lifecycleReason(reason),@"timestamp":timestamp(),
+        @"monotonic_ms":@(NSProcessInfo.processInfo.systemUptime*1000.0),
+        @"pid":@(getpid()),@"registry_id":@(registryID)};
 }
 BOOL RTWAppendControlDiagnosticRecord(NSDictionary* record,NSString* directory) {
     // This path never elevates privileges or creates root-owned user logs.
@@ -81,4 +99,7 @@ BOOL RTWAppendControlDiagnosticRecord(NSDictionary* record,NSString* directory) 
 void RTWLogControlExchange(uint64_t registryID,uint32_t selector,uint32_t result,
     double durationMS,BOOL beginning) {
     (void)RTWAppendControlDiagnosticRecord(RTWControlExchangeRecord(registryID,selector,result,durationMS,beginning));
+}
+void RTWLogLifecycle(RTWLifecycleReason reason,uint64_t registryID) {
+    (void)RTWAppendControlDiagnosticRecord(RTWLifecycleDiagnosticRecord(reason,registryID));
 }

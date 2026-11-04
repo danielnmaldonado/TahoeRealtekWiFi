@@ -169,6 +169,7 @@ struct rtwn_softc {
     ieee80211com sc_ic;
     bool core_error = false;
     unsigned sc_tx_timer = 0;
+    uint8_t iq_calibration_mask = 0;
     struct {
         void *cookie = nullptr;
         int (*is_oactive)(void *) = nullptr;
@@ -262,7 +263,7 @@ class RTWUSBController : public IOEthernetController, public OSObject {
 #endif
     rtwn_softc core_;
     rtw::ScanDiagnostics scanDiag_{};
-    bool browseScanComplete_=false;
+    bool browseScanComplete_=false, userRadioDisabled_=false;
     int transitionError=0;
     bool clearChannelOnTransitionError=false;
     void publishScanDiagnostics();
@@ -279,6 +280,7 @@ class RTWUSBController : public IOEthernetController, public OSObject {
         uint32_t outputErrors = 0;
     } statsValue_;
     Stats *stats_ = &statsValue_;
+    void *netif_ = this;
     uint64_t lastBeaconMs_ = 0;
     uint64_t txPackets_ = 0, rxPackets_ = 0, rxErrors_ = 0;
     struct {
@@ -295,6 +297,18 @@ class RTWUSBController : public IOEthernetController, public OSObject {
     std::map<std::string, uint64_t> properties;
     std::vector<ieee80211_state> transitions;
     unsigned watchdogCalls = 0, initCalls = 0, stopCalls = 0, rateResets = 0, scanCalls = 0;
+    int initError = 0;
+    int startStationHardware();
+    int start8723(){return startStationHardware();}
+    int start8710BU(){return startStationHardware();}
+    int start8192FU(){return startStationHardware();}
+    int start8192DU(){return startStationHardware();}
+    int start88(){return startStationHardware();}
+    int start8812(){return startStationHardware();}
+    int start8814(){return startStationHardware();}
+    bool isLegacyRecoveryFamily()const{return false;}
+    void failFamilyStart(int){}
+    void finishFamilyStart(){}
     unsigned legacyStateCalls = 0, acStateCalls = 0, acStopCalls = 0;
     unsigned r23StateCalls=0,r23StopCalls=0;
     bool r23RateReady_=false,r23Media_=false;
@@ -375,7 +389,7 @@ class RTWUSBController : public IOEthernetController, public OSObject {
     void abortTransfers() { running_ = false; }
     void fault(IOReturn e) { usbError_ = e; }
     IOReturn initializePlatform() { return 0; }
-    void shutdownPlatform() { quiesce(true); }
+    void shutdownPlatform() { closing_=true;quiesce(true); }
     bool teardownReady_ = false;
     void scheduleDeferredCleanup() {}
     IOReturn enableStation();
@@ -394,6 +408,7 @@ class RTWUSBController : public IOEthernetController, public OSObject {
 };
 int rtwn_newstate(ieee80211com *, ieee80211_state, int);
 int rtwn_io_error(rtwn_softc *);
+int rtwn_init(_ifnet *);
 void rtwn_stop(_ifnet *);
 inline void ieee80211_set_link_state(ieee80211com *, int) {}
 void ieee80211_begin_scan(_ifnet *);

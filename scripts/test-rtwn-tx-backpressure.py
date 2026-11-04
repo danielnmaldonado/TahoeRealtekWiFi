@@ -20,7 +20,7 @@ start = header.index("    enum WPARecoveryState")
 end = header.index("} wpaRecovery_{};", start) + len("} wpaRecovery_{};")
 (args.out / "wpa_recovery_state.hpp").write_text(header[start:end] + "\n")
 closure = '#include "platform.hpp"\n'
-for name in ("supported5GHzFlags", "authorized", "setLinkStatus", "stateTransition", "observeScanTransition", "publishScanDiagnostics", "watchdogAction", "eraseProfile", "quiesce", "handleControl", "gated", "status", "resetWpaRecovery", "cancelWpaRecovery", "wpaStateChanged", "advanceWpaRecovery", "publishWpaRecoveryDiagnostics", "outputPacket"):
+for name in ("supported5GHzFlags", "authorized", "setLinkStatus", "stateTransition", "observeScanTransition", "publishScanDiagnostics", "watchdogAction", "eraseProfile", "quiesce", "enableStation", "handleControl", "gated", "status", "resetWpaRecovery", "cancelWpaRecovery", "wpaStateChanged", "advanceWpaRecovery", "publishWpaRecoveryDiagnostics", "outputPacket"):
     closure += extract(source, r"^(?:bool|void|int|IOReturn|UInt32|uint32_t) RTWUSBController::" + name + r"\(")
 # Baseline build53 has no wake method. Preserve its actual absence for RED.
 if "void RTWUSBController::serviceTXOutputQueue(" in source:

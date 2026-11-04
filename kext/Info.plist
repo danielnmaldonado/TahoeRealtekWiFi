@@ -13,9 +13,9 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.14.19</string>
+	<string>0.14.20</string>
 	<key>CFBundleVersion</key>
-	<string>66</string>
+	<string>67</string>
 	<key>IOKitPersonalities</key>
 	<dict>
 		<key>RTL8812AU-0409-0408</key>

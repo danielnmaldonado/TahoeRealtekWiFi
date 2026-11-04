@@ -20,6 +20,7 @@
 - (void)beginRealLookup;
 - (void)beginManualLookup;
 - (void)changePolicy:(unsigned)mode;
+- (void)markLocalManualOff;
 - (void)prepareState:(unsigned)state scanning:(BOOL)scanning visible:(BOOL)visible;
 @end
 @implementation AutomaticAdmissionApp
@@ -53,7 +54,9 @@
     if(mode==5)_status.flags|=RTW_CONTROL_AUTHORIZED;
     if(mode==6)_statusReadDelayed=YES;
     if(mode==7)_status.usbError=uint32_t(kIOReturnIOError);
+    if(mode==8)_status.flags|=RTW_CONTROL_USER_RADIO_DISABLED;
 }
+- (void)markLocalManualOff {_manualRadioOffAdapters.insert(_selection.registryID);}
 - (void)startJoin:(std::shared_ptr<RTWControlJoin>)join ssid:(NSData*)ssid registryID:(uint64_t)registryID adapterGeneration:(uint64_t)generation {
     assert(join&&ssid.length==3&&_selection.matches(registryID,generation));++self.joins;
 }
@@ -69,7 +72,7 @@ static unsigned testAutomaticConnectionAdmission() {
             state,state==1?"true":"false",visible?"true":"false",app.lookups,app.scans,violated?"true":"false");
         failures+=violated;
     }
-    for(unsigned mode=1;mode<=7;++mode){
+    for(unsigned mode=1;mode<=8;++mode){
         AutomaticAdmissionApp* app=[AutomaticAdmissionApp new];
         [app prepareState:0 scanning:NO visible:YES];[app beginRealLookup];[app changePolicy:mode];
         NSDate* deadline=[NSDate dateWithTimeIntervalSinceNow:5];
@@ -81,7 +84,7 @@ static unsigned testAutomaticConnectionAdmission() {
     }
     // A current idle request must still connect; explicit manual requests
     // retain their authority when driver recovery starts during Keychain I/O.
-    for(unsigned mode=0;mode<=7;++mode){
+    for(unsigned mode=0;mode<=8;++mode){
         AutomaticAdmissionApp* app=[AutomaticAdmissionApp new];
         [app prepareState:0 scanning:NO visible:YES];
         if(mode)[app beginManualLookup];else [app beginRealLookup];
@@ -98,6 +101,12 @@ static unsigned testAutomaticConnectionAdmission() {
     AutomaticAdmissionApp* discovery=[AutomaticAdmissionApp new];
     [discovery prepareState:0 scanning:NO visible:NO];[discovery considerAutoJoin];
     failures+=discovery.lookups!=0||discovery.scans!=1;
-    std::puts("Actual Main automatic admission: 15 kernel-recovery/delayed-Keychain cases and idle/manual controls");
+    AutomaticAdmissionApp* disabled=[AutomaticAdmissionApp new];
+    [disabled prepareState:0 scanning:NO visible:YES];[disabled changePolicy:8];[disabled considerAutoJoin];
+    failures+=disabled.lookups||disabled.scans;
+    AutomaticAdmissionApp* legacyDisabled=[AutomaticAdmissionApp new];
+    [legacyDisabled prepareState:0 scanning:NO visible:YES];[legacyDisabled markLocalManualOff];[legacyDisabled considerAutoJoin];
+    failures+=legacyDisabled.lookups||legacyDisabled.scans;
+    std::puts("Actual Main automatic admission: recovery/manual-radio-off/delayed-Keychain cases and idle/manual controls");
     return failures;
 }

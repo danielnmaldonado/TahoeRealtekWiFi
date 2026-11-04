@@ -34,7 +34,7 @@ template<class T>int rtwn_io_error(T*c){return c->core_error;}
     current={'8812':'is8812Family','88':'is88Family','8192FU':'is8192FUFamily','8710BU':'is8710BUFamily','8723':'is8723Family','8192DU':None}[suffix]
     members='''
     struct ControlCall {uint32_t selector;const void*input;size_t length;void*output;size_t*outputLength;};
-    bool attached_=true,closing_=false,enabled_=false,joinRequested_=false;
+    bool attached_=true,closing_=false,enabled_=false,joinRequested_=false,userRadioDisabled_=false;
     void*netif_=this,*stats_=this;int initialRXError_=0;struct{bool pending=false;}rxRecovery_;
     bool isLegacyRecoveryFamily()const{return false;}
     int recover8814ForControl(){return ENOTSUP;}
@@ -42,6 +42,7 @@ template<class T>int rtwn_io_error(T*c){return c->core_error;}
     void status(RTWControlStatus*){}void scanResults(RTWControlScanResults*){}void channelMap(RTWControlChannelMap*){}
     template<class...T>void setProperty(T...){}
     IOReturn enableStation();IOReturn handleControl(ControlCall*);
+    void eraseProfile(){joinRequested_=false;core_.sc_ic.ic_des_esslen=0;memset(core_.sc_ic.ic_psk,0,sizeof(core_.sc_ic.ic_psk));}
     IOReturn request(uint32_t selector){RTWControlRequest request{};request.version=RTW_CONTROL_VERSION;RTWControlJoin join{};join.version=RTW_CONTROL_VERSION;join.ssidLength=1;join.ssid[0]='x';RTWControlReply reply{};size_t size=sizeof(reply);ControlCall call{selector,selector==RTW_CONTROL_JOIN?(const void*)&join:(const void*)&request,selector==RTW_CONTROL_JOIN?sizeof(join):sizeof(request),&reply,&size};return handleControl(&call);}
 '''
     if 'rxRecovery_;' in text:members=members.replace('struct{bool pending=false;}rxRecovery_;','')

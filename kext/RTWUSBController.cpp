@@ -1604,6 +1604,7 @@ void RTWUSBController::status(RTWControlStatus*out) {
     if(present_)out->flags|=RTW_CONTROL_DEVICE;
     if(radioReady_)out->flags|=RTW_CONTROL_RADIO;
     if(running_)out->flags|=RTW_CONTROL_RUNNING;
+    if(userRadioDisabled_)out->flags|=RTW_CONTROL_USER_RADIO_DISABLED;
     if(authorized())out->flags|=RTW_CONTROL_AUTHORIZED;
     auto&ic=core_.sc_ic;out->state=ic.ic_state;
     if(ic.ic_state==IEEE80211_S_SCAN&&!browseScanComplete_)out->flags|=RTW_CONTROL_SCANNING;
@@ -1648,6 +1649,7 @@ void RTWUSBController::publishDiagnostics() {
     publish("RTWDiagRadioReady",radioReady_?1:0);
     publish("RTWDiagRunning",running_?1:0);
     publish("RTWDiagSleeping",sleeping_?1:0);
+    publish("RTWDiagUserRadioDisabled",userRadioDisabled_?1:0);
     publish("RTWDiagStopping",stopping_?1:0);
     publish("RTWDiagClosing",closing_?1:0);
     if(family_==RTW_WIFI_RTL8814AU)publish8814RecoveryDiagnostics();
@@ -1927,7 +1929,13 @@ IOReturn RTWUSBController::handleControl(ControlCall*call) {
     if(call->selector==RTW_CONTROL_SCAN_RESULTS){scanResults(static_cast<RTWControlScanResults*>(call->output));return kIOReturnSuccess;}
     if(call->selector==RTW_CONTROL_CHANNEL_MAP){channelMap(static_cast<RTWControlChannelMap*>(call->output));return kIOReturnSuccess;}
     auto*reply=static_cast<RTWControlReply*>(call->output);reply->version=RTW_CONTROL_VERSION;
-    if(call->selector==RTW_CONTROL_LEAVE){quiesce(true);return kIOReturnSuccess;}
+    if(call->selector==RTW_CONTROL_LEAVE){
+        userRadioDisabled_=true;
+        // Sleep already quiesced the radio. Erase only host intent while
+        // asleep, preserving any deferred USB stop/drain and its result.
+        if(sleeping_)eraseProfile();else quiesce(true);
+        return kIOReturnSuccess;
+    }
     if(!attached_||!present_||sleeping_||usbError_!=kIOReturnSuccess)return kIOReturnNotReady;
     /* SCAN is a foreground operation: net80211_begin_scan clears BSS keys.
      * The app's last idle STATUS can precede an in-kernel recovery. Admit
@@ -1947,6 +1955,7 @@ IOReturn RTWUSBController::handleControl(ControlCall*call) {
     if(core_.core_error)return kIOReturnNotReady;
     if(call->selector==RTW_CONTROL_JOIN){
         const auto*join=static_cast<const RTWControlJoin*>(call->input);
+        userRadioDisabled_=false;
         quiesce(true);
         ieee80211_wpaparams parameters{};parameters.i_enabled=1;parameters.i_protos=IEEE80211_WPA_PROTO_WPA2;parameters.i_akms=IEEE80211_WPA_AKM_PSK;parameters.i_ciphers=IEEE80211_WPA_CIPHER_CCMP;parameters.i_groupcipher=IEEE80211_WPA_CIPHER_CCMP;
         int error=ieee80211_ioctl_setwpaparms(&core_.sc_ic,&parameters);
@@ -1957,6 +1966,7 @@ IOReturn RTWUSBController::handleControl(ControlCall*call) {
     }
     if(call->selector==RTW_CONTROL_SCAN){
         if(rxRecovery_.pending)return kIOReturnBusy;
+        userRadioDisabled_=false;
         if(!running_)return enableStation();
         ieee80211_begin_scan(&core_.sc_ic.ic_if);
         return rtwn_io_error(&core_)?kIOReturnIOError:kIOReturnSuccess;
@@ -1974,8 +1984,10 @@ IOReturn RTWUSBController::gated(OSObject*object,void*operation,void*a,void*,voi
     case Initialize:return s->initializePlatform();
     case Shutdown:s->shutdownPlatform();return kIOReturnSuccess;
     case TeardownReady:s->teardownReady_=true;s->scheduleDeferredCleanup();return kIOReturnSuccess;
-    case Enable:return s->enableStation();
-    case Disable:s->quiesce(true);return kIOReturnSuccess;
+    case Enable:return s->userRadioDisabled_?kIOReturnSuccess:s->enableStation();
+    // IOEthernetInterface disables before a PM power drop. Preserve the
+    // configured profile here; explicit LEAVE owns manual radio-off/erasure.
+    case Disable:s->quiesce(false);return kIOReturnSuccess;
     case Output:{
         auto*call=static_cast<OutputCall*>(a);mbuf_t packet=call->packet;
         call->consumed=true;
@@ -2003,8 +2015,8 @@ IOReturn RTWUSBController::gated(OSObject*object,void*operation,void*a,void*,voi
         s->closing_=true;s->present_=false;
         s->fault(kIOReturnNoDevice);s->quiesce(true);
         return kIOReturnSuccess;
-    case Sleep:s->quiesce(true);s->sleeping_=true;return kIOReturnSuccess;
-    case Wake:s->sleeping_=false;/* The app restores a saved profile from the user's keychain. */return kIOReturnSuccess;
+    case Sleep:s->quiesce(false);s->sleeping_=true;return kIOReturnSuccess;
+    case Wake:s->sleeping_=false;/* IOEthernetInterface re-enables after the usable-state notification. */return kIOReturnSuccess;
     default:return kIOReturnBadArgument;
     }
 }
@@ -2114,7 +2126,7 @@ bool RTWUSBController::start(IOService*provider) {
     if(!lifecycleLock_||!loop_||!completionLock_||!cleanupCall_){reportStartStage("locks-workloop",kIOReturnNoMemory);releasePlatform();return false;}
     if(!super::start(provider)){reportStartStage("network-super-start",kIOReturnError);releasePlatform();return false;}
     // Immutable identity is published once, independently of periodic counters.
-    setProperty("RTWDiagDriverBuild",(unsigned long long)66,64);
+    setProperty("RTWDiagDriverBuild",(unsigned long long)67,64);
     usb_=OSDynamicCast(IOUSBHostInterface,provider);
     if(!usb_||!usb_->open(this)){reportStartStage("usb-open",kIOReturnNotOpen);releasePlatform();super::stop(provider);markTeardownReady();return false;}
     usbOpened_=present_=true;

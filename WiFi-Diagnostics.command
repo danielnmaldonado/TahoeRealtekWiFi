@@ -7,7 +7,7 @@ set -o pipefail
 umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
-COLLECTOR_REVISION=6
+COLLECTOR_REVISION=7
 MINUTES=30
 INCLUDE_DEBUG=0
 RAW=0
@@ -260,6 +260,8 @@ run_capture system/boot_args.txt nvram boot-args
 run_capture system/hardware.txt system_profiler SPHardwareDataType
 run_capture system/software.txt system_profiler SPSoftwareDataType
 run_capture system/power.txt pmset -g
+run_capture system/power_assertions.txt pmset -g assertions
+run_capture system/power_history.txt pmset -g log
 
 # macOS Tahoe 26 renamed SPUSBDataType to SPUSBHostDataType.
 echo '[2/7] Complete USB inventory: VID:PID, ports, interfaces and endpoints'
@@ -751,6 +753,7 @@ for my $id (sort {$a<=>$b} keys %ids) {
     }
     for my $k (@publication) {print $out "$k=$after->{$k}\n" if exists $after->{$k};}
     for my $k (qw(RTWDiagDriverBuild RTWDiagCurrentChannel RTWDiagWPAPortValid RTWDiagWPAState RTWDiagRXRecoveryStage IOLinkStatus IOLinkSpeed
+        RTWDiagSleeping RTWDiagRunning RTWDiagEnabled RTWDiagRadioReady RTWDiagPresent RTWDiagCoreError RTWDiagUserRadioDisabled
         RTWDiagHTNegotiated RTWDiagVHTNegotiated RTWDiagHTChannelWidthMHz RTWDiagHTTXStreams RTWDiagHTTXBATIDs RTWDiagHTRXBATIDs
         RTWDiagLinkSpeedKnown RTWDiagLinkSpeedBps RTWDiagNativeIfnetIndex RTWDiagNativeIfnetStatsValid RTWDiagNativeIfnetStatsError)) {
         print $out "$k=$after->{$k}\n" if exists $after->{$k};
@@ -837,6 +840,9 @@ READ FIRST:
   logs/USB_Realtek.log / WiFi_80211.log / Network_Ethernet.log - events.
   logs/unified-summary.txt - lines retained and discarded because of limits.
   logs/unified-coverage.json - requested window, return code and received timestamps.
+  system/power.txt / power_assertions.txt - current power policy and sleep assertions.
+  system/power_history.txt - available macOS power history; inspect event timestamps.
+  logs/app-control.jsonl - control requests and app screen/system/session events.
   logs/recent/ - independent 2min query, only after main-query timeout124.
   STATUS.tsv - details of failed or blocked commands.
 

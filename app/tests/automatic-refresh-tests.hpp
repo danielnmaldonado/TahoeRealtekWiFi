@@ -86,6 +86,10 @@ struct AutomaticAdapterFixture {
 }
 - (void)prepare:(AutomaticRefreshDriver*)driver {
     self.testNow=100;_driver=driver;_authorizedSession=YES;_savedNetworksLoaded=YES;
+    // This fixture owns its policy state and must not inherit real user defaults.
+    if(!_connectionPreferencesLoaded) {
+        _connectionPreferencesLoaded=YES;_autoJoinEnabled=NO;_autoJoin.paused=false;
+    }
     _lastDeviceListAt=_lastNetworkCacheAt=-1;_lastAutoScanAt=-1;
     _menu=menuForControl();
     rtwui::DeviceList list{};list.version=rtwui::ipcVersion;list.count=2;

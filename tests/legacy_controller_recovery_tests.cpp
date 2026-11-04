@@ -117,7 +117,7 @@ class RTWUSBController {public:
  rtwn_softc core_{};rtw_wifi_family family_;rtw_usb_wifi_profile catalog_{};
  const rtw_usb_wifi_profile*profile_=&catalog_;
  bool attached_=true,present_=true,usbOpened_=true,sleeping_=false,closing_=false,stopping_=false;
- bool running_=false,enabled_=false,radioReady_=false,joinRequested_=false,rateTransportFresh_=false;
+ bool running_=false,enabled_=false,radioReady_=false,joinRequested_=false,rateTransportFresh_=false,userRadioDisabled_=false;
  void*usb_=this,*completionLock_=this,*netif_=this,*stats_=this;IOReturn usbError_=0;
  IOUSBHostPipe pipes_[5],*rxPipe_=&pipes_[0],*txPipes_[4]{&pipes_[1],nullptr,nullptr,nullptr};
  uint16_t txMPS_[4]{512,0,0,0};rtw_usb_endpoints endpoints_{};rtw_chip_identity_descriptor descriptor_{};
@@ -175,6 +175,7 @@ class RTWUSBController {public:
  void abortTransfers(){running_=radioReady_=false;rtw_transfer_stop(&ledger_);if(!deferred_)drainBoundary();}
  void quiesce(bool erase){if(stopping_)return;stopping_=true;enabled_=radioReady_=false;core_.sc_ic.ic_if.if_flags&=~IFF_UP;
   rtwn_stop(&core_.sc_ic.ic_if);if(erase){joinRequested_=false;core_.sc_ic.ic_des_esslen=0;}stopping_=false;}
+ void eraseProfile(){joinRequested_=false;core_.sc_ic.ic_des_esslen=0;memset(core_.sc_ic.ic_psk,0,sizeof(core_.sc_ic.ic_psk));}
  void fault(IOReturn error){usbError_=error;}
  template<class...T>void setProperty(T...){}void publishDiagnosticCounter(const char*,uint64_t){}
  void status(RTWControlStatus*){}void scanResults(RTWControlScanResults*){}void channelMap(RTWControlChannelMap*){}
@@ -268,5 +269,13 @@ static void watchdogErrorProvenance(){for(auto family:families){
  CHECK(c->request(RTW_CONTROL_SCAN)==kIOReturnSuccess&&c->running_&&c->familyRecovery_.diag.attempts==1);c->quiesce(false);
  for(int transient:{EAGAIN,EBUSY}){auto t=std::make_unique<RTWUSBController>(family);t->initialError_=EAGAIN;t->core_.sc_ic.ic_if.if_flags|=IFF_UP;if(transient==EBUSY)t->deferred_=true;rtwn_init_task(&t->core_);if(t->core_.core_error||t->running_)std::fprintf(stderr,"legacy task family=%u transient=%d core=%d running=%d cleanup=%u\n",unsigned(family),transient,t->core_.core_error,t->running_,t->familyRecovery_.diag.cleanup);CHECK(!t->core_.core_error&&!t->running_);if(transient==EBUSY){t->drainBoundary();t->deferred_=false;t->finishFamilyStopAfterDrain();}t->initialError_=0;CHECK(t->request(RTW_CONTROL_SCAN)==kIOReturnSuccess&&t->running_);t->quiesce(false);}
 }}
-int main(){watchdogErrorProvenance();transientRequests();delayedDrain();hardwareRecovery();identityGates();failedCleanupAndAdapterIsolation();
+static void repeatedHealthyStopPreservesProfileAndRestarts(){for(auto family:families){
+ auto c=std::make_unique<RTWUSBController>(family);CHECK(c->request(RTW_CONTROL_JOIN)==kIOReturnSuccess);
+ c->core_.sc_ic.ic_psk[7]=0xa3;c->quiesce(false);c->quiesce(false);
+ CHECK(!c->running_&&!c->radioReady_&&!c->core_.core_error&&c->familyRecovery_.diag.cleanup==0);
+ CHECK(c->joinRequested_&&c->core_.sc_ic.ic_des_esslen==1&&c->core_.sc_ic.ic_des_essid[0]=='x'&&c->core_.sc_ic.ic_psk[7]==0xa3);
+ CHECK(c->enableStation()==kIOReturnSuccess&&c->running_&&c->radioReady_&&!c->core_.core_error);
+ CHECK(c->joinRequested_&&c->core_.sc_ic.ic_psk[7]==0xa3);c->quiesce(false);
+}}
+int main(){repeatedHealthyStopPreservesProfileAndRestarts();watchdogErrorProvenance();transientRequests();delayedDrain();hardwareRecovery();identityGates();failedCleanupAndAdapterIsolation();
  std::printf("Actual legacy SCAN/JOIN + rtwn_init/stop + common recovery + full HAL/OTP: %u checks across CU/88E/92E passed\n",checks);}

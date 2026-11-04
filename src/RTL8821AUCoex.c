@@ -137,6 +137,7 @@ static void cx_info_response(struct rtw_dev*c,struct sk_buff*s){if(c->mp.pending
 #include "RTL8821AUCoexCallbacks.inc"
 static const struct rtw_chip_ops cx_ops={rtw8821a_coex_cfg_init,rtw8821a_coex_cfg_ant_switch,rtw8821a_coex_cfg_gnt_fix,rtw8821a_coex_cfg_gnt_debug,rtw8821a_coex_cfg_rfe_type,rtw8821a_coex_cfg_wl_tx_power,rtw8821a_coex_cfg_wl_rx_gain};
 #include "RTL8821AUCoexTables.inc"
+static void rtw_coex_ips_notify(struct rtw_dev*,u8) __attribute__((unused));
 #include "RTL8821AUCoexPolicy.inc"
 /* A single latest desired LNA value bridges the asynchronous MP slot. The
  * watchdog and real C2H completion retry it after their live owner/FW gate. */
@@ -210,8 +211,10 @@ int rtw_r21au_coex_stop(rtw_r21au_coex*c){
  if(c->active&&!c->error)(void)cx_health(c);
  if(c->boot&&c->boot->identified&&c->boot->powered&&!c->boot->io_error&&(c->active||c->error)){
   int saved=c->error;c->error=0;
-  if(!saved&&c->boot->firmware_running)rtw_coex_ips_notify(c,COEX_IPS_ENTER);
-  else rtw_coex_set_ant_path(c,true,COEX_SET_ANT_WOFF);
+  /* Full stop is followed by firmware power-off, not a runtime IPS entry.
+   * Retire the scoreboard and hand the antenna to BT without TDMA H2C. */
+  if(!saved&&c->boot->firmware_running){c->coex.stat.wl_under_ips=true;rtw_coex_write_scbd(c,COEX_SCBD_ALL,false);}
+  rtw_coex_set_ant_path(c,true,COEX_SET_ANT_WOFF);
   rtw_coex_power_off_setting(c);if(saved)c->error=saved;
  }
  rtw_r21au_coex_forget(c);return c->error;

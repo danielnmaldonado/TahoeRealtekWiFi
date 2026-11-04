@@ -256,6 +256,7 @@ private:
     bool usbOpened_ = false, present_ = false, runtimeLease_ = false;
     bool attached_ = false, running_ = false, enabled_ = false;
     bool radioReady_ = false, joinRequested_ = false, sleeping_ = false;
+    bool userRadioDisabled_ = false;
     bool browseScanComplete_ = false;
     bool stopping_ = false, powerManaged_ = false, retainedForPending_ = false;
     bool powerRegistrationAttempted_ = false;

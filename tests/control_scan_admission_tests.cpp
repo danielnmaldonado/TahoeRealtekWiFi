@@ -34,7 +34,7 @@ struct rtwn_softc {int core_error=0;ieee80211com sc_ic;};
 static int rtwn_io_error(rtwn_softc* core) {return core->core_error;}
 class RTWUSBController {public:
     bool attached_=true,present_=true,sleeping_=false,running_=true,stopping_=false;
-    bool joinRequested_=true;int usbError_=0;rtw_wifi_family family_;
+    bool joinRequested_=true,userRadioDisabled_=false;int usbError_=0;rtw_wifi_family family_;
     rtwn_softc core_{};struct {bool pending=false;} rxRecovery_;
     unsigned familyRecoveries=0,auRecoveries=0,enables=0,quiesces=0;
     explicit RTWUSBController(rtw_wifi_family family):family_(family) {
@@ -53,6 +53,7 @@ class RTWUSBController {public:
         if(erase){joinRequested_=false;core_.sc_ic.ic_des_esslen=0;}
     }
     static IOReturn fromErrno(int error) {return error;}
+    void eraseProfile(){joinRequested_=false;core_.sc_ic.ic_des_esslen=0;std::memset(core_.sc_ic.ic_psk,0,sizeof(core_.sc_ic.ic_psk));}
     IOReturn request(uint32_t selector) {
         RTWControlRequest request{};request.version=1;
         RTWControlJoin join{};join.version=1;join.ssidLength=3;std::memcpy(join.ssid,"New",3);

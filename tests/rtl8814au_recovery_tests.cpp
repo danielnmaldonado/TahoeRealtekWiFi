@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 #include "RTL8814AUFirmware.inc"
+inline void explicit_bzero(void *p,size_t size){std::memset(p,0,size);}
 using IOReturn = unsigned;
 enum : IOReturn {kIOReturnSuccess=0, kIOReturnBadArgument=1, kIOReturnNoMemory=2,
  kIOReturnBusy=3,kIOReturnNoDevice=4,kIOReturnNotReady=5,kIOReturnTimeout=6,
@@ -29,7 +30,8 @@ enum ieee80211_state {IEEE80211_S_INIT,IEEE80211_S_SCAN,IEEE80211_S_AUTH,IEEE802
 enum {IEEE80211_M_STA=1,IEEE80211_F_SHSLOT=2,IEEE80211_RATE_BASIC=128,
  IEEE80211_NODE_HT=1,IEEE80211_HTCAP_SGI20=32,IEEE80211_CHAN_5GHZ=0x100,
  IEEE80211_CHAN_PASSIVE=0x200,IFF_UP=1,IFF_RUNNING=2,IEEE80211_F_PSK=4,
- IEEE80211_WPA_PROTO_WPA2=1,IEEE80211_WPA_AKM_PSK=1,IEEE80211_WPA_CIPHER_CCMP=8,RTWN_FLAG_BUSY=1};
+ IEEE80211_WPA_PROTO_WPA2=1,IEEE80211_WPA_AKM_PSK=1,IEEE80211_WPA_CIPHER_CCMP=8,RTWN_FLAG_BUSY=1,
+ IEEE80211_F_RSNON=8,IEEE80211_F_AUTO_JOIN=16};
 struct ieee80211_channel {int number=1;unsigned ic_flags=0;};
 #define IEEE80211_CHAN_ANYC ((ieee80211_channel *)-1)
 struct ieee80211_rateset {uint8_t rs_nrates=0,rs_rates[32]{};};
@@ -55,6 +57,7 @@ using IOInterruptState = int;
 struct Bus {
  std::array<uint8_t,65536> reg{};std::array<uint8_t,1024> otp{};
  unsigned otpAddress=0,reads=0,writes=0,bulks=0,rfkStarts=0,otpReads=0,powerOns=0;
+ unsigned mailboxReads=0,mailboxWrites=0;
  bool rfkFail=false,powerOffFail=false,identityReadFail=false;
  unsigned failReadAddress=0x10000,failWriteAddress=0x10000;
  int failureError=EIO;
@@ -69,7 +72,7 @@ struct Bus {
    else{otp[j++]=uint8_t(((block&7)<<5)|15);otp[j++]=uint8_t((block&0x78)<<1);}
    for(unsigned k=0;k<8;k++)otp[j++]=logical[block*8+k];}otp[j]=255;
  }
- int read(uint16_t a,unsigned w,uint32_t *v){reads++;if((identityReadFail&&a==0xf0)||a==failReadAddress)return failureError;*v=get(a,w);
+ int read(uint16_t a,unsigned w,uint32_t *v){reads++;if(a==0x1cc)++mailboxReads;if((identityReadFail&&a==0xf0)||a==failReadAddress)return failureError;*v=get(a,w);
   if(a==0x30&&w==4){otpReads++;*v=(*v&~255U)|otp[otpAddress]|0x80000000U;}
   if(a==5)*v&=~3U;if(a==6)*v|=2U;if(a==0x208)*v&=~1U;
   if(a==0x1208&&w==4)*v&=~0x80000000U;
@@ -78,7 +81,7 @@ struct Bus {
   if(a==0x1b00&&w==4&&(!rfkFail||((*v>>4)&15U)!=1U))*v&=~1U;
   if(a==0x1b08&&w==4)*v=0;if(a==0x1bfc&&w==4)*v=0x00100010U;return 0;
  }
- int write(uint16_t a,unsigned w,uint32_t v){if((powerOffFail&&a==5&&(v&2))||a==failWriteAddress)return failureError;writes++;put(a,w,v);
+ int write(uint16_t a,unsigned w,uint32_t v){if((powerOffFail&&a==5&&(v&2))||a==failWriteAddress)return failureError;writes++;if((a>=0x1d0&&a<0x1e0)||(a>=0x1f0&&a<0x200))++mailboxWrites;put(a,w,v);
   if(a==0x30&&w==4)otpAddress=(v>>8)&1023;
   if(a==5&&(v&2))put(0x100,1,0xea);else if(a==5&&(v&1)){powerOns++;put(0x100,1,0);}
   if(a==3&&(v&4)&&(get(0x80,2)&0x4000))put(0x80,2,0xc078);
@@ -94,7 +97,7 @@ public:
  rtwn_softc core_{};rtw_8814au acCore_{};rtw_8814au_rate_config acRateConfig_{};
  void *acPHYStorage_=nullptr;size_t acPHYSize_=0;bool acMediaConnected_=false,acRateReady_=false;
  uint8_t acChannel_=0,acRSSI_=0;bool attached_=true,present_=true,sleeping_=false,closing_=false,stopping_=false;
- bool running_=false,enabled_=false,radioReady_=false,joinRequested_=false,usbOpened_=true;
+ bool running_=false,enabled_=false,radioReady_=false,joinRequested_=false,usbOpened_=true,userRadioDisabled_=false,browseScanComplete_=false;
  IOReturn usbError_=0;void *usb_=this,*netif_=this,*stats_=this,*completionLock_=this;
  rtw_wifi_family family_=RTW_WIFI_RTL8814AU;rtw_usb_endpoints endpoints_{};rtw_transfer_ledger ledger_{};
  rtw_usb_wifi_profile profileValue_{0x2357,0x0106,0,0,1,0,RTW_WIFI_RTL8814AU,1,"AU",0,0,0,0,0};
@@ -145,6 +148,7 @@ public:
  int start8814();void stop8814();int set8814Channel(uint8_t);int state8814(ieee80211com*,ieee80211_state,int);
  int tick8814();bool uses8814FirmwareRate()const;
  static void initTask8814(void*);
+ void resetDFSStation(){}void resetWpaRecovery(){}void eraseProfile();
  rtw_8814au_station_params station8814Params()const;IOReturn enableStation();IOReturn handleControl(ControlCall*);
  IOReturn request(uint32_t selector){RTWControlJoin input{};input.version=RTW_CONTROL_VERSION;input.ssidLength=1;input.ssid[0]='x';
   RTWControlRequest scan{};scan.version=RTW_CONTROL_VERSION;RTWControlReply output{};size_t size=sizeof(output);
@@ -271,6 +275,92 @@ static void periodicHardErrorsRetainTypedPhase(){
  CHECK(c->published["RTWDiagAUPeriodicLastFailurePhase"]==1&&c->published["RTWDiagAUPeriodicLastFailureResult"]==ETIMEDOUT);
  CHECK(c->published["RTWDiagAUPeriodicRSSIAttempts"]==1&&c->published["RTWDiagAUPeriodicRSSIFailures"]==0);
 }
-int main(){retryStartsFromNativeReset();joinAlsoRecovers();persistentTimeoutIsBounded();negativeGates();failedPowerOffNeverRestarts();changedRomNeverRestarts();failedIdentityReadNeverRestarts();changedChipNeverRestarts();drainMustFinish();cleanupSeparatesOriginalError();healthyStopMustDrainBeforeRestart();initialTransientDoesNotLatch();directStartCannotBypassLatchedRecovery();finalCallbackCompletesDisabledStop();deferredStopDoesNotAccessUnavailableUSB();deferredStopRetainsCleanupFailure();unvalidatedInitialRXBlocksBootstrap();
+static void repeatedHealthyStopPreservesProfileAndRestarts(){
+ auto c=std::make_unique<RTWUSBController>();CHECK(c->request(RTW_CONTROL_JOIN)==kIOReturnSuccess);
+ c->core_.sc_ic.ic_psk[7]=0xa3;c->quiesce(false);c->quiesce(false);
+ CHECK(!c->running_&&!c->radioReady_&&!c->core_.core_error&&c->acRecoveryDiag_.cleanupResult==0);
+ CHECK(c->joinRequested_&&c->core_.sc_ic.ic_des_esslen==1&&c->core_.sc_ic.ic_des_essid[0]=='x'&&c->core_.sc_ic.ic_psk[7]==0xa3);
+ CHECK(c->enableStation()==kIOReturnSuccess&&c->running_&&c->radioReady_&&!c->core_.core_error);
+ CHECK(c->joinRequested_&&c->core_.sc_ic.ic_psk[7]==0xa3);c->quiesce(false);
+}
+static void sleepingLeaveDoesNotPoisonCompletedStop(){
+ auto c=std::make_unique<RTWUSBController>();CHECK(c->request(RTW_CONTROL_JOIN)==kIOReturnSuccess);
+ c->quiesce(false);c->quiesce(false);CHECK(c->acRecoveryDiag_.cleanupResult==0&&!c->acRecoveryBlocked_);
+ c->sleeping_=true;const auto reads=c->bus.reads,writes=c->bus.writes;
+ CHECK(c->request(RTW_CONTROL_LEAVE)==kIOReturnSuccess);
+ CHECK(c->bus.reads==reads&&c->bus.writes==writes);
+ CHECK(c->acRecoveryDiag_.cleanupResult==0&&!c->acRecoveryBlocked_&&!c->core_.core_error&&!c->acCore_.io_error);
+ c->sleeping_=false;CHECK(c->request(RTW_CONTROL_JOIN)==kIOReturnSuccess&&c->running_);c->quiesce(false);
+}
+static void sleepingLeaveRetainsPendingDrain(){
+ auto c=std::make_unique<RTWUSBController>();CHECK(c->request(RTW_CONTROL_JOIN)==kIOReturnSuccess);
+ c->abortLeavesPending=true;c->ledger_.pending=1;c->quiesce(false);c->sleeping_=true;
+ CHECK(c->acRecoveryDiag_.cleanupResult==EBUSY&&c->ledger_.pending==1);
+ const auto reads=c->bus.reads,writes=c->bus.writes;
+ CHECK(c->request(RTW_CONTROL_LEAVE)==kIOReturnSuccess);
+ CHECK(c->bus.reads==reads&&c->bus.writes==writes&&c->ledger_.pending==1);
+ CHECK(c->acRecoveryDiag_.cleanupResult==EBUSY&&!c->acRecoveryBlocked_&&!c->joinRequested_);
+ c->sleeping_=false;c->abortLeavesPending=false;c->ledger_.pending=0;
+ CHECK(c->request(RTW_CONTROL_SCAN)==kIOReturnSuccess&&c->running_);c->quiesce(false);
+}
+static std::unique_ptr<RTWUSBController> actualRunningStation(){
+ auto c=std::make_unique<RTWUSBController>();CHECK(c->request(RTW_CONTROL_JOIN)==kIOReturnSuccess);
+ c->node.ni_associd=1;c->node.ni_rates.rs_nrates=1;c->node.ni_rates.rs_rates[0]=0x82;c->node.ni_bssid[0]=2;
+ CHECK(c->state8814(&c->core_.sc_ic,IEEE80211_S_RUN,0)==0&&c->acMediaConnected_&&c->acRateReady_);
+ return c;
+}
+static void powerOffDoesNotNeedFirmwareDisconnectMailbox(){
+ for(bool busy:{false,true})for(unsigned box=0;box<4;++box){
+  auto c=actualRunningStation();c->core_.sc_ic.ic_psk[7]=0x69;c->acCore_.h2c_box=box;
+  c->bus.put(0x1cc,1,busy?0xf:0);const auto reads=c->bus.mailboxReads,writes=c->bus.mailboxWrites;
+  c->quiesce(false);c->quiesce(false);
+  CHECK(c->bus.mailboxReads==reads&&c->bus.mailboxWrites==writes&&c->acCore_.h2c_box==box);
+  CHECK(!c->acCore_.io_error&&!c->core_.core_error&&!c->acRecoveryBlocked_&&c->acRecoveryDiag_.cleanupResult==0);
+  CHECK(!c->acCore_.powered&&!c->acCore_.fw_running&&!c->running_&&c->core_.sc_ic.ic_state==IEEE80211_S_INIT);
+  CHECK(c->joinRequested_&&c->core_.sc_ic.ic_psk[7]==0x69);
+  c->bus.put(0x1cc,1,0);CHECK(c->enableStation()==kIOReturnSuccess&&c->running_);
+  CHECK(c->joinRequested_&&c->core_.sc_ic.ic_psk[7]==0x69);c->quiesce(false);
+ }
+}
+static void nonPowerOffDisconnectAndRunRemainMandatory(){
+ for(auto state:{IEEE80211_S_INIT,IEEE80211_S_SCAN}){
+  auto c=actualRunningStation();c->bus.put(0x1cc,1,0xf);
+  CHECK(c->state8814(&c->core_.sc_ic,state,-1)==ETIMEDOUT&&c->acCore_.io_error==ETIMEDOUT);
+ }
+ {
+  auto c=std::make_unique<RTWUSBController>();CHECK(c->request(RTW_CONTROL_JOIN)==kIOReturnSuccess);
+  c->node.ni_associd=1;c->node.ni_rates.rs_nrates=1;c->node.ni_rates.rs_rates[0]=0x82;c->node.ni_bssid[0]=2;
+  c->bus.put(0x1cc,1,0xf);
+  CHECK(c->state8814(&c->core_.sc_ic,IEEE80211_S_RUN,0)==ETIMEDOUT&&c->acCore_.io_error==ETIMEDOUT);
+  CHECK(!c->acMediaConnected_&&!c->acRateReady_);
+ }
+ for(int error:{EIO,EBUSY,ETIMEDOUT})for(unsigned command=0;command<3;++command){
+  auto c=std::make_unique<RTWUSBController>();CHECK(c->request(RTW_CONTROL_JOIN)==kIOReturnSuccess);
+  c->node.ni_associd=1;c->node.ni_rates.rs_nrates=1;c->node.ni_rates.rs_rates[0]=0x82;c->node.ni_bssid[0]=2;
+  c->bus.failureError=error;c->bus.failWriteAddress=0x1f0+command*4;
+  CHECK(c->state8814(&c->core_.sc_ic,IEEE80211_S_RUN,0)==error&&c->acCore_.io_error==error);
+  CHECK(!c->acMediaConnected_&&!c->acRateReady_);
+ }
+}
+static void busyMailboxStopStillPausesBeforeDeferredDrain(){
+ auto c=actualRunningStation();c->bus.put(0x1cc,1,0xf);
+ c->abortLeavesPending=true;c->ledger_.pending=1;c->quiesce(false);
+ CHECK(c->acRecoveryDiag_.cleanupResult==EBUSY&&!c->acCore_.io_error&&!c->acRecoveryBlocked_);
+ CHECK(c->bus.get(0x522,1)==0x3f&&!c->acMediaConnected_&&!c->acRateReady_&&c->acCore_.powered);
+ c->abortLeavesPending=false;c->ledger_.pending=0;c->finish8814StopAfterDrain();
+ CHECK(c->acRecoveryDiag_.cleanupResult==0&&!c->acCore_.powered&&!c->acCore_.io_error);
+ c->bus.put(0x1cc,1,0);CHECK(c->enableStation()==kIOReturnSuccess&&c->running_);c->quiesce(false);
+}
+static void powerOffPreservesTypedHardwareFailures(){
+ for(int error:{EIO,EBUSY,ETIMEDOUT})for(unsigned address:{0x6a4U,0x1fU}){
+  auto c=actualRunningStation();c->bus.failureError=error;c->bus.failWriteAddress=address;
+  c->quiesce(false);CHECK(c->acCore_.io_error==error&&!c->running_);
+  c->bus.failWriteAddress=0x10000;CHECK(c->enableStation()!=kIOReturnSuccess&&c->acCore_.io_error==error);
+ }
+ auto failed=actualRunningStation();failed->bus.powerOffFail=true;failed->quiesce(false);
+ CHECK(failed->acCore_.io_error==EIO&&failed->acRecoveryDiag_.cleanupResult==EIO&&failed->acRecoveryBlocked_);
+ for(int original:{EIO,EBUSY,ETIMEDOUT}){auto c=actualRunningStation();c->acCore_.io_error=original;c->quiesce(false);CHECK(c->acCore_.io_error==original&&!c->running_);}
+}
+int main(){powerOffDoesNotNeedFirmwareDisconnectMailbox();nonPowerOffDisconnectAndRunRemainMandatory();busyMailboxStopStillPausesBeforeDeferredDrain();powerOffPreservesTypedHardwareFailures();sleepingLeaveRetainsPendingDrain();sleepingLeaveDoesNotPoisonCompletedStop();repeatedHealthyStopPreservesProfileAndRestarts();retryStartsFromNativeReset();joinAlsoRecovers();persistentTimeoutIsBounded();negativeGates();failedPowerOffNeverRestarts();changedRomNeverRestarts();failedIdentityReadNeverRestarts();changedChipNeverRestarts();drainMustFinish();cleanupSeparatesOriginalError();healthyStopMustDrainBeforeRestart();initialTransientDoesNotLatch();directStartCannotBypassLatchedRecovery();finalCallbackCompletesDisabledStop();deferredStopDoesNotAccessUnavailableUSB();deferredStopRetainsCleanupFailure();unvalidatedInitialRXBlocksBootstrap();
  advisoryRSSIBusyKeepsActualPHYAndContextHealthy();periodicHardErrorsRetainTypedPhase();
  std::printf("AU actual startup/control recovery: %u checks, %u failures\n",checks,failures);return failures?1:0;}

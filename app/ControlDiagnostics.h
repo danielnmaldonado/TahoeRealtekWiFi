@@ -11,3 +11,11 @@ NSDictionary* RTWControlExchangeRecord(uint64_t registryID,uint32_t selector,
 BOOL RTWAppendControlDiagnosticRecord(NSDictionary* record,NSString* directory=nil);
 void RTWLogControlExchange(uint64_t registryID,uint32_t selector,uint32_t result,
     double durationMS,BOOL beginning);
+
+enum class RTWLifecycleReason : uint8_t {
+    SystemSleep,SystemWake,ScreenSleep,ScreenWake,SessionInactive,SessionActive,
+    AppTermination,ManualDisconnect
+};
+// Lifecycle callers supply only a bounded enum and selected adapter ID.
+NSDictionary* RTWLifecycleDiagnosticRecord(RTWLifecycleReason reason,uint64_t registryID);
+void RTWLogLifecycle(RTWLifecycleReason reason,uint64_t registryID);

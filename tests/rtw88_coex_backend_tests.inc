@@ -133,4 +133,17 @@ static void wideCoexistence(){
  }
  printf("B/C actual wide coexistence: %u family/antenna/width calibrated tuple and VHT RA/MIMO/SMPS cases passed\n",cases);
 }
-int main(){wideCoexistence();recoveryDefersTimerHardwareUntilResume();controllerTraces();cleanupAuthority();smpsFrames();smpsAuthority();lifecycle();runtimeFailures();}
+static void busyFullStopKeepsControllerCleanupHealthy(){
+ unsigned cases=0;
+ for(auto family:{RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU})for(bool shared:{false,true})for(unsigned box=0;box<4;++box){
+  BTFixture b(family,shared);b.run();auto&c=b.f.c;
+  const uint8_t a2dp[9]={9,0,1,0x49,0,20,0,0,40};c.handle88C2H(a2dp,9);if(c.r88SMPSPending_)b.ack();
+  rtw88_coex_status status{};rtw88_coex_get_status(c.r88Coex_,&status);assert(status.active&&status.bt_profiles==1);
+  c.r88Core_.firmware.h2c_box=box;regs[0x1cc]=0xf;const auto sent=commands.size();c.stop88();c.stop88();
+  assert(commands.size()==sent&&c.r88Core_.firmware.h2c_box==box);
+  assert(!c.core_.core_error&&!c.r88Core_.firmware.last_error&&!c.familyRecovery_.diag.cleanup&&!c.familyRecovery_.blocked&&c.familyRecovery_.hardwareStopped);
+  assert(!c.running_&&!c.r88Coex_&&!b.timer.queued&&!c.r88Core_.firmware.powered);++cases;
+ }
+ std::printf("B/C actual full-stop cleanup: %u active BT/antenna/busy mailbox cases power off without blocking later starts\n",cases);
+}
+int main(){busyFullStopKeepsControllerCleanupHealthy();wideCoexistence();recoveryDefersTimerHardwareUntilResume();controllerTraces();cleanupAuthority();smpsFrames();smpsAuthority();lifecycle();runtimeFailures();}

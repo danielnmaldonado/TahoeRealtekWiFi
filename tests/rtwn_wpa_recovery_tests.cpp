@@ -93,10 +93,17 @@ void rtwn_stop(_ifnet *p) {
     RTWUSBController::stateTransition(&core->sc_ic, IEEE80211_S_INIT, -1);
     c->running_ = false;
 }
-IOReturn RTWUSBController::enableStation() {
+// Only the hardware start is a boundary; enableStation's actual admission,
+// flags, rollback, and profile handling are compiled from production.
+int RTWUSBController::startStationHardware() {
     ++initCalls;
-    running_ = enabled_ = radioReady_ = true;
+    if(initError)return initError;
+    running_ = true;
     return stateTransition(&core_.sc_ic, IEEE80211_S_SCAN, -1);
+}
+int rtwn_init(_ifnet *p) {
+    auto *core=static_cast<rtwn_softc *>(p->if_softc);
+    return RTWUSBController::owner(core->sc_ops.cookie)->startStationHardware();
 }
 static void run(RTWUSBController &c, ieee80211_node &node, uint64_t time = 100) {
     RTWUSBController::clockMS = time;
@@ -247,7 +254,7 @@ static void invalid_profile_and_lifecycle_cancel() {
             CHECK(state != IEEE80211_S_SCAN);
     }
 }
-static void leave_disable_sleep_unplug_erase_and_cancel() {
+static void lifecycle_stops_cancel_wpa_without_erasing_pm_intent() {
     for (auto operation :
          {RTWUSBController::Disable, RTWUSBController::Sleep, RTWUSBController::Terminated}) {
         RTWUSBController c;
@@ -257,7 +264,7 @@ static void leave_disable_sleep_unplug_erase_and_cancel() {
               0);
         tick(c, 900000);
         CHECK(!c.wpaRecovery_.active);
-        CHECK(!c.joinRequested_);
+        CHECK(c.joinRequested_ == (operation != RTWUSBController::Terminated));
         CHECK(!c.running_);
         CHECK(c.wpaRecovery_.retries == 0);
     }
@@ -273,6 +280,165 @@ static void leave_disable_sleep_unplug_erase_and_cancel() {
     tick(c, 900000);
     CHECK(!c.wpaRecovery_.active);
     CHECK(!c.joinRequested_);
+}
+
+static IOReturn gate(RTWUSBController &c, RTWUSBController::GateOperation operation, void *argument=nullptr) {
+    return RTWUSBController::gated(&c,reinterpret_cast<void *>(operation),argument,nullptr,nullptr);
+}
+static IOReturn radioRequest(RTWUSBController &c,uint32_t selector,bool valid=true) {
+    RTWControlRequest request{};request.version=valid?RTW_CONTROL_VERSION:0;
+    RTWControlJoin join{};join.version=request.version;join.ssidLength=3;
+    std::memcpy(join.ssid,"New",3);std::memset(join.pmk,0x39,sizeof(join.pmk));
+    RTWControlReply reply{};size_t size=sizeof(reply);
+    RTWUSBController::ControlCall call{selector,
+        selector==RTW_CONTROL_JOIN?static_cast<const void *>(&join):&request,
+        selector==RTW_CONTROL_JOIN?sizeof(join):sizeof(request),&reply,&size};
+    return gate(c,RTWUSBController::Control,&call);
+}
+static bool manualRadioOffStatus(RTWUSBController &c) {
+    RTWControlRequest request{};request.version=RTW_CONTROL_VERSION;
+    RTWControlStatus status{};size_t size=sizeof(status);
+    RTWUSBController::ControlCall call{RTW_CONTROL_STATUS,&request,sizeof(request),&status,&size};
+    CHECK(gate(c,RTWUSBController::Control,&call)==kIOReturnSuccess);
+    CHECK(status.version==RTW_CONTROL_VERSION&&size==sizeof(status));
+    for(auto reserved:status.reserved)CHECK(reserved==0);
+    return (status.flags&(1U<<13))!=0; // Additive ABI v1 manual-radio-off bit.
+}
+static void configuredProfile(RTWUSBController &c,uint8_t key) {
+    auto &ic=c.core_.sc_ic;
+    c.joinRequested_=true;ic.ic_flags|=IEEE80211_F_RSNON|IEEE80211_F_PSK;
+    ic.ic_des_esslen=3;std::memcpy(ic.ic_des_essid,"Lab",3);
+    std::memset(ic.ic_psk,key,sizeof(ic.ic_psk));
+}
+static void expectProfile(const RTWUSBController &c,uint8_t key,const char *ssid="Lab") {
+    const auto &ic=c.core_.sc_ic;
+    CHECK(c.joinRequested_&&ic.ic_des_esslen==3);
+    CHECK(!std::memcmp(ic.ic_des_essid,ssid,3));
+    CHECK((ic.ic_flags&(IEEE80211_F_RSNON|IEEE80211_F_PSK))==(IEEE80211_F_RSNON|IEEE80211_F_PSK));
+    for(auto byte:ic.ic_psk)CHECK(byte==key);
+}
+static void expectErasedProfile(const RTWUSBController &c) {
+    const auto &ic=c.core_.sc_ic;
+    CHECK(!c.joinRequested_&&ic.ic_des_esslen==0);
+    CHECK(!(ic.ic_flags&(IEEE80211_F_RSNON|IEEE80211_F_PSK|IEEE80211_F_AUTO_JOIN)));
+    for(auto byte:ic.ic_psk)CHECK(byte==0);
+    for(auto byte:ic.ic_des_essid)CHECK(byte==0);
+}
+// IOEthernetInterface disables a running controller BEFORE setPowerState(0).
+// Either erasing Disable or erasing Sleep must fail this test, even if Wake
+// were able to ask the app for a new profile later.
+static void pm_cycle_preserves_configured_profile() {
+    for(auto family:{RTW_WIFI_RTL8192CU,RTW_WIFI_RTL8188EU,RTW_WIFI_RTL8192EU,
+        RTW_WIFI_RTL8192DU,RTW_WIFI_RTL8192FU,RTW_WIFI_RTL8710BU,
+        RTW_WIFI_RTL8723BU,RTW_WIFI_RTL8812AU,RTW_WIFI_RTL8821AU,
+        RTW_WIFI_RTL8814AU,RTW_WIFI_RTL8821CU,RTW_WIFI_RTL8822BU,RTW_WIFI_RTL8822CU}) {
+        RTWUSBController c;ieee80211_node node;c.family_=family;configuredProfile(c,0xa7);run(c,node);
+        for(unsigned cycle=0;cycle<3;++cycle) {
+            CHECK(gate(c,RTWUSBController::Disable)==kIOReturnSuccess);
+            expectProfile(c,0xa7);
+            CHECK(!c.running_&&!c.enabled_&&!c.radioReady_&&!c.wpaRecovery_.active);
+            CHECK(c.core_.sc_ic.ic_state==IEEE80211_S_INIT&&!node.ni_port_valid);
+            const unsigned starts=c.initCalls;
+            CHECK(gate(c,RTWUSBController::Sleep)==kIOReturnSuccess);
+            CHECK(c.sleeping_);expectProfile(c,0xa7);
+            CHECK(gate(c,RTWUSBController::Wake)==kIOReturnSuccess);
+            CHECK(!c.sleeping_&&!c.running_&&c.initCalls==starts);
+            // Host re-enable, after the usable-state notification, owns I/O.
+            CHECK(gate(c,RTWUSBController::Enable)==kIOReturnSuccess);
+            CHECK(c.running_&&c.enabled_&&c.radioReady_&&c.initCalls==starts+1);
+            CHECK(c.core_.sc_ic.ic_state==IEEE80211_S_SCAN);expectProfile(c,0xa7);
+            CHECK(gate(c,RTWUSBController::Enable)==kIOReturnSuccess&&c.initCalls==starts+1);
+        }
+    }
+    RTWUSBController direct;configuredProfile(direct,0x63);
+    CHECK(gate(direct,RTWUSBController::Sleep)==0);expectProfile(direct,0x63);
+    CHECK(!direct.running_&&direct.sleeping_);
+}
+// LEAVE expresses manual radio-off both awake and during a PM power drop.
+// A later host enable must succeed without starting radio or restoring keys.
+static void manual_radio_off_survives_pm_cycles() {
+    for(bool leaveWhileSleeping:{false,true}) {
+        RTWUSBController c;configuredProfile(c,0x72);
+        if(leaveWhileSleeping) {
+            CHECK(gate(c,RTWUSBController::Disable)==0);
+            CHECK(gate(c,RTWUSBController::Sleep)==0);
+        }
+        CHECK(radioRequest(c,RTW_CONTROL_LEAVE)==kIOReturnSuccess);expectErasedProfile(c);
+        CHECK(manualRadioOffStatus(c));
+        for(unsigned cycle=0;cycle<3;++cycle) {
+            CHECK(gate(c,RTWUSBController::Disable)==0);
+            CHECK(gate(c,RTWUSBController::Sleep)==0);
+            const unsigned starts=c.initCalls;
+            CHECK(gate(c,RTWUSBController::Wake)==0);
+            CHECK(gate(c,RTWUSBController::Enable)==kIOReturnSuccess);
+            CHECK(c.initCalls==starts&&!c.running_&&!c.enabled_&&!c.radioReady_);
+            CHECK(manualRadioOffStatus(c));
+            expectErasedProfile(c);
+        }
+        // Clearing a profile alone is not permission to turn radio back on.
+        c.eraseProfile();CHECK(gate(c,RTWUSBController::Enable)==0);
+        CHECK(c.initCalls==0&&!c.running_);
+    }
+}
+// Only admitted explicit JOIN/SCAN can resume a manual radio-off. Malformed
+// messages and a rejected request during sleep must not change that intent.
+static void explicit_radio_resume_requires_valid_admitted_command() {
+    RTWUSBController malformed;configuredProfile(malformed,0x4a);
+    CHECK(radioRequest(malformed,RTW_CONTROL_LEAVE,false)==kIOReturnBadArgument);
+    CHECK(!manualRadioOffStatus(malformed));
+    CHECK(malformed.running_);expectProfile(malformed,0x4a);
+    CHECK(gate(malformed,RTWUSBController::Disable)==0);
+    CHECK(gate(malformed,RTWUSBController::Enable)==0&&malformed.running_);
+    for(uint32_t selector:{uint32_t(RTW_CONTROL_JOIN),uint32_t(RTW_CONTROL_SCAN)}) {
+        RTWUSBController c;CHECK(radioRequest(c,RTW_CONTROL_LEAVE)==0);
+        CHECK(radioRequest(c,selector,false)==kIOReturnBadArgument);
+        CHECK(manualRadioOffStatus(c));
+        CHECK(gate(c,RTWUSBController::Enable)==0&&!c.running_&&c.initCalls==0);
+        CHECK(gate(c,RTWUSBController::Sleep)==0);
+        CHECK(radioRequest(c,selector)==kIOReturnNotReady);
+        CHECK(gate(c,RTWUSBController::Wake)==0);
+        CHECK(gate(c,RTWUSBController::Enable)==0&&!c.running_&&c.initCalls==0);
+        c.rxRecovery_.pending=selector==RTW_CONTROL_SCAN;
+        if(c.rxRecovery_.pending) {
+            CHECK(radioRequest(c,selector)==kIOReturnBusy);
+            CHECK(gate(c,RTWUSBController::Enable)==0&&!c.running_&&c.initCalls==0);
+            c.rxRecovery_.pending=false;
+        }
+        CHECK(radioRequest(c,selector)==kIOReturnSuccess);
+        CHECK(!manualRadioOffStatus(c));
+        CHECK(c.running_&&c.enabled_&&c.radioReady_&&c.initCalls==1);
+        if(selector==RTW_CONTROL_JOIN)expectProfile(c,0x39,"New");
+        else expectErasedProfile(c);
+        CHECK(gate(c,RTWUSBController::Disable)==0);
+        CHECK(gate(c,RTWUSBController::Sleep)==0);
+        CHECK(gate(c,RTWUSBController::Wake)==0);
+        CHECK(gate(c,RTWUSBController::Enable)==0&&c.initCalls==2&&c.running_);
+    }
+    RTWUSBController failed;configuredProfile(failed,0x24);failed.initError=EIO;
+    CHECK(radioRequest(failed,RTW_CONTROL_JOIN)==EIO);expectErasedProfile(failed);
+    CHECK(!failed.running_&&!failed.enabled_&&!failed.radioReady_);
+}
+// Per-adapter intent cannot leak, and stale wake/enable callbacks after
+// shutdown or termination must not resurrect a retained configured profile.
+static void pm_intent_is_per_adapter_and_teardown_wins() {
+    RTWUSBController disabled,connected;configuredProfile(disabled,0x15);configuredProfile(connected,0x2b);
+    CHECK(radioRequest(disabled,RTW_CONTROL_LEAVE)==0);
+    for(auto *c:{&disabled,&connected}) {
+        CHECK(gate(*c,RTWUSBController::Disable)==0);
+        CHECK(gate(*c,RTWUSBController::Sleep)==0);
+        CHECK(gate(*c,RTWUSBController::Wake)==0);
+        CHECK(gate(*c,RTWUSBController::Enable)==0);
+    }
+    CHECK(!disabled.running_&&disabled.initCalls==0);expectErasedProfile(disabled);
+    CHECK(manualRadioOffStatus(disabled)&&!manualRadioOffStatus(connected));
+    CHECK(connected.running_&&connected.initCalls==1);expectProfile(connected,0x2b);
+    for(auto operation:{RTWUSBController::Shutdown,RTWUSBController::Terminated}) {
+        RTWUSBController c;configuredProfile(c,0x5d);
+        CHECK(gate(c,operation)==0);expectErasedProfile(c);
+        CHECK(gate(c,RTWUSBController::Wake)==kIOReturnNotReady);
+        CHECK(gate(c,RTWUSBController::Enable)==kIOReturnNotReady);
+        CHECK(!c.running_&&c.initCalls==0);
+    }
 }
 static void manual_join_resets_exhausted_campaign() {
     RTWUSBController c;
@@ -544,7 +710,8 @@ static void ac8814_common_state_and_stop_dispatch() {
         stopped.family_=RTW_WIFI_RTL8814AU;stopped.acCore_.phy_initialized=1;run(stopped,station);
         CHECK(RTWUSBController::gated(&stopped,reinterpret_cast<void *>(operation),nullptr,nullptr,nullptr)==0);
         CHECK(stopped.acStopCalls==1 && stopped.stopCalls==0 && stopped.legacyStateCalls==0);
-        CHECK(!stopped.running_ && !stopped.joinRequested_ && !stopped.acRateReady_ && !stopped.acMediaConnected_);
+        CHECK(!stopped.running_ && !stopped.acRateReady_ && !stopped.acMediaConnected_);
+        CHECK(stopped.joinRequested_==(operation!=RTWUSBController::Terminated));
         CHECK(stopped.core_.sc_ic.ic_state==IEEE80211_S_INIT);
     }
 }
@@ -770,7 +937,16 @@ static void live_registered_band_groups(){
         c.attached_=false;c.status(&status);CHECK(!(status.flags&groups));
     }
 }
-int main() {
+int main(int argc,char **argv) {
+    const std::string selected=argc>1?argv[1]:"all";
+    if(selected=="all"||selected=="pm-profile")pm_cycle_preserves_configured_profile();
+    if(selected=="all"||selected=="pm-manual")manual_radio_off_survives_pm_cycles();
+    if(selected=="all"||selected=="pm-admission")explicit_radio_resume_requires_valid_admitted_command();
+    if(selected=="all"||selected=="pm-isolation")pm_intent_is_per_adapter_and_teardown_wins();
+    if(selected!="all") {
+        std::printf("Controller %s: %u checks passed on actual gate/control/quiesce/enable methods\n",selected.c_str(),checks);
+        return 0;
+    }
     r23_common_state_stop_and_port_dispatch();
     bu_common_state_stop_and_port_dispatch();
     fu_common_state_stop_and_port_dispatch();
@@ -800,7 +976,7 @@ int main() {
     authorization_cancels_deadline();
     erased_profile_never_retries();
     invalid_profile_and_lifecycle_cancel();
-    leave_disable_sleep_unplug_erase_and_cancel();
+    lifecycle_stops_cancel_wpa_without_erasing_pm_intent();
     manual_join_resets_exhausted_campaign();
     clock_wrap_and_backwards_are_bounded();
     dequeued_tx_is_not_owned_by_recovery_queue();

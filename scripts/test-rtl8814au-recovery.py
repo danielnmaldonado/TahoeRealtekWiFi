@@ -35,6 +35,7 @@ units += [function((root / 'kext/RTWFamilyDataPath.inc').read_text(),
                    'bool RTWUSBController::uses8814FirmwareRate()')]
 units += [function(controller, marker) for marker in (
     'static IOReturn fromErrno(',
+    'void RTWUSBController::eraseProfile(',
     'IOReturn RTWUSBController::enableStation(',
     'IOReturn RTWUSBController::handleControl(')]
 recovery = root / 'kext/RTW8814Recovery.inc'

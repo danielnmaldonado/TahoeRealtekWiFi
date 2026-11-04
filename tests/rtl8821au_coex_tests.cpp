@@ -81,4 +81,32 @@ static void failures(){
  }
  printf("8821AU coex: %u startup I/O failures before/after effect; PTA/antenna/TDMA,H2C cursor,A2DP,5GHz,lifecycle,health and malformed C2H passed\n",total);
 }
-int main(){traces();boundaries();direct_stop_health();immutable_owner();inactive_counter_saturation();asynchronous_mp();live_phy_guard();guard_live_health();failures();}
+static void busyFirmwareDoesNotBlockFullStop(){
+ for(bool shared:{false,true})for(unsigned box=0;box<4;++box){
+  CoexFixture f(shared);f.start();f.connect();uint8_t a2dp[9]={9,0,1,0x49,0,20,0,0,40};
+  assert(!rtw_r21au_coex_c2h(f.c,a2dp,sizeof(a2dp),f.input.now_ms));assert(f.status().bt_profiles==1);
+  f.boot.h2c_box=box;f.bus.reg[0x1cc]=0xf;const auto sent=f.bus.commands.size();
+  assert(rtw_r21au_coex_stop(f.c)==0);
+  assert(!f.status().error&&!f.boot.io_error&&!f.status().active&&!f.status().pending_work);
+  assert(f.bus.commands.size()==sent&&f.boot.h2c_box==box);
+  assert((f.bus.read(0xaa)&0xffffU)==0x8000U);
+  assert(f.bus.reg[0xcb4]==0x77&&((f.bus.read(0xcb4)>>28)&3)==(shared?2U:1U));
+  f.bus.reg[0x1cc]=0;f.start();assert(f.status().active&&!f.status().error);assert(!rtw_r21au_coex_stop(f.c));
+ }
+ puts("8821AU full stop: active BT/A2DP, both antennas, all4 busy firmware boxes retire without H2C and restart");
+}
+static void fullStopIoFailuresRemainSticky(){
+ unsigned faults=0;
+ for(bool shared:{false,true}){
+  CoexFixture measured(shared);measured.start();measured.connect();auto begin=measured.bus.calls;
+  assert(!rtw_r21au_coex_stop(measured.c));const unsigned operations=measured.bus.calls-begin;assert(operations);
+  for(bool ambiguous:{false,true})for(unsigned step=1;step<=operations;++step){
+   CoexFixture f(shared);f.start();f.connect();f.bus.ambiguous=ambiguous;f.bus.fail=f.bus.calls+step;
+   assert(rtw_r21au_coex_stop(f.c)==EIO);
+   assert(f.status().error==EIO&&f.boot.io_error==EIO&&!f.status().active&&!f.status().pending_work);
+   f.bus.fail=0;assert(rtw_r21au_coex_stop(f.c)==EIO&&f.boot.io_error==EIO);++faults;
+  }
+ }
+ std::printf("8821AU full stop: %u antenna/scoreboard/power-off I/O faults before/after effect stay sticky\n",faults);
+}
+int main(){busyFirmwareDoesNotBlockFullStop();fullStopIoFailuresRemainSticky();traces();boundaries();direct_stop_health();immutable_owner();inactive_counter_saturation();asynchronous_mp();live_phy_guard();guard_live_health();failures();}

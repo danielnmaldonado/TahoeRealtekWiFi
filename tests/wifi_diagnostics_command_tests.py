@@ -275,6 +275,26 @@ class WiFiDiagnosticsCommandTests(unittest.TestCase):
         self.harness = CollectorHarness()
         self.addCleanup(self.harness.close)
 
+    def test_power_context_reports_sleep_and_manual_radio_intent(self):
+        gauges = {"RTWDiagSleeping": 0, "RTWDiagRunning": 1, "RTWDiagEnabled": 1,
+                  "RTWDiagRadioReady": 1, "RTWDiagPresent": 1,
+                  "RTWDiagCoreError": 60, "RTWDiagUserRadioDisabled": 0}
+        for entry in self.harness.before + self.harness.after:
+            entry["values"].update(gauges)
+        report = self.harness.run()
+        rows = {row["file"]: row for row in self.status_rows(report)}
+        for name in ("system/power_assertions.txt", "system/power_history.txt"):
+            self.assertTrue((report / name).is_file(), name)
+            self.assertEqual(rows[name]["result"], "ok")
+        trace = self.harness.trace.read_text()
+        self.assertIn("pmset\t-g assertions", trace)
+        self.assertIn("pmset\t-g log", trace)
+        summary = (report / "RTW-SUMMARY.txt").read_text()
+        for key, value in gauges.items():
+            self.assertIn(f"{key}={value}\n", summary)
+            self.assertNotRegex(summary, key + r"[^\n]*delta=")
+        self.assert_safe_commands()
+
     def snapshots(self, report):
         for name in ("RTW-before.txt", "RTW-after.txt", "RTW-before.json", "RTW-after.json"):
             self.assertTrue((report / "drivers" / name).is_file(), "Missing driver snapshot: " + name)
