@@ -45,6 +45,10 @@ for suite in menu credential-flow channel-map-reconnect adapter-preference; do
         -o "../out/menu-tests/$suite-tests"
     "../out/menu-tests/$suite-tests"
 done
+xcrun clang++ "${flags[@]}" -fobjc-arc tests/service-repair-tests.mm LoginItem.mm CredentialStore.mm ControlDiagnostics.mm DiagnosticCLI.mm AdapterDiagnostics.mm DriverDiagnostics.mm USBWiFiProfiles.cpp Transport.cpp \
+    -framework AppKit -framework ServiceManagement -framework Security -framework CoreServices -framework IOKit -framework CoreFoundation \
+    -o ../out/menu-tests/service-repair-tests
+../out/menu-tests/service-repair-tests
 xcrun clang++ "${flags[@]}" tests/cli-tests.cpp -framework IOKit -framework CoreFoundation -o ../out/menu-tests/cli-tests
 ../out/menu-tests/cli-tests
 

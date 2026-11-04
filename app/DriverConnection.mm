@@ -162,5 +162,51 @@ struct ResponseState {
     }
     return YES;
 }
+- (void)repairWithValidityCheck:(BOOL (^)(void))valid
+                    completion:(void (^)(NSError*))completion {
+    if(!completion)return;
+    // A launchd bootout does not unregister the ServiceManagement record.
+    // Use its completion API before binding the replacement executable.
+    dispatch_async(dispatch_get_main_queue(),^{
+        if(!valid||!valid()) {
+            completion([NSError errorWithDomain:NSCocoaErrorDomain code:NSUserCancelledError userInfo:nil]);return;
+        }
+        NSString* path=NSBundle.mainBundle.bundleURL.URLByResolvingSymlinksInPath.path;
+        if(!RTWProtectedBundle(path)) {
+            completion([NSError errorWithDomain:@"org.research.TahoeUSBWiFi.Driver" code:1
+                userInfo:@{NSLocalizedDescriptionKey:@"Install the complete app using its .pkg before repairing the service."}]);return;
+        }
+        if(self.state!=RTWLoginItemStateEnabled) {
+            completion([NSError errorWithDomain:@"org.research.TahoeUSBWiFi.Driver" code:4
+                userInfo:@{NSLocalizedDescriptionKey:@"Service repair only applies to an already-enabled service. Your disabled or pending choice was kept."}]);return;
+        }
+        SMAppService* service=self.service;
+        [service unregisterWithCompletionHandler:^(NSError* error){
+            // Apple documents this completion as the point at which the old
+            // process has been reaped. Re-register on the next main-queue turn.
+            dispatch_async(dispatch_get_main_queue(),^{
+                if(!valid()) {
+                    completion([NSError errorWithDomain:NSCocoaErrorDomain code:NSUserCancelledError userInfo:nil]);return;
+                }
+                if(!RTWProtectedBundle(path)) {
+                    completion([NSError errorWithDomain:@"org.research.TahoeUSBWiFi.Driver" code:1
+                        userInfo:@{NSLocalizedDescriptionKey:@"The protected app changed during service repair. Run its .pkg installer again."}]);return;
+                }
+                BOOL alreadyRemoved=NO;
+                if(@available(macOS 15.0,*))
+                    alreadyRemoved=error&&[error.domain isEqualToString:SMAppServiceErrorDomain]&&
+                        error.code==kSMErrorJobNotFound&&self.state==RTWLoginItemStateNotRegistered;
+                if(error&&!alreadyRemoved){completion(error);return;}
+                NSError* registrationError=nil;
+                const BOOL accepted=[service registerAndReturnError:&registrationError];
+                if(accepted&&(self.state==RTWLoginItemStateEnabled||self.state==RTWLoginItemStateRequiresApproval)) {
+                    completion(nil);return;
+                }
+                completion(registrationError?:[NSError errorWithDomain:@"org.research.TahoeUSBWiFi.Driver" code:6
+                    userInfo:@{NSLocalizedDescriptionKey:@"macOS did not confirm service re-registration. Check Login Items & Extensions."}]);
+            });
+        }];
+    });
+}
 - (void)openSystemSettings {[SMAppService openSystemSettingsLoginItems];}
 @end

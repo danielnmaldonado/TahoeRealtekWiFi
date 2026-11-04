@@ -41,7 +41,7 @@ if [[ -e "$APP" ]]; then
                 fail "Sign in to a user session to update the existing service."
             fi
         elif service_is_registered; then
-            fail "The old app is incomplete, has an invalid signature or is unprotected, and its service is still registered. Restore or disable the service before updating."
+            stop_owned_stale_service
         else
             log "Replacing an incomplete or unprotected copy; no old code was executed."
         fi
@@ -49,7 +49,7 @@ if [[ -e "$APP" ]]; then
         fail "The old version has no update protocol. Disable the service before replacing the app."
     fi
 elif service_is_registered; then
-    fail "An old service is registered without the app at the destination. Restore the previous app to disable it."
+    stop_owned_stale_service
 fi
 log "Preflight completed. The kernel extension and user data will not be changed."
 exit 0

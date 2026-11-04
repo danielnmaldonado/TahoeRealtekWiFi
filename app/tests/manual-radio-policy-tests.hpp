@@ -61,8 +61,12 @@ static void testManualRadioOffSurvivesLifecycle() {
         NSDate* deadline=[NSDate dateWithTimeIntervalSinceNow:5];
         while([[app valueForKey:@"credentialBusy"] boolValue]&&deadline.timeIntervalSinceNow>0)
             [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
+        // Keychain completion enqueues JOIN on another queue; it does not
+        // establish that the driver accepted that request yet.
+        while(![[app valueForKey:@"joinAccepted"] boolValue]&&deadline.timeIntervalSinceNow>0)
+            [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
         drainControlWork(app);
-        assert(driver.joins==1&&!driver->disabled[3003]&&!app.manualPause);
+        assert([[app valueForKey:@"joinAccepted"] boolValue]&&driver.joins==1&&!driver->disabled[3003]&&!app.manualPause);
         other.representedObject=@4004;[app selectAdapter:other];drainControlWork(app);
         assert(driver->adapters[4004].requests==1&&driver->disabled[4004]);
         [app refresh:nil];drainControlWork(app);assert(driver->adapters[4004].requests==2&&!driver->disabled[4004]);

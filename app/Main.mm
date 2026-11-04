@@ -177,6 +177,7 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
     BOOL _automaticCurrentJoin;
     std::atomic<uint64_t> _autoJoinEpoch;
     BOOL _authorizedSession,_authorizing,_busy,_hasStatus,_menuOpen,_joining,_joinAccepted,_diagnostic,_diagnosticPrinted;
+    BOOL _serviceRepairInFlight;
     uint64_t _joinGeneration;
     rtwui::DeviceSelection _selection;
     rtwui::ChannelMapState _channelMap;
@@ -400,7 +401,8 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
         _hasStatus,_statusReadDelayed,_joining,_status,[self uptime],_lastStatusSuccess);
 }
 - (NSString*)phaseTitle {
-    if(!_authorizedSession)return _authorizing?@"Connecting to service…":@"Driver service unavailable";
+    if(!_authorizedSession)return _serviceRepairInFlight?@"Repairing driver service…":
+        _authorizing?@"Connecting to service…":@"Driver service unavailable";
     if(!_selection.registryID)return _adapters.empty()?@"No adapter available":@"Select an adapter";
     if(!_selectedPresent)return @"Selected adapter disconnected";
     if(!_hasStatus)return @"Checking adapter…";
@@ -438,6 +440,8 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
     NSMenuItem* title=[self add:@"Tahoe Wi-Fi USB" action:nil enabled:NO];
     title.attributedTitle=[[NSAttributedString alloc]initWithString:title.title attributes:@{NSFontAttributeName:[NSFont boldSystemFontOfSize:13]}];
     _header=[self add:[self phaseTitle] action:nil enabled:NO];
+    const auto driverServiceState=_serviceManager?_serviceManager.state:RTWLoginItemStateNotRegistered;
+    const BOOL serviceWorking=_authorizing||_serviceRepairInFlight;
     BOOL canControl=_authorizedSession&&_selectedPresent&&_selection.registryID;
     NSMenuItem* adapterMenu=[self add:@"USB adapter" action:nil enabled:_authorizedSession];
     NSMenu* choices=[[NSMenu alloc]initWithTitle:@"USB adapters"];choices.autoenablesItems=NO;
@@ -448,7 +452,8 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
         choice.state=adapter.registryID==_selection.registryID?NSControlStateValueOn:NSControlStateValueOff;[choices addItem:choice];
     }
     if(_selection.registryID&&!_selectedPresent){NSMenuItem* missing=[[NSMenuItem alloc]initWithTitle:[NSString stringWithFormat:@"ID %llu · disconnected",(unsigned long long)_selection.registryID] action:nil keyEquivalent:@""];missing.enabled=NO;missing.state=NSControlStateValueOn;[choices addItem:missing];}
-    if(!_adapters.size()){NSMenuItem* empty=[[NSMenuItem alloc]initWithTitle:_authorizedSession?@"No compatible adapter":@"Enable the service to list adapters" action:nil keyEquivalent:@""];empty.enabled=NO;[choices addItem:empty];}
+    if(!_adapters.size()){NSMenuItem* empty=[[NSMenuItem alloc]initWithTitle:_authorizedSession?@"No compatible adapter":
+        driverServiceState==RTWLoginItemStateEnabled?@"Driver connection unavailable":@"Enable the service to list adapters" action:nil keyEquivalent:@""];empty.enabled=NO;[choices addItem:empty];}
     adapterMenu.submenu=choices;
     BOOL connected=[self linkIndicator]==rtwui::LinkIndicator::Connected;
     if(connected){
@@ -460,7 +465,15 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
         [self add:@"The selected USB adapter stopped responding. Unplug and reconnect it." action:nil enabled:NO];
     else if(_notice.length)[self add:_notice action:nil enabled:NO];
     [_menu addItem:NSMenuItem.separatorItem];
-    if(!_authorizedSession)[self add:_authorizing?@"Connecting…":@"Enable driver service…" action:@selector(authorize:) enabled:!_authorizing];
+    if(!_authorizedSession) {
+        NSString* action=driverServiceState==RTWLoginItemStateEnabled?@"Retry driver connection…":
+            driverServiceState==RTWLoginItemStateRequiresApproval?@"Allow driver service…":@"Enable driver service…";
+        [self add:_serviceRepairInFlight?@"Repairing driver service…":_authorizing?@"Connecting…":action
+            action:driverServiceState==RTWLoginItemStateEnabled?@selector(retryDriverConnection:):@selector(authorize:)
+            enabled:!serviceWorking];
+        if(driverServiceState==RTWLoginItemStateEnabled)
+            [self add:@"Repair driver service…" action:@selector(repairDriverService:) enabled:!serviceWorking];
+    }
     NSMenuItem* refresh=[self add:_refreshingNetworks?@"Refreshing networks…":@"Refresh networks"
         action:@selector(refresh:) enabled:canControl&&!_joining&&!_credentialBusy&&
             !_commandPending&&!_refreshingNetworks&&!(_hasStatus&&(_status.flags&RTW_CONTROL_SCANNING))];
@@ -490,7 +503,8 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
             available?@"":@" · Requires WPA2-Personal/CCMP and a channel enabled by this driver"];
         if(connected&&r.ssidLength==_status.ssidLength&&!memcmp(r.ssid,_status.ssid,r.ssidLength))entry.state=NSControlStateValueOn;
     }
-    if(_networks.empty())[self add:_authorizedSession?@"No cached networks. Choose Refresh networks.":@"Enable the service to list networks." action:nil enabled:NO];
+    if(_networks.empty())[self add:_authorizedSession?@"No cached networks. Choose Refresh networks.":
+        driverServiceState==RTWLoginItemStateEnabled?@"Restore the driver connection to list networks.":@"Enable the service to list networks." action:nil enabled:NO];
     if(_scan.truncated)[self add:@"The driver limits the list to 64 access points." action:nil enabled:NO];
     [self add:@"Other network (hidden SSID)…" action:@selector(otherNetwork:) enabled:canControl&&!_joining&&!_credentialBusy];
     [self add:[NSString stringWithFormat:@"WPA2-Personal / CCMP · %@",
@@ -519,8 +533,8 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
     if(loginState==RTWLoginItemStateNotFound)
         [self add:@"Registration not found · click to register or repair." action:nil enabled:NO];
     [self add:@"Repair login startup…" action:@selector(repairLoginAtStartup:) enabled:YES];
-    if(_serviceManager.state==RTWLoginItemStateEnabled||_serviceManager.state==RTWLoginItemStateRequiresApproval)
-        [self add:@"Disable driver service…" action:@selector(disableDriverService:) enabled:!_authorizing];
+    if(driverServiceState==RTWLoginItemStateEnabled||driverServiceState==RTWLoginItemStateRequiresApproval)
+        [self add:@"Disable driver service…" action:@selector(disableDriverService:) enabled:!serviceWorking];
     [_menu addItem:NSMenuItem.separatorItem];
     [self add:@"About Tahoe Wi-Fi USB…" action:@selector(about:) enabled:YES];
     NSMenuItem* quit=[self add:@"Quit" action:@selector(quit:) enabled:YES];quit.keyEquivalent=@"q";
@@ -577,7 +591,11 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
                 @"macOS did not confirm app registration."];
         }
     }
-    if(firstSetup||[defaults boolForKey:@"RTWResumeServiceAfterInstall"]) {
+    if(_serviceManager.state==RTWLoginItemStateEnabled) {
+        // A repaired/manual replacement can leave an Enabled SM record bound
+        // to the previous executable, even after its launchd job was stopped.
+        [self repairDriverService:nil];
+    }else if(firstSetup||[defaults boolForKey:@"RTWResumeServiceAfterInstall"]) {
         [self authorize:nil];
         if(_serviceManager.state==RTWLoginItemStateEnabled||
            _serviceManager.state==RTWLoginItemStateRequiresApproval) {
@@ -586,9 +604,59 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
         }
     }
 }
+- (void)repairDriverService:(id)sender {
+    (void)sender;
+    if(_terminating||_sleeping||_inactiveSession||_authorizing||_serviceRepairInFlight||!_queue||
+       _serviceManager.state!=RTWLoginItemStateEnabled)return;
+    [self invalidatePendingWork];_authorizedSession=NO;
+    _selection.invalidate();_adapterEpoch.store(_selection.generation);
+    [self clearAdapterState];
+    // All RTWDriverConnection access stays on its existing serial queue. A
+    // new LIST after repair queues behind this close, retiring the old proxy.
+    dispatch_async(_queue,^{[self->_driver close];});
+    _authorizing=YES;_serviceRepairInFlight=YES;_notice=@"Repairing the installed driver service…";
+    const auto epoch=_workEpoch.snapshot();
+    __block BOOL repairPending=YES;
+    __weak WiFiApp* weakSelf=self;
+    [_serviceManager repairWithValidityCheck:^BOOL{
+        WiFiApp* app=weakSelf;
+        return repairPending&&app&&!app->_terminating&&!app->_sleeping&&!app->_inactiveSession&&
+            app->_authorizing&&app->_workEpoch.matches(epoch);
+    } completion:^(NSError* error){
+        repairPending=NO;
+        WiFiApp* app=weakSelf;
+        if(app)app->_serviceRepairInFlight=NO;
+        if(!app||app->_terminating||!app->_workEpoch.matches(epoch))return;
+        app->_authorizing=NO;
+        if(error) {
+            app->_notice=RTWEnglishError(error)?:@"The service could not be repaired.";
+            app->_serviceRetry.fail([app uptime]);
+            [app showMessage:@"Driver service repair" detail:app->_notice];
+        }else {
+            [[app preferences] setBool:YES forKey:@"RTWServiceSetupComplete"];
+            [[app preferences] removeObjectForKey:@"RTWResumeServiceAfterInstall"];
+            if(app->_serviceManager.state==RTWLoginItemStateRequiresApproval) {
+                app->_notice=@"Allow Tahoe Wi-Fi USB in Login Items & Extensions.";
+                [app->_serviceManager openSystemSettings];
+            }else {
+                app->_notice=nil;app->_serviceRetry.reset();[app connectDriverAutomatically];
+            }
+        }
+        [app updateAppearance];
+    }];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,15LL*NSEC_PER_SEC),dispatch_get_main_queue(),^{
+        WiFiApp* app=weakSelf;
+        if(!repairPending||!app||app->_terminating||!app->_authorizing||!app->_workEpoch.matches(epoch))return;
+        repairPending=NO;
+        [app invalidatePendingWork];app->_serviceRetry.fail([app uptime]);
+        app->_notice=@"Service repair is taking longer than expected. Wait for macOS to finish before trying again.";
+        [app updateAppearance];
+    });
+    [self updateAppearance];
+}
 - (void)authorize:(id)sender {
     (void)sender;
-    if(_terminating||_authorizing)return;
+    if(_terminating||_authorizing||_serviceRepairInFlight)return;
     NSError* error=nil;
     if(![_serviceManager enableAndReturnError:&error]) {
         _notice=RTWEnglishError(error)?:@"Could not register the driver service.";
@@ -603,8 +671,13 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
     }
     [self updateAppearance];
 }
+- (void)retryDriverConnection:(id)sender {
+    (void)sender;
+    if(_terminating||_authorizing||_serviceRepairInFlight||_authorizedSession||_serviceManager.state!=RTWLoginItemStateEnabled)return;
+    _serviceRetry.reset();[self connectDriverAutomatically];
+}
 - (void)connectDriverAutomatically {
-    if(_terminating||_authorizing||_authorizedSession||_sleeping||_inactiveSession||!_queue)return;
+    if(_terminating||_authorizing||_serviceRepairInFlight||_authorizedSession||_sleeping||_inactiveSession||!_queue)return;
     const auto state=_serviceManager.state;
     if(state!=RTWLoginItemStateEnabled) {
         _notice=state==RTWLoginItemStateRequiresApproval?
@@ -633,7 +706,8 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
             self->_authorizedSession=result==0;
             if(result) {
                 self->_serviceRetry.fail([self uptime]);
-                self->_notice=@"Service unavailable; retrying automatically. Check approval in System Settings.";
+                self->_notice=[NSString stringWithFormat:
+                    @"Driver service is enabled but communication failed (0x%08x). Retry the connection or reinstall using the .pkg.",result];
             }else {
                 self->_serviceRetry.reset();self->_notice=nil;
                 self->_forceDeviceList=YES;self->_forceNetworkCache=YES;
@@ -647,6 +721,7 @@ static NSDictionary<NSNumber*,NSDictionary*>* adapterIdentitiesForWork(const rtw
 }
 - (void)disableDriverService:(id)sender {
     (void)sender;
+    if(_serviceRepairInFlight)return;
     NSAlert* alert=[NSAlert new];alert.messageText=@"Disable the driver service?";
     alert.informativeText=@"The app will not control or reconnect USB Wi-Fi until you enable the service again. No passwords will be deleted.";
     [alert addButtonWithTitle:@"Disable"];[alert addButtonWithTitle:@"Cancel"];

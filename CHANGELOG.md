@@ -1,3 +1,14 @@
+# App0.3.15 / build57 — package delivery and service recovery
+
+- Publish the application installer `.pkg` and checksums from GitHub Actions
+  and development releases; keep the kernel extension as a separate ZIP.
+- Distinguish service registration, approval and IPC connection failures in
+  the menu, and retain the numeric failure code instead of asking to enable
+  an already enabled service.
+- Recover a verified stale app-owned service through the protected installed
+  app, preserving disabled choices, permissions and explicit radio-off intent.
+- Driver0.14.20/build67 is unchanged. See `docs/INSTALLER-0.3.15.md`.
+
 # 0.14.20 / build67 — app0.3.14 / build56 — power recovery
 
 - Preserve the configured network across OS interface power-down and restore

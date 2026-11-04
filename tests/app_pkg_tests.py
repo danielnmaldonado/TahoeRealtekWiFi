@@ -98,7 +98,26 @@ elif tool == "launchctl":
     if args[:1] == ["print"]:
         if args[1].startswith("gui/"):
             sys.exit(0 if flag("GUI", "1") == "1" else 1)
-        sys.exit(0 if pathlib.Path(flag("SERVICE")).exists() else 1)
+        if flag("PRINT_ERROR") == "1":
+            print("Permission denied while reading service", file=sys.stderr)
+            sys.exit(5)
+        if pathlib.Path(flag("SERVICE")).exists():
+            print('system/org.research.TahoeUSBWiFi.driver = {')
+            print('\tmanaged_by = ' + flag("JOB_MANAGER", "com.apple.xpc.ServiceManagement"))
+            print('\tparent bundle identifier = ' + flag("JOB_PARENT", "org.research.TahoeUSBWiFi" if flag("OWN_JOB") == "1" else "another.app"))
+            print('\tprogram identifier = ' + flag("JOB_PROGRAM", "Contents/Helpers/TahoeWiFiHelper (mode: 2)"))
+            print('}')
+            sys.exit(0)
+        print('Could not find service "org.research.TahoeUSBWiFi.driver" in domain for system', file=sys.stderr)
+        sys.exit(113)
+    if args[:1] == ["bootout"]:
+        if args != ["bootout", "system/org.research.TahoeUSBWiFi.driver"]:
+            sys.exit(96)
+        if flag("BOOTOUT_FAIL") == "1": sys.exit(5)
+        if flag("BOOTOUT_KEEP_JOB") != "1":
+            pathlib.Path(flag("SERVICE")).unlink(missing_ok=True)
+        # Deliberately retain the separate SM registration fixture.
+        sys.exit(0)
     if args[:1] == ["asuser"]:
         if int(args[1]) < 501: sys.exit(90)
         sys.exit(subprocess.call(args[2:]))
@@ -324,6 +343,58 @@ class PackageScriptTests(unittest.TestCase):
         result=self.run_hook("preinstall")
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         self.assertEqual(self.history("old-app"),[])
+
+    def test_preinstall_recovers_only_own_orphan_and_preserves_sm_registration(self):
+        shutil.rmtree(self.bundle)
+        self.service.touch()
+        registration=self.folder/"sm-registration"
+        registration.write_text("Enabled")
+        unrelated=self.folder/"another-service"
+        unrelated.touch()
+        result=self.run_hook("preinstall",OWN_JOB=1)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertFalse(self.service.exists())
+        self.assertEqual(registration.read_text(),"Enabled")
+        self.assertTrue(unrelated.exists())
+        self.assertEqual(self.history("old-app"),[])
+        bootouts=[e["args"] for e in self.history("launchctl") if e["args"][0]=="bootout"]
+        self.assertEqual(bootouts,[["bootout","system/org.research.TahoeUSBWiFi.driver"]])
+
+    def test_preinstall_repairs_own_incomplete_or_unprotected_copy_without_execution(self):
+        for kind in ("incomplete","unprotected"):
+            with self.subTest(kind=kind):
+                self.make_bundle()
+                if kind=="incomplete":
+                    (self.bundle/"Contents/Helpers/TahoeWiFiHelper").unlink()
+                self.service.touch()
+                result=self.run_hook("preinstall",OWN_JOB=1,BAD_OWNER=int(kind=="unprotected"))
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+                self.assertFalse(self.service.exists())
+                self.assertEqual(self.history("old-app"),[])
+
+    def test_preinstall_never_stops_unknown_or_unreadable_orphan_job(self):
+        shutil.rmtree(self.bundle)
+        for flags in ({}, {"OWN_JOB":1,"JOB_MANAGER":"another.manager"},
+                      {"OWN_JOB":1,"JOB_MANAGER":"comXappleXxpcXServiceManagement"},
+                      {"OWN_JOB":1,"JOB_PARENT":"another.app"},
+                      {"OWN_JOB":1,"JOB_PARENT":"orgXresearchXTahoeUSBWiFi"},
+                      {"OWN_JOB":1,"JOB_PROGRAM":"Contents/Helpers/AnotherHelper (mode: 2)"},
+                      {"OWN_JOB":1,"PRINT_ERROR":1}):
+            with self.subTest(flags=flags):
+                self.service.touch()
+                result=self.run_hook("preinstall",**flags)
+                self.assertNotEqual(result.returncode,0,result.stdout+result.stderr)
+                self.assertTrue(self.service.exists())
+        self.assertEqual([e for e in self.history("launchctl") if e["args"][0]=="bootout"],[])
+
+    def test_preinstall_refuses_failed_or_undrained_owned_orphan_cleanup(self):
+        shutil.rmtree(self.bundle)
+        for flags in ({"BOOTOUT_FAIL":1},{"BOOTOUT_KEEP_JOB":1},{"GUI":0}):
+            with self.subTest(flags=flags):
+                self.service.touch()
+                result=self.run_hook("preinstall",OWN_JOB=1,**flags)
+                self.assertNotEqual(result.returncode,0,result.stdout+result.stderr)
+                self.assertTrue(self.service.exists())
 
     def test_preinstall_rejects_running_app(self):
         result=self.run_hook("preinstall",PGREP_STATUS=0)
@@ -680,6 +751,119 @@ class NativeBuildDeploymentTests(unittest.TestCase):
             self.assertEqual(sentinel.read_bytes(), b"keep this previous app")
             self.assertEqual(list(output.glob(".TahoeWiFi-build.*")), [])
             self.assertEqual(list(output.glob(".Tahoe-WiFi-USB-previous.*")), [])
+
+
+class CIInstallerWorkflowTests(unittest.TestCase):
+    """Execute CI's actual shell steps; signing/packaging are process boundaries."""
+
+    def workflow_step(self, name):
+        lines = (ROOT/".github/workflows/build-macos.yml").read_text().splitlines()
+        marker = "      - name: " + name
+        self.assertTrue(marker in lines, "CI must provide the installer delivery step: " + name)
+        start = lines.index(marker)
+        for i in range(start+1, len(lines)):
+            if lines[i].startswith("      - name:"):
+                break
+            if lines[i].startswith("        run: "):
+                value = lines[i].split("run: ", 1)[1]
+                if value != "|":
+                    return value + "\n"
+                body = []
+                for line in lines[i+1:]:
+                    if line and not line.startswith("          "):
+                        break
+                    body.append(line[10:] if line else "")
+                return "\n".join(body) + "\n"
+        self.fail("CI step has no executable shell body: " + name)
+
+    def setUp(self):
+        import zipfile
+        self.temp = tempfile.TemporaryDirectory(prefix="rtw-ci-installer-")
+        self.addCleanup(self.temp.cleanup)
+        self.folder = Path(self.temp.name)
+        self.commands = self.folder/"commands"
+        self.commands.mkdir()
+        for name, body in {
+            "codesign": "exit 0\n",
+            "sha256sum": 'exec /usr/bin/shasum -a 256 "$@"\n',
+        }.items():
+            path = self.commands/name
+            path.write_text("#!/bin/bash\n" + body)
+            path.chmod(0o755)
+        self.environment = dict(os.environ, PATH=str(self.commands)+os.pathsep+os.environ["PATH"],
+                                RUNNER_TEMP=str(self.folder/"runner temp"))
+        Path(self.environment["RUNNER_TEMP"]).mkdir()
+        self.assets = self.folder/"release-assets"
+        self.assets.mkdir()
+        with zipfile.ZipFile(self.assets/"TahoeRealtekWiFi.kext.zip", "w") as archive:
+            archive.writestr("TahoeRealtekWiFi.kext/Contents/Info.plist", "fixture")
+
+    @staticmethod
+    def installer_fixture(*, distribution=True, component=True):
+        import zlib
+        names = (["Distribution"] if distribution else []) + (["TahoeWiFi-component.pkg"] if component else [])
+        xml = ("<xar><toc>" + "".join("<file><name>"+name+"</name><type>file</type></file>" for name in names)
+               + "</toc></xar>").encode()
+        compressed = zlib.compress(xml)
+        return struct.pack(">4sHHQQI", b"xar!", 28, 1, len(compressed), len(xml), 0) + compressed
+
+    def run_step(self, name, *, cwd=None):
+        return subprocess.run(["bash", "-c", self.workflow_step(name)], cwd=cwd or self.folder,
+                              env=self.environment, capture_output=True, text=True, timeout=15)
+
+    def put_installer_download(self, data):
+        import hashlib
+        package = self.assets/"Tahoe-Wi-Fi-USB.pkg"
+        package.write_bytes(data)
+        package.with_suffix(".pkg.sha256").write_text(hashlib.sha256(data).hexdigest()+"  "+package.name+"\n")
+
+    def test_ci_builds_and_stages_checksummed_installer_instead_of_app(self):
+        import hashlib
+        (self.folder/"app").mkdir()
+        bundle = self.folder/"Release/Tahoe Wi-Fi USB.app/Contents"
+        for relative in ("MacOS/TahoeUSBWiFi", "Helpers/TahoeWiFiHelper"):
+            path = bundle/relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"signed executable boundary")
+        fixture = self.installer_fixture()
+        (self.folder/"installer.fixture").write_bytes(fixture)
+        (self.folder/"app/package.command").write_text(
+            '#!/bin/bash\nset -euo pipefail\nprintf "%s\\n" "$@" > package.args\n'
+            '[[ "$#" == 1 && "$1" == --no-build ]]\n'
+            'cp installer.fixture Release/Tahoe-WiFi-USB-0.9.9.pkg\n')
+        built = self.run_step("Build the application installer")
+        self.assertEqual(built.returncode, 0, built.stdout+built.stderr)
+        staged = self.run_step("Archive validated bundles without losing macOS permissions")
+        self.assertEqual(staged.returncode, 0, staged.stdout+staged.stderr)
+        output = Path(self.environment["RUNNER_TEMP"])/"Tahoe-Wi-Fi-USB.pkg"
+        self.assertEqual(output.read_bytes(), fixture)
+        self.assertEqual(output.with_suffix(".pkg.sha256").read_text(),
+                         hashlib.sha256(fixture).hexdigest()+"  "+output.name+"\n")
+        workflow = (ROOT/".github/workflows/build-macos.yml").read_text()
+        self.assertNotIn("Tahoe-Wi-Fi-USB.app.zip", workflow)
+        self.assertEqual(workflow.count("name: Tahoe-Wi-Fi-USB-installer-x86_64"), 2)
+        self.assertIn("Release/build-pkg.log", workflow)
+
+    def test_release_validates_real_xar_table_and_checksums(self):
+        self.put_installer_download(self.installer_fixture())
+        result = self.run_step("Validate release downloads and generate SHA-256 checksums")
+        self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
+        sums = (self.assets/"SHA256SUMS.txt").read_text()
+        self.assertIn("TahoeRealtekWiFi.kext.zip", sums)
+        self.assertIn("Tahoe-Wi-Fi-USB.pkg", sums)
+
+    def test_release_rejects_missing_installer_members_or_tampered_download(self):
+        for data in (b"xar!not an installer", self.installer_fixture(distribution=False),
+                     self.installer_fixture(component=False)):
+            with self.subTest(data=data[:28]):
+                self.put_installer_download(data)
+                result = self.run_step("Validate release downloads and generate SHA-256 checksums")
+                self.assertNotEqual(result.returncode, 0, result.stdout+result.stderr)
+        self.put_installer_download(self.installer_fixture())
+        with (self.assets/"Tahoe-Wi-Fi-USB.pkg").open("ab") as stream:
+            stream.write(b"changed after upload")
+        result = self.run_step("Validate release downloads and generate SHA-256 checksums")
+        self.assertNotEqual(result.returncode, 0, result.stdout+result.stderr)
 
 
 if __name__ == "__main__":

@@ -529,9 +529,11 @@ static void testCancelledPollBoundaries() {
     std::fflush(stdout);assert(!failures&&"an invalidated poll must not start its next read boundary");
     puts("Actual Main cancellation: in-flight LIST/STATUS/MAP/cache stop before later reads; current adapter poll still completes");
 }
+#include "driver-service-menu-tests.hpp"
 int main() {
     @autoreleasepool {
         [NSApplication sharedApplication];
+        testDriverServiceMenuStates();
         testScreenLifecyclePreservesLink();testScreenRefreshYieldsToSuspension();testLifecycleDiagnosticReasons();
         testManualRadioOffSurvivesLifecycle();
         testCancelledPollBoundaries();

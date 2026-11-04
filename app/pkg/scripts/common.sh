@@ -76,7 +76,38 @@ bundle_is_protected() {
 }
 
 service_is_registered() {
-    /bin/launchctl print "system/$SERVICE_ID" >/dev/null 2>&1
+    local listing status=0
+    listing=$(/bin/launchctl print "system/$SERVICE_ID" 2>&1) || status=$?
+    if [[ "$status" -eq 0 ]]; then return 0; fi
+    if [[ "$status" -eq 113 && "$listing" == *"Could not find service \"$SERVICE_ID\" in domain for system"* ]]; then
+        return 1
+    fi
+    fail "Could not inspect the driver service. Installation was canceled before changing it."
+}
+
+stop_owned_stale_service() {
+    local listing
+    listing=$(/bin/launchctl print "system/$SERVICE_ID" 2>&1) ||
+        fail "Could not verify the stale service; nothing was stopped."
+    # Only this exact SM-managed parent and BundleProgram may be retired.
+    # A label by itself must never authorize stopping an unrelated job.
+    [[ "$listing" == "system/$SERVICE_ID = {"* ]] &&
+    [[ "$listing" =~ $'\n'[[:space:]]*managed_by[[:space:]]=[[:space:]]com\.apple\.xpc\.ServiceManagement$'\n' ]] &&
+    [[ "$listing" =~ $'\n'[[:space:]]*parent[[:space:]]bundle[[:space:]]identifier[[:space:]]=[[:space:]]org\.research\.TahoeUSBWiFi$'\n' ]] &&
+    [[ "$listing" =~ $'\n'[[:space:]]*program[[:space:]]identifier[[:space:]]=[[:space:]]Contents/Helpers/TahoeWiFiHelper[[:space:]]\(mode:[[:space:]]2\)$'\n' ]] ||
+        fail "The registered job does not match this app's managed service. It was preserved."
+    identify_console_user || fail "Sign in to a graphical user session to repair the existing driver service."
+    /bin/launchctl bootout "system/$SERVICE_ID" ||
+        fail "macOS could not stop this app's stale service. Installation was canceled."
+    local attempt
+    for (( attempt=0; attempt<10; ++attempt )); do
+        if ! service_is_registered; then
+            log "Stopped this app's stale job. The new protected app will repair its ServiceManagement registration."
+            return 0
+        fi
+        /bin/sleep 1
+    done
+    fail "The stale driver service did not stop. Installation was canceled."
 }
 
 check_app_closed() {

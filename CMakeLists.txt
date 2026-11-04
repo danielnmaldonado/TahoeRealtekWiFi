@@ -334,6 +334,19 @@ if(BUILD_TESTING)
         target_link_libraries(rtw-menu-driver-diagnostics-tests PRIVATE "-framework Foundation" "-framework IOKit" "-framework CoreFoundation")
         add_test(NAME rtw-menu-driver-diagnostics-tests COMMAND rtw-menu-driver-diagnostics-tests)
 
+        add_executable(rtw-menu-service-repair-tests app/tests/service-repair-tests.mm
+            app/LoginItem.mm app/CredentialStore.mm app/ControlDiagnostics.mm
+            app/DiagnosticCLI.mm app/AdapterDiagnostics.mm app/DriverDiagnostics.mm
+            app/USBWiFiProfiles.cpp app/Transport.cpp)
+        target_include_directories(rtw-menu-service-repair-tests PRIVATE app kext include)
+        target_compile_options(rtw-menu-service-repair-tests PRIVATE -fobjc-arc -Wall -Wextra -Werror -Werror=unguarded-availability -Werror=unguarded-availability-new -mmacosx-version-min=13.0)
+        target_link_options(rtw-menu-service-repair-tests PRIVATE -mmacosx-version-min=13.0)
+        target_link_libraries(rtw-menu-service-repair-tests PRIVATE "-framework AppKit"
+            "-framework ServiceManagement" "-framework Security" "-framework CoreServices"
+            "-framework IOKit" "-framework CoreFoundation")
+        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/service-repair-test-home")
+        add_test(NAME rtw-menu-service-repair-tests COMMAND rtw-menu-service-repair-tests)
+
     endif()
 
     add_executable(rtw-control-tests tests/control_tests.cpp)
@@ -712,5 +725,7 @@ if(BUILD_TESTING)
         file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/diagnostic-test-home")
         set_property(TEST rtw-menu-diagnostic-cli-tests APPEND PROPERTY ENVIRONMENT
             "CFFIXED_USER_HOME=${CMAKE_BINARY_DIR}/diagnostic-test-home")
+        set_property(TEST rtw-menu-service-repair-tests APPEND PROPERTY ENVIRONMENT
+            "CFFIXED_USER_HOME=${CMAKE_BINARY_DIR}/service-repair-test-home")
     endif()
 endif()
