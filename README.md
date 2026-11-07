@@ -1,5 +1,7 @@
 # Tahoe Wi-Fi USB
 
+> **This driver is experimental. Contributions are always welcome.**
+
 Realtek USB Wi-Fi driver and menu-bar app for **Intel Macs** running
 **macOS Ventura 13, Sonoma 14, Sequoia 15 and Tahoe 26**.
 
